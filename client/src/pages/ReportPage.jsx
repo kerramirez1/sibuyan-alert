@@ -257,6 +257,13 @@ const ReportPage = () => {
     // between steps never clears values, photos, previews, or location data —
     // only the visible step's panel is mounted.
     const [activeStep, setActiveStep] = useState(1);
+    // Deferred map mount for cold-start perceived speed: the step-1 form shell
+    // paints first (interactive without the ~1MB map chunk), then the map mounts
+    // on requestIdleCallback (setTimeout 300ms fallback). Sticky once true —
+    // stepping away and back must not re-defer. All location state already
+    // lives here, so the late mount initializes from the same props and every
+    // map behavior (pin drag, GPS focus, location select) is identical.
+    const [mapMountReady, setMapMountReady] = useState(false);
     // Top of the wizard form: step changes scroll the page back here (with a
     // scroll margin for the fixed header) without moving the fixed chrome.
     const formTopRef = useRef(null);
@@ -667,6 +674,29 @@ const ReportPage = () => {
             reverseGeocodeAbortRef.current?.abort();
         };
     }, []);
+
+    // Deferred map mount (see mapMountReady above). Runs only while step 1 is
+    // visible; the GPS auto-pass above stays exactly as-is and does not wait
+    // for the map.
+    useEffect(() => {
+        if (activeStep !== 1 || mapMountReady) return undefined;
+        let cancelled = false;
+        const markMapMountReady = () => {
+            if (!cancelled) setMapMountReady(true);
+        };
+        if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+            const idleId = window.requestIdleCallback(markMapMountReady);
+            return () => {
+                cancelled = true;
+                if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(idleId);
+            };
+        }
+        const timer = setTimeout(markMapMountReady, 300);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [activeStep, mapMountReady]);
 
     // Draft autosave: fields only, debounced, never photos or tokens. A closed
     // tab or a validation-blocked submit still restores on return.
@@ -1270,6 +1300,7 @@ const ReportPage = () => {
                                 formData={formData}
                                 handleChange={handleChange}
                                 locationError={errors.location}
+                                mapMountReady={mapMountReady}
                             />
                         )}
 

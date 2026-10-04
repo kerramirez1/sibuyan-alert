@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 // `vi.hoisted` because the mock factory below is hoisted above this file's
@@ -1573,5 +1573,100 @@ describe('MapView incident-preview pin interactivity', () => {
         await waitFor(() => {
             expect(screen.getByRole('dialog', { name: 'Incident details' })).toBeInTheDocument();
         });
+    });
+});
+
+const { connectivityMock } = vi.hoisted(() => ({ connectivityMock: { isOnline: true } }));
+
+vi.mock('../hooks/useConnectivity', () => ({
+    useConnectivity: () => ({ isOnline: connectivityMock.isOnline, lastChangedAt: null }),
+    default: () => ({ isOnline: connectivityMock.isOnline, lastChangedAt: null }),
+}));
+
+describe('MapView offline fallback', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockMapInstances.length = 0;
+        Object.keys(mockOnCallbacks).forEach((k) => delete mockOnCallbacks[k]);
+        connectivityMock.isOnline = true;
+        vi.stubEnv('VITE_3D_LABELS_PMTILES_URL', '');
+        vi.stubEnv('VITE_PMTILES_URL', '');
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    test('offline at mount renders the fallback panel without attempting the PMTiles inspection', () => {
+        connectivityMock.isOnline = false;
+        const onOfflineFallbackChange = vi.fn();
+
+        render(<MapView mode="report-location" onOfflineFallbackChange={onOfflineFallbackChange} />);
+
+        // The fallback panel is up immediately: no "Preparing map..." first.
+        expect(screen.getByText('Map unavailable offline')).toBeInTheDocument();
+        expect(screen.getByText(/the street map needs a connection/i)).toBeInTheDocument();
+        expect(screen.getByRole('status')).toBeInTheDocument();
+        expect(screen.queryByText(/preparing map/i)).not.toBeInTheDocument();
+
+        // The tile pipeline was never started: no archive inspection fetch and
+        // no map instance was constructed.
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(maplibregl.Map).not.toHaveBeenCalled();
+
+        // The caller is told, so it can surface its GPS action.
+        expect(onOfflineFallbackChange).toHaveBeenCalledWith(true);
+
+        // GPS coordinates are shown when the caller already knows them.
+        const { unmount } = render(
+            <MapView
+                mode="report-location"
+                userLocation={{ lat: 12.345678, lng: 122.345678 }}
+            />,
+        );
+        expect(screen.getByText('12.345678, 122.345678')).toBeInTheDocument();
+        unmount();
+    });
+
+    test('the preparation timeout fires the fallback on a flaky link that never settles', () => {
+        vi.useFakeTimers();
+        // The link blackholes: fetches neither succeed nor fail.
+        vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+        const onOfflineFallbackChange = vi.fn();
+
+        render(<MapView mode="report-location" onOfflineFallbackChange={onOfflineFallbackChange} />);
+
+        // Still preparing just before the deadline...
+        act(() => {
+            vi.advanceTimersByTime(9000);
+        });
+        expect(screen.queryByText('Map unavailable offline')).not.toBeInTheDocument();
+        expect(screen.getByText(/preparing map/i)).toBeInTheDocument();
+
+        // ...then the ~10s timeout gives up and the fallback takes over.
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        expect(screen.getByText('Map unavailable offline')).toBeInTheDocument();
+        expect(onOfflineFallbackChange).toHaveBeenCalledWith(true);
+        expect(maplibregl.Map).not.toHaveBeenCalled();
+    });
+
+    test('"Try again" re-runs preparation and stays in the fallback while still offline', () => {
+        connectivityMock.isOnline = false;
+        const onOfflineFallbackChange = vi.fn();
+
+        render(<MapView mode="report-location" onOfflineFallbackChange={onOfflineFallbackChange} />);
+        expect(screen.getByText('Map unavailable offline')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /^try again$/i }));
+
+        // The reset clears the fallback, then preparation re-runs, sees the
+        // link is still dead, and the fallback returns — no crash, no fetch.
+        expect(onOfflineFallbackChange).toHaveBeenCalledWith(false);
+        expect(onOfflineFallbackChange).toHaveBeenLastCalledWith(true);
+        expect(screen.getByText('Map unavailable offline')).toBeInTheDocument();
+        expect(global.fetch).not.toHaveBeenCalled();
     });
 });

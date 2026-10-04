@@ -60,7 +60,7 @@ const renderPage = () => render(
 // mocked map also works.
 const advanceWizardTo = async (targetStep) => {
     if (targetStep >= 2) {
-        fireEvent.click(screen.getByTestId('location-map'));
+        fireEvent.click(await screen.findByTestId('location-map'));
         fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
         await screen.findByText('Step 2 of 4');
     }
@@ -190,13 +190,35 @@ describe('ReportPage workflow', () => {
         });
     });
 
-    test('uses one submission form and starts only one location watcher', () => {
+    test('uses one submission form and starts only one location watcher', async () => {
         const { container } = renderPage();
 
         expect(container.querySelectorAll('form')).toHaveLength(1);
         expect(geolocation.watchPosition).toHaveBeenCalledTimes(1);
-        expect(screen.getByTestId('location-map')).toBeInTheDocument();
+        // The map mounts after the step-1 shell paints (idle-deferred), so the
+        // suite waits for it rather than assuming it is there on first paint.
+        expect(await screen.findByTestId('location-map')).toBeInTheDocument();
         expect(mapPropsSpy.mock.lastCall[0].mode).toBe('report-location');
+    });
+
+    test('paints the step-1 shell before the map, then mounts the map from the same location state', async () => {
+        renderPage();
+
+        // First paint: the form shell is interactive while the map chunk is
+        // still on its way — the container shows the placeholder, not the map.
+        expect(screen.getByText(/preparing map/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('location-map')).not.toBeInTheDocument();
+
+        // The deferred mount (requestIdleCallback, setTimeout 300ms fallback
+        // where the API is missing) then drops the map in, initialized from
+        // the page's own location state.
+        const map = await screen.findByTestId('location-map');
+        expect(map).toBeInTheDocument();
+        const props = mapPropsSpy.mock.lastCall[0];
+        expect(props.mode).toBe('report-location');
+        expect(props.focusLocation).toBeNull();
+        expect(props.selectedLocation).toBeNull();
+        expect(props.onLocationSelect).toEqual(expect.any(Function));
     });
 
     test('blocks Continue on step 1 until a location is provided', () => {
@@ -243,7 +265,7 @@ describe('ReportPage workflow', () => {
         expect(screen.queryByText('Step 2 of 4')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /^back$/i })).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByTestId('location-map'));
+        fireEvent.click(await screen.findByTestId('location-map'));
         await waitFor(() => expect(screen.getByText(/selected pin:/i)).toBeInTheDocument());
         fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
         await screen.findByText('Step 2 of 4');
@@ -322,7 +344,7 @@ describe('ReportPage workflow', () => {
 
         const barangayInput = screen.getByLabelText(/^barangay/i);
         fireEvent.change(barangayInput, { target: { value: 'Gutivan' } });
-        fireEvent.click(screen.getByTestId('location-map'));
+        fireEvent.click(await screen.findByTestId('location-map'));
 
         await waitFor(() => expect(barangayInput).toHaveValue('Taguilos'));
         expect(geocodeLocationMock).toHaveBeenCalledWith(
@@ -363,7 +385,7 @@ describe('ReportPage workflow', () => {
 
         const barangayInput = screen.getByLabelText(/^barangay/i);
         fireEvent.change(barangayInput, { target: { value: 'Gutivan' } });
-        fireEvent.click(screen.getByTestId('location-map'));
+        fireEvent.click(await screen.findByTestId('location-map'));
 
         await waitFor(() => expect(barangayInput).toHaveValue(''));
         expect(toastMock.error).toHaveBeenCalledWith(
@@ -922,10 +944,14 @@ describe('ReportPage workflow', () => {
 
             // Unpinned default state shows default island view
             expect(screen.getByText('Default island view · No pin placed')).toBeInTheDocument();
-            expect(screen.getByRole('status')).toHaveTextContent('Acquiring GPS…');
+            // The GPS status badge shares role="status" with the deferred map's
+            // "Preparing map..." placeholder on first paint, so pick it out by
+            // its text rather than assuming it is the only status region.
+            const statuses = screen.getAllByRole('status');
+            expect(statuses.some((el) => el.textContent.includes('Acquiring GPS'))).toBe(true);
 
             // Pin a location
-            fireEvent.click(screen.getByTestId('location-map'));
+            fireEvent.click(await screen.findByTestId('location-map'));
 
             await waitFor(() => {
                 expect(screen.getByText(/selected pin: 12\.3926, 122\.6799/i)).toBeInTheDocument();
@@ -951,7 +977,7 @@ describe('ReportPage workflow', () => {
             expect(myLocationBtn).toBeInTheDocument();
 
             // Once location is pinned, detection stops and button displays My location
-            fireEvent.click(screen.getByTestId('location-map'));
+            fireEvent.click(await screen.findByTestId('location-map'));
             await waitFor(() => {
                 expect(myLocationBtn).toHaveTextContent('My location');
             });

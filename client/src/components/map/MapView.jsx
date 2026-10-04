@@ -40,6 +40,7 @@ import {
     prepareOperationalMapStyle,
 } from '../../config/mapProvider';
 import { getMapMountBlocker, MAP_UNAVAILABLE_REASON } from '../../utils/mapSupport';
+import { useConnectivity } from '../../hooks/useConnectivity';
 import {
     HAZARD_FILL_OPACITY,
     HAZARD_MIN_ZOOM,
@@ -425,6 +426,15 @@ const MapView = ({
      * the state this layer starts in.
      */
     accidentHotspotClasses = EMPTY_ACCIDENT_HOTSPOT_CLASSES,
+    /**
+     * Notified with `true` when the map enters its offline fallback state
+     * (offline at mount, or the preparation timeout fired) and `false` when it
+     * leaves it (a "Try again" re-run). Report-location mode uses this to
+     * surface its GPS action prominently while the visual map is down, since
+     * reports stay fileable from GPS coordinates or a typed address. Optional;
+     * every other caller ignores it.
+     */
+    onOfflineFallbackChange = null,
 }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -446,6 +456,20 @@ const MapView = ({
     const [mapProvider, setMapProvider] = useState(null);
     const [mapReady, setMapReady] = useState(false);
     const [mapError, setMapError] = useState(null);
+    // Offline fallback: the tile pipeline (PMTiles archive inspection, then
+    // PMTiles/Esri tile fetches) needs a network, and a flaky 1-bar link can
+    // blackhole TCP so neither success nor failure arrives. Without this the
+    // map sat on "Preparing map..." forever. While `mapOffline` is true the
+    // map renders its fallback panel instead of the canvas, and no tile fetch
+    // is attempted. `mapOfflineRef` mirrors the state so a preparation promise
+    // that resolves after the timeout cannot set a provider (or toast) under
+    // the fallback.
+    const [mapOffline, setMapOffline] = useState(false);
+    const mapOfflineRef = useRef(false);
+    // Bumped by the fallback panel's "Try again" so preparation re-runs from
+    // scratch (the base effect runs once per mount otherwise).
+    const [prepAttempt, setPrepAttempt] = useState(0);
+    const { isOnline } = useConnectivity();
     // Report-location mode always pins on satellite imagery; everywhere else the
     // last-used basemap wins, falling back to satellite on first visit.
     // NOTE: the persisted preference applies to the full operational map
@@ -818,12 +842,31 @@ const MapView = ({
     useEffect(() => {
         let active = true;
 
+        // Offline: skip the PMTiles archive inspection entirely — it needs a
+        // network, and on a dead link it is the first fetch of a pipeline that
+        // can never resolve. Straight to the fallback panel: no "Preparing
+        // map..." and no validation-error toast.
+        //
+        // `isOnline` is deliberately mount-scoped (not a dep): a viewer who
+        // loses signal mid-session keeps their working map, and regaining
+        // signal re-runs preparation through the fallback panel's Try again.
+        if (!isOnline) {
+            mapOfflineRef.current = true;
+            setMapOffline(true);
+            return () => {
+                active = false;
+            };
+        }
+
         // Never leave the UI on an infinite skeleton: any validation failure
         // falls back to the self-contained Esri/OSM style so the map still
         // mounts. Only a total style-construction failure surfaces as error.
         prepareOperationalMapStyle()
             .then((provider) => {
-                if (!active) return;
+                // A timed-out preparation resolves here late: the fallback is
+                // already up, so setting a provider (or toasting) under it
+                // would only resurrect a half-dead map.
+                if (!active || mapOfflineRef.current) return;
                 setMapProvider(provider);
                 if (provider?.pmtilesError) {
                     toast.error(`Street map archive unavailable: ${provider.pmtilesError}`, {
@@ -832,7 +875,7 @@ const MapView = ({
                 }
             })
             .catch((error) => {
-                if (!active) return;
+                if (!active || mapOfflineRef.current) return;
                 console.warn('Operational map style failed; using built-in fallback.', error);
                 try {
                     setMapProvider(createOperationalMapStyle({
@@ -848,7 +891,29 @@ const MapView = ({
         return () => {
             active = false;
         };
-    }, []);
+    }, [prepAttempt]);
+
+    // Flaky-signal safety net: a 1-bar TCP blackhole means the inspection and
+    // tile fetches neither succeed nor fail, so without this the map would sit
+    // on "Preparing map..." forever. After ~10s with no resolution — and no
+    // hard error, which already has its own panel — fall back to the offline
+    // panel. The pending promise is ignored when it finally settles (see the
+    // mapOfflineRef guard above).
+    useEffect(() => {
+        if (mapReady || mapError || mapOffline) return undefined;
+        const timer = setTimeout(() => {
+            mapOfflineRef.current = true;
+            setMapOffline(true);
+        }, 10000);
+        return () => clearTimeout(timer);
+    }, [mapReady, mapError, mapOffline]);
+
+    // Lets a placement surface (report location) surface its GPS action while
+    // the visual map is down. Read off the state rather than off the click so
+    // Try again's reset also clears the caller's affordance.
+    useEffect(() => {
+        if (onOfflineFallbackChange) onOfflineFallbackChange(mapOffline);
+    }, [mapOffline, onOfflineFallbackChange]);
 
     // Generate circle polygon for zones
     const generateCirclePolygon = useCallback((center, radiusKm, points = 64) => {
@@ -868,7 +933,10 @@ const MapView = ({
     // Initialize map
     useEffect(() => {
         if (!mapContainerRef.current || mapInstanceRef.current || !mapProvider) return;
-        if (mapError) return;
+        // A late provider that resolved after the offline timeout must not
+        // mount under the fallback panel (the prep promise guards this too;
+        // this is the second lock).
+        if (mapError || mapOffline) return;
 
         // Fail-closed instead of throwing out of the effect: a throw here
         // would be caught only by the root ErrorBoundary ("Reload page").
@@ -1317,7 +1385,7 @@ const MapView = ({
             if (!cancelled) setMapError('init');
             return undefined;
         }
-    }, [closeMapSelection, disableScrollZoom, effective3D, mapError, mapProvider, mode, performanceProfile]);
+    }, [closeMapSelection, disableScrollZoom, effective3D, mapError, mapOffline, mapProvider, mode, performanceProfile]);
 
     // Handle map style switching
     useEffect(() => {
@@ -2235,7 +2303,44 @@ const MapView = ({
                 </div>
             )}
 
-            {!mapReady && !mapError && (
+            {/* Offline fallback: the tile pipeline needs a network (dead link at
+                mount, or the ~10s preparation timeout on a flaky one). Same
+                absolute-overlay pattern as the error panel, but role="status":
+                this is a degraded mode the reporter works through, not a
+                failure alert. Reports stay fileable from GPS or a typed
+                address — see the caller's GPS affordance. */}
+            {mapOffline && !mapError && (
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-gray-100 p-6 text-center dark:bg-gray-900" role="status">
+                    <HiOutlineMap className="h-8 w-8 text-gray-400" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                        Map unavailable offline
+                    </p>
+                    <p className="max-w-sm text-xs text-gray-500 dark:text-gray-400">
+                        The street map needs a connection. You can still file this report with your GPS location or a typed address.
+                    </p>
+                    {Number.isFinite(userLocation?.lat) && Number.isFinite(userLocation?.lng) && (
+                        <p className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
+                            {userLocation.lat.toFixed(6)}, {userLocation.lng.toFixed(6)}
+                        </p>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            mapOfflineRef.current = false;
+                            setMapOffline(false);
+                            setMapError(null);
+                            setMapReady(false);
+                            mapInstanceRef.current = null;
+                            setPrepAttempt((attempt) => attempt + 1);
+                        }}
+                        className="mt-1 inline-flex min-h-9 items-center rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 cursor-pointer"
+                    >
+                        Try again
+                    </button>
+                </div>
+            )}
+
+            {!mapReady && !mapError && !mapOffline && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-gray-100 text-sm font-medium text-gray-600 dark:bg-gray-900 dark:text-gray-300" role="status">
                     Preparing map&hellip;
                 </div>

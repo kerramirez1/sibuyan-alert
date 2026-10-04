@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     HiCheck,
     HiOutlineCursorClick,
@@ -50,10 +51,21 @@ const ReportLocationPanel = ({
     formData,
     handleChange,
     locationError,
+    // Cold-start deferral: ReportPage mounts the step-1 shell first and flips
+    // this once the main thread is idle, so the wizard is interactive before
+    // the ~1MB map chunk arrives. Until then the container shows the same
+    // "Preparing map..." placeholder MapView uses. Defaults true so the panel
+    // behaves as before for any caller that does not defer.
+    mapMountReady = true,
 }) => {
     const isAcquiringLocation = geoLoading || locationStatus === 'detecting';
     const currentConfig = STATUS_CONFIG[locationStatus] || STATUS_CONFIG.idle;
     const StatusIcon = currentConfig.Icon;
+    // True while MapView shows its offline fallback panel (dead link at mount
+    // or the preparation timeout on a flaky one). The visual map is down, but
+    // the report stays fileable: surface the GPS action prominently below the
+    // map while this is true.
+    const [mapOfflineFallback, setMapOfflineFallback] = useState(false);
 
     return (
         <section aria-labelledby="location-heading">
@@ -110,22 +122,29 @@ const ReportLocationPanel = ({
                     <span className="sr-only">Default island view · No pin placed</span>
                 )}
 
-                <MapView
-                    mode="report-location"
-                    onLocationSelect={handleLocationSelect}
-                    selectedLocation={selectedLocation}
-                    locationStatus={locationStatus}
-                    userLocation={userLocation}
-                    enable3D={false}
-                    focusLocation={focusLocation}
-                    gpsAccuracy={gpsAccuracy}
-                    className="h-full w-full"
-                    // Placement surface, not an exploration surface: no zoom/compass
-                    // group and no scale bar. Pin drag, scroll/pinch zoom, and the
-                    // "My location" action below cover all positioning tasks.
-                    showNavigationControl={false}
-                    showScaleControl={false}
-                />
+                {mapMountReady ? (
+                    <MapView
+                        mode="report-location"
+                        onLocationSelect={handleLocationSelect}
+                        selectedLocation={selectedLocation}
+                        locationStatus={locationStatus}
+                        userLocation={userLocation}
+                        enable3D={false}
+                        focusLocation={focusLocation}
+                        gpsAccuracy={gpsAccuracy}
+                        className="h-full w-full"
+                        onOfflineFallbackChange={setMapOfflineFallback}
+                        // Placement surface, not an exploration surface: no zoom/compass
+                        // group and no scale bar. Pin drag, scroll/pinch zoom, and the
+                        // "My location" action below cover all positioning tasks.
+                        showNavigationControl={false}
+                        showScaleControl={false}
+                    />
+                ) : (
+                    <div className="absolute inset-0 z-30 flex items-center justify-center bg-gray-100 text-sm font-medium text-gray-600 dark:bg-gray-900 dark:text-gray-300" role="status">
+                        Preparing map&hellip;
+                    </div>
+                )}
 
                 <button
                     type="button"
@@ -147,6 +166,33 @@ const ReportLocationPanel = ({
                     )}
                 </button>
             </div>
+
+            {/* Offline fallback affordance: the visual map is down (dead link
+                or preparation timeout), but the report stays fileable from
+                GPS. The in-map "My location" action sits under the fallback
+                overlay, so this prominent row reuses its handler — same
+                detectLocation, no duplicated logic. */}
+            {mapOfflineFallback && (
+                <button
+                    type="button"
+                    onClick={detectLocation}
+                    disabled={isAcquiringLocation}
+                    aria-label="Use my current GPS location"
+                    className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-emerald-600/30 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-75 dark:border-emerald-400/20 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/60"
+                >
+                    {isAcquiringLocation ? (
+                        <>
+                            <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-700 border-t-transparent dark:border-emerald-400" aria-hidden="true" />
+                            <span>Locating…</span>
+                        </>
+                    ) : (
+                        <>
+                            <HiOutlineLocationMarker className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                            <span>Use my current GPS location</span>
+                        </>
+                    )}
+                </button>
+            )}
 
             {/* GPS confirmation row */}
             {locationStatus === 'confirming' && (
