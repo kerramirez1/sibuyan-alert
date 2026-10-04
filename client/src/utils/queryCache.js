@@ -12,6 +12,71 @@
 const cacheEntries = new Map();
 const inflightRequests = new Map();
 
+// Survives JS context resets (full reload, discarded background tab, new tab,
+// lazyWithRetry chunk-reload navigation) so a warm cache still renders
+// instantly after them. The memory Map always wins on a hit; localStorage is
+// only the fallback when the module state was rebuilt. Every write is
+// best-effort: on QuotaExceededError or any storage failure persistence is
+// skipped silently and the memory cache still serves the session.
+const STORAGE_NAMESPACE = 'sibuyan-alert:qcache:';
+const storageKeyFor = (key) => `${STORAGE_NAMESPACE}${key}`;
+
+const readStorage = () => {
+    try {
+        if (typeof window === 'undefined' || !window.localStorage) return null;
+        return window.localStorage;
+    } catch {
+        return null;
+    }
+};
+
+/** Reads the persisted `{ data, updatedAt }` envelope, or null when absent/corrupt. */
+const readPersistedEntry = (key) => {
+    try {
+        const storage = readStorage();
+        if (!storage) return null;
+        const raw = storage.getItem(storageKeyFor(key));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || typeof parsed.updatedAt !== 'number') return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
+const persistEntry = (key, data, updatedAt) => {
+    try {
+        const storage = readStorage();
+        if (!storage) return;
+        // The stringify is the serializability guard: circular structures
+        // throw here and are never persisted; the memory entry is unaffected.
+        storage.setItem(storageKeyFor(key), JSON.stringify({ data, updatedAt }));
+    } catch {
+        // QuotaExceededError or any storage failure: skip silently.
+    }
+};
+
+const removePersistedEntries = (prefix) => {
+    try {
+        const storage = readStorage();
+        if (!storage) return;
+        // Collect first: removing while iterating localStorage is unreliable.
+        const doomed = [];
+        for (let i = 0; i < storage.length; i++) {
+            const storageKey = storage.key(i);
+            if (!storageKey || !storageKey.startsWith(STORAGE_NAMESPACE)) continue;
+            const cacheKey = storageKey.slice(STORAGE_NAMESPACE.length);
+            if (prefix == null || cacheKey === prefix || cacheKey.startsWith(prefix)) {
+                doomed.push(storageKey);
+            }
+        }
+        for (const storageKey of doomed) storage.removeItem(storageKey);
+    } catch {
+        // Best-effort only.
+    }
+};
+
 export const QUERY_CACHE_TTLS = {
     zones: 5 * 60 * 1000,
     dashboard: 3 * 60 * 1000,
@@ -47,7 +112,8 @@ export const isCacheFresh = (key, ttl = DEFAULT_CACHE_TTL) => {
 };
 
 export const getCachedData = (key, ttl = DEFAULT_CACHE_TTL) => {
-    const entry = cacheEntries.get(key);
+    // The memory entry wins; the persisted copy is the context-reset fallback.
+    const entry = cacheEntries.get(key) ?? readPersistedEntry(key);
     if (!entry) return null;
     const resolvedTtl = typeof ttl === 'number' && Number.isFinite(ttl) ? ttl : DEFAULT_CACHE_TTL;
     if (Date.now() - entry.updatedAt > resolvedTtl) return null;
@@ -56,30 +122,44 @@ export const getCachedData = (key, ttl = DEFAULT_CACHE_TTL) => {
 
 /** Returns whether the key was refreshed within the given threshold (default 5s) to debounce micro-switches. */
 export const isRecentlyRevalidated = (key, thresholdMs = 5000) => {
-    const entry = cacheEntries.get(key);
+    // Consults the persisted updatedAt when the memory entry is absent, so a
+    // reload inside the debounce window does not fire a redundant revalidation.
+    const entry = cacheEntries.get(key) ?? readPersistedEntry(key);
     if (!entry) return false;
     return Date.now() - entry.updatedAt < thresholdMs;
 };
 
 /** Returns stale data regardless of TTL (for instant render + background refresh). */
-export const getStaleData = (key) => cacheEntries.get(key)?.data ?? null;
+export const getStaleData = (key) => (cacheEntries.get(key) ?? readPersistedEntry(key))?.data ?? null;
 
 export const setCachedData = (key, data) => {
-    cacheEntries.set(key, { data, updatedAt: Date.now() });
+    const updatedAt = Date.now();
+    cacheEntries.set(key, { data, updatedAt });
+    persistEntry(key, data, updatedAt);
 };
 
 export const deleteCachedKey = (key) => {
     cacheEntries.delete(key);
+    try {
+        readStorage()?.removeItem(storageKeyFor(key));
+    } catch {
+        // Best-effort only.
+    }
 };
 
 export const clearQueryCache = (prefix) => {
     if (!prefix) {
         cacheEntries.clear();
+        // Logout / session-expiry calls this with no prefix: the privacy
+        // guarantee ("wiped on logout, so no leakage") extends to the
+        // persisted copy.
+        removePersistedEntries(null);
         return;
     }
     for (const key of cacheEntries.keys()) {
         if (key === prefix || key.startsWith(prefix)) cacheEntries.delete(key);
     }
+    removePersistedEntries(prefix);
 };
 
 /**
