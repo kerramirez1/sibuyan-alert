@@ -395,20 +395,22 @@
 }
 
 .mapFilters {
-    display: grid;
+    display: flex;
     min-width: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px 8px;
     border-bottom: 1px solid var(--analytics-border);
 }
 
 .mapFilters > button {
     min-width: 0;
     min-height: 44px;
+    flex-shrink: 0;
     justify-content: center;
     border-radius: 6px;
     padding: 8px;
-    white-space: normal;
+    white-space: nowrap;
 }
 
 .activityRow {
@@ -545,7 +547,7 @@
     .metric { padding: 16px 18px; }
     .metricValue { font-size: 30px; }
     .activityRow { padding: 16px 24px; }
-    .mapFilters { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+    .mapFilters { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 4px 8px; }
     .mapFilters > button {
         justify-content: flex-start;
         border-radius: 6px 6px 0 0;

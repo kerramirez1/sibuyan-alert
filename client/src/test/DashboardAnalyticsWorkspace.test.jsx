@@ -213,6 +213,12 @@ describe('DashboardAnalyticsWorkspace', () => {
         expect(mapProps.highRiskZones).toBeUndefined();
         expect(mapProps.filterStatus).toBe('all');
 
+        // The filter row is one horizontal scrollable line on narrow phones,
+        // not a wrapping grid: the ScrollFadeRow carries the scroll affordance
+        // and keyboard scrollability.
+        expect(rail).toHaveClass('no-scrollbar');
+        expect(rail).toHaveAttribute('tabindex', '0');
+
         fireEvent.click(within(rail).getByRole('button', { name: /Pending review filter/ }));
         expect(mocks.mapProps.mock.calls.at(-1)[0].filterStatus).toBe('pending');
     });

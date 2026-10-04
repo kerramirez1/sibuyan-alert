@@ -31,6 +31,7 @@ import {
 } from 'react-icons/hi';
 import MapView from '../map/MapView';
 import Button from '../ui/Button';
+import ScrollFadeRow from '../ui/ScrollFadeRow';
 import { Skeleton, SkeletonCard } from '../ui/Skeleton';
 import { ANALYTICS_SCOPE, countReportsInMonth, filterReportsByPeriodKey, getManilaMonthKey, getTrendInsight, MANILA_OFFSET_MS } from '../../utils/analyticsTrend';
 import { getPhysicalMunicipality } from '../../utils/incidentDetails';
@@ -1374,10 +1375,11 @@ const DashboardAnalyticsWorkspace = ({
                         on. `showPendingReports` is true here for the same reason
                         it is true there: only an authenticated viewer reaches
                         this page, so the open set includes pending. */}
-                    <div
-                        className={styles.mapFilters}
+                    <ScrollFadeRow
+                        className={`${styles.mapFilters} no-scrollbar`}
                         aria-label="Map status filter"
                         role="group"
+                        tabIndex={0}
                     >
                         <MapFilterRail
                             filters={MAP_STATUS_FILTERS}
@@ -1386,7 +1388,7 @@ const DashboardAnalyticsWorkspace = ({
                             onSelectFilter={setMapStatusFilter}
                             getCount={getMapFilterCount}
                         />
-                    </div>
+                    </ScrollFadeRow>
                     {/* Selected-day drill-down (from trend bars or peak link) */}
                     {selectedDay && (
                         <div className={`${styles.selectedDay} flex flex-wrap items-center justify-between gap-x-3 rounded-md px-3`} role="status">
