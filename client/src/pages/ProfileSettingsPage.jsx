@@ -6,7 +6,6 @@ import ReporterVerificationStatus from '../components/auth/ReporterVerificationS
 import ReporterIdResubmission from '../components/auth/ReporterIdResubmission';
 import VerifiedReporterBadge from '../components/ui/VerifiedReporterBadge';
 import { getReporterVerificationPresentation, isVerifiedReporter } from '../utils/reporterVerification';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import toast from '../utils/appToast';
@@ -14,6 +13,7 @@ import { resolveAssetUrl } from '../utils/assets';
 import { isPasswordPolicyCompliant, PASSWORD_MIN_CHARACTERS, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 import { AVATAR_ACCEPT_ATTRIBUTE, describeAvatarRejection } from '../config/avatarUpload';
 import useDialogA11y from '../hooks/useDialogA11y';
+import { useClosingDelay } from '../hooks/useClosingDelay';
 import {
     HiOutlineEye,
     HiOutlineEyeOff,
@@ -63,6 +63,9 @@ const ProfileSettingsPage = () => {
     const photoSheetTitleId = useId();
     const [isWebcamOpen, setIsWebcamOpen] = useState(false);
     const [showPhotoMenu, setShowPhotoMenu] = useState(false);
+    // Exit fade without framer-motion: the dialog stays mounted 150ms after
+    // close with the is-closing class, then unmounts.
+    const { shouldRender: webcamShouldRender, isClosing: webcamIsClosing } = useClosingDelay(isWebcamOpen);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -1024,30 +1027,23 @@ const ProfileSettingsPage = () => {
                 content instead of the viewport, a capture dialog on a long page
                 opens above the fold and the camera looks broken. */}
             {typeof document !== 'undefined' && createPortal(
-                <AnimatePresence>
-                    {isWebcamOpen && (
+                <>
+                    {webcamShouldRender && (
                         <div
-                            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+                            className={`fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6${webcamIsClosing ? ' is-closing' : ''}`}
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="webcam-modal-title"
                         >
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 bg-gray-950/70 backdrop-blur-xs"
+                            <div
+                                className="fixed inset-0 bg-gray-950/70 backdrop-blur-xs overlay-fade-in"
                                 onClick={stopWebcam}
                             />
 
-                            <motion.div
+                            <div
                                 ref={webcamDialogRef}
                                 tabIndex={-1}
-                                initial={{ scale: 0.96, opacity: 0, y: 8 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                exit={{ scale: 0.96, opacity: 0, y: 8 }}
-                                transition={{ duration: 0.15 }}
-                                className="relative z-10 w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-200/90 bg-white shadow-2xl outline-none dark:border-white/10 dark:bg-[#0c1813]"
+                                className="relative z-10 w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-200/90 bg-white shadow-2xl outline-none dark:border-white/10 dark:bg-[#0c1813] dialog-card-enter"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between border-b border-gray-200/80 bg-gray-50/70 px-4 py-3 dark:border-white/10 dark:bg-white/[0.02]">
@@ -1093,10 +1089,10 @@ const ProfileSettingsPage = () => {
                                         Capture photo
                                     </button>
                                 </div>
-                            </motion.div>
+                            </div>
                         </div>
                     )}
-                </AnimatePresence>,
+                </>,
                 document.body
             )}
         </div>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI, filesAPI } from '../services/api';
 import {
     dedupedFetch,
@@ -9,6 +8,7 @@ import {
     setCachedData,
 } from '../utils/queryCache';
 import { isGridFsAsset, resolveAssetUrl } from '../utils/assets';
+import { useClosingDelay } from '../hooks/useClosingDelay';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import PageHeader from '../components/ui/PageHeader';
@@ -103,6 +103,9 @@ const AdminUsersPage = () => {
     const [rotationDegree, setRotationDegree] = useState(0);
     const activeDocBlobRef = useRef(null);
     const lastFocusedTriggerRef = useRef(null);
+    // Exit fade without framer-motion: the viewer stays mounted 150ms after
+    // close with the is-closing class, then unmounts.
+    const { shouldRender: viewerShouldRender, isClosing: viewerIsClosing } = useClosingDelay(documentViewer.isOpen);
 
     useEffect(() => {
         fetchUsers();
@@ -1253,30 +1256,23 @@ const AdminUsersPage = () => {
 
             {/* In-App Document Preview Lightbox (Portaled to document.body to escape MainLayout stacking context) */}
             {typeof document !== 'undefined' && createPortal(
-                <AnimatePresence>
-                    {documentViewer.isOpen && (
+                <>
+                    {viewerShouldRender && (
                         <div
-                            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6"
+                            className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6${viewerIsClosing ? ' is-closing' : ''}`}
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="document-viewer-title"
                         >
                             {/* Backdrop */}
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
+                            <div
                                 onClick={closeDocumentPreview}
-                                className="fixed inset-0 bg-gray-950/80 backdrop-blur-xs transition-opacity"
+                                className="fixed inset-0 bg-gray-950/80 backdrop-blur-xs transition-opacity overlay-fade-in"
                             />
 
                             {/* Bounded Responsive Modal Card: perfectly centered with safe vertical boundaries */}
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.98, y: 6 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.98, y: 6 }}
-                                transition={{ duration: 0.15, ease: 'easeOut' }}
-                                className="relative z-10 flex h-[min(620px,84vh)] max-h-[84vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813]"
+                            <div
+                                className="relative z-10 flex h-[min(620px,84vh)] max-h-[84vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-gray-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0c1813] dialog-card-enter"
                                 onClick={(e) => e.stopPropagation()}
                             >
                             {/* Structured Header */}
@@ -1491,10 +1487,10 @@ const AdminUsersPage = () => {
                                     </div>
                                 </div>
                             )}
-                        </motion.div>
+                        </div>
                     </div>
                 )}
-            </AnimatePresence>,
+            </>,
             document.body
         )}
         </div>

@@ -1,8 +1,8 @@
-import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineX } from 'react-icons/hi';
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { FOCUSABLE_SELECTOR } from '../../utils/focusableElements';
+import { useClosingDelay } from '../../hooks/useClosingDelay';
 
 const Modal = ({
     isOpen,
@@ -17,6 +17,10 @@ const Modal = ({
     const onCloseRef = useRef(onClose);
     const contentRef = useRef(null);
     const previouslyFocusedRef = useRef(null);
+    // Exit fade without framer-motion: when isOpen turns false the dialog
+    // stays mounted for 150ms with the is-closing class (which swaps the
+    // enter keyframes for exit keyframes), then unmounts.
+    const { shouldRender, isClosing } = useClosingDelay(isOpen);
     const sizes = {
         sm: 'max-w-sm',
         md: 'max-w-md',
@@ -65,28 +69,21 @@ const Modal = ({
     }, [isOpen]);
 
     const modalElement = (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="modal-overlay">
+        <>
+            {shouldRender && (
+                <div className={`modal-overlay${isClosing ? ' is-closing' : ''}`}>
                     {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0"
+                    <div
+                        className="absolute inset-0 overlay-fade-in"
                         onClick={onClose}
                         aria-hidden="true"
                     />
 
                     {/* Modal Content */}
-                    <motion.div
+                    <div
                         ref={contentRef}
                         tabIndex={-1}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className={`surface-panel relative w-full ${sizes[size]} max-h-[90dvh] overflow-hidden shadow-[var(--shadow-lg)]`}
+                        className={`surface-panel relative w-full ${sizes[size]} max-h-[90dvh] overflow-hidden shadow-[var(--shadow-lg)] modal-panel-enter`}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby={title ? titleId : undefined}
@@ -117,10 +114,10 @@ const Modal = ({
                         <div className="max-h-[calc(90dvh-5rem)] overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
                             {children}
                         </div>
-                    </motion.div>
+                    </div>
                 </div>
             )}
-        </AnimatePresence>
+        </>
     );
 
     return typeof document !== 'undefined' ? createPortal(modalElement, document.body) : modalElement;

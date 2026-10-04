@@ -2,14 +2,6 @@ import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from '../router';
 
-// Mock framer-motion to avoid animation complexity in tests
-vi.mock('framer-motion', () => ({
-    motion: {
-        div: (props) => <div data-testid="motion-div">{props.children}</div>,
-    },
-    AnimatePresence: ({ children }) => <>{children}</>,
-}));
-
 // Mock react-icons
 vi.mock('react-icons/hi', () => ({
     HiOutlineExclamation: () => <span data-testid="icon-exclamation" />,

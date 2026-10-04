@@ -68,12 +68,7 @@ vi.mock('../components/ui/ImageViewer', () => ({
     default: ({ isOpen }) => (isOpen ? <div>Evidence viewer</div> : null),
 }));
 
-vi.mock('framer-motion', () => ({
-    AnimatePresence: ({ children }) => <>{children}</>,
-    motion: {
-        div: ({ children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...props }) => <div {...props}>{children}</div>,
-    },
-}));
+;
 
 import AdminReportsPage from '../pages/AdminReportsPage';
 import { clearQueryCache } from '../utils/queryCache';

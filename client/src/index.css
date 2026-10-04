@@ -1047,7 +1047,10 @@
   /* The core dot needs no override: it is already static in both motion modes. */
   .overlay-fade-in,
   .page-enter,
-  .pane-enter {
+  .pane-enter,
+  .modal-panel-enter,
+  .fade-slide-enter,
+  .dialog-card-enter {
     animation: none !important;
   }
 }
@@ -1111,6 +1114,85 @@
 
 .pane-enter {
   animation: paneEnter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Dialog enter/exit (CSS replacement for framer-motion in Modal,
+   AdminUsersPage's document viewer, and ProfileSettingsPage's webcam
+   dialog). The panel fades; the card fades with a small rise. Exit runs via
+   the .is-closing class while the closing-delay hook keeps the dialog
+   mounted for 150ms. */
+@keyframes modalPanelEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-panel-enter {
+  animation: modalPanelEnter 150ms ease-out both;
+}
+
+@keyframes modalPanelExit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes fadeSlideEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Keyed section switch in AdminHighRiskZonesPage: enter-only, same pattern
+   as page-enter — CSS keeps the switch instant while preserving the feel. */
+.fade-slide-enter {
+  animation: fadeSlideEnter 150ms ease-out both;
+}
+
+@keyframes dialogCardEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dialog-card-enter {
+  animation: dialogCardEnter 150ms ease-out both;
+}
+
+@keyframes dialogCardExit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98) translateY(6px);
+  }
+}
+
+@keyframes overlayFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.is-closing .overlay-fade-in {
+  animation: overlayFadeOut 150ms ease-out both;
+}
+
+.is-closing .modal-panel-enter {
+  animation: modalPanelExit 150ms ease-out both;
+}
+
+.is-closing .dialog-card-enter {
+  animation: dialogCardExit 150ms ease-out both;
 }
 
 

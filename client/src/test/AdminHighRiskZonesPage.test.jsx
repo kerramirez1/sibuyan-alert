@@ -139,13 +139,7 @@ vi.mock('../components/map/MapView', () => ({
     },
 }));
 
-vi.mock('framer-motion', () => ({
-    AnimatePresence: ({ children }) => <>{children}</>,
-    motion: {
-        div: ({ children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...props }) => <div {...props}>{children}</div>,
-        section: ({ children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...props }) => <section {...props}>{children}</section>,
-    },
-}));
+;
 
 vi.mock('../services/api', () => ({
     highRiskZonesAPI: mockHighRiskZonesAPI,

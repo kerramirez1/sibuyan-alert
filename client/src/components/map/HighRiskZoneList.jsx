@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { highRiskZonesAPI } from '../../services/api';
 import {
     HiOutlineExclamation,
@@ -89,75 +88,69 @@ const HighRiskZoneList = ({ onZoneSelect, isExpanded = true }) => {
                 />
             </button>
 
-            {/* Zone List */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                    >
-                        {loading ? (
-                            <div className="divide-y divide-gray-100 dark:divide-white/5" role="status" aria-busy="true" aria-label="Loading risk zones">
-                                <span className="sr-only">Loading risk zones</span>
-                                {[0, 1, 2].map((i) => (
-                                    <SkeletonRow key={i} lines={2} className="p-3" />
-                                ))}
-                            </div>
-                        ) : error ? (
-                            <div className="p-4 text-center text-red-500 text-sm">
-                                {error}
-                            </div>
-                        ) : (
-                            <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
-                                {zones.map((zone) => {
-                                    const typeStyle = ZONE_COLORS[zone.type] || ZONE_COLORS.other;
-                                    const severityStyle = SEVERITY_STYLES[zone.severity] || SEVERITY_STYLES.medium;
+            {/* Zone List: the grid-rows trick animates height without JS.
+                Collapsed content also leaves the tab order (invisible flips
+                at the end of the transition). */}
+            <div
+                className={`grid transition-[grid-template-rows,opacity,visibility] duration-200 ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 invisible'}`}
+            >
+                <div className="overflow-hidden min-h-0">
+                    {loading ? (
+                        <div className="divide-y divide-gray-100 dark:divide-white/5" role="status" aria-busy="true" aria-label="Loading risk zones">
+                            <span className="sr-only">Loading risk zones</span>
+                            {[0, 1, 2].map((i) => (
+                                <SkeletonRow key={i} lines={2} className="p-3" />
+                            ))}
+                        </div>
+                    ) : error ? (
+                        <div className="p-4 text-center text-red-500 text-sm">
+                            {error}
+                        </div>
+                    ) : (
+                        <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                            {zones.map((zone) => {
+                                const typeStyle = ZONE_COLORS[zone.type] || ZONE_COLORS.other;
+                                const severityStyle = SEVERITY_STYLES[zone.severity] || SEVERITY_STYLES.medium;
 
-                                    return (
-                                        <motion.button
-                                            key={zone._id}
-                                            onClick={() => handleZoneClick(zone)}
-                                            className={`w-full p-3 text-left hover:bg-gray-50 transition-colors flex items-start gap-3 ${typeStyle.bg}/30`}
-                                            whileHover={{ x: 4 }}
-                                            whileTap={{ scale: 0.98 }}
+                                return (
+                                    <button
+                                        key={zone._id}
+                                        onClick={() => handleZoneClick(zone)}
+                                        className={`w-full p-3 text-left hover:bg-gray-50 hover:translate-x-1 active:scale-[0.98] transition-[color,background-color,transform] flex items-start gap-3 ${typeStyle.bg}/30`}
+                                    >
+                                        <div
+                                            className={`w-10 h-10 rounded-lg flex items-center justify-center ${typeStyle.bg} ${typeStyle.border} border`}
                                         >
-                                            <div
-                                                className={`w-10 h-10 rounded-lg flex items-center justify-center ${typeStyle.bg} ${typeStyle.border} border`}
-                                            >
-                                                <HiOutlineLocationMarker className={`w-5 h-5 ${typeStyle.text}`} />
+                                            <HiOutlineLocationMarker className={`w-5 h-5 ${typeStyle.text}`} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <h4 className="font-medium text-gray-900 truncate">
+                                                    {zone.name}
+                                                </h4>
+                                                <span
+                                                    className={`flex-shrink-0 px-2 py-0.5 text-xs font-medium text-white rounded-full ${severityStyle.color}`}
+                                                >
+                                                    {severityStyle.label}
+                                                </span>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <h4 className="font-medium text-gray-900 truncate">
-                                                        {zone.name}
-                                                    </h4>
-                                                    <span
-                                                        className={`flex-shrink-0 px-2 py-0.5 text-xs font-medium text-white rounded-full ${severityStyle.color}`}
-                                                    >
-                                                        {severityStyle.label}
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-gray-500 mt-0.5">
-                                                    {ZONE_LABELS[zone.type] || ZONE_LABELS.other} • {zone.municipality}
+                                            <p className="text-xs text-gray-500 mt-0.5">
+                                                {ZONE_LABELS[zone.type] || ZONE_LABELS.other} • {zone.municipality}
+                                            </p>
+                                            {zone.description && (
+                                                <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                                                    {zone.description}
                                                 </p>
-                                                {zone.description && (
-                                                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">
-                                                        {zone.description}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <HiOutlineChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-3" />
-                                        </motion.button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                            )}
+                                        </div>
+                                        <HiOutlineChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-3" />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

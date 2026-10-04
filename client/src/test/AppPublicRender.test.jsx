@@ -69,18 +69,7 @@ vi.mock('../context/SocketContext', () => ({
     SocketProvider: ({ children }) => <>{children}</>,
 }));
 
-vi.mock('framer-motion', () => ({
-    AnimatePresence: ({ children }) => <>{children}</>,
-    motion: new Proxy({}, {
-        get: (_target, prop) => {
-            const Component = ({ children, initial: _i, animate: _a, exit: _e, transition: _t, ...props }) => {
-                const Tag = typeof prop === 'string' ? prop : 'div';
-                return <Tag {...props}>{children}</Tag>;
-            };
-            return Component;
-        },
-    }),
-}));
+;
 
 const AUTH_HINT_KEY = 'sibuyan-alert:auth-hint';
 

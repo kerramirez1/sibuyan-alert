@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { highRiskZonesAPI, reportsAPI } from '../services/api';
 import MapView from '../components/map/MapView';
@@ -1071,19 +1070,16 @@ const AdminHighRiskZonesPage = () => {
                     </div>
                 </section>
 
-                {/* Right Column: Zone Editor / List */}
+                {/* Right Column: Zone Editor / List. Keyed sections remount on
+                    switch so the enter animation replays; enter-only, no exit
+                    animation (same precedent as MainLayout's page-enter). */}
                 <div className={`lg:col-span-5 xl:col-span-4 flex flex-col h-full min-h-0 ${mobileTab === 'map' ? 'hidden lg:flex' : 'flex'}`}>
-                    <AnimatePresence mode="wait">
-                        {showForm ? (
-                            <motion.section
-                                key="form"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                transition={{ duration: 0.15 }}
-                                className="surface-panel flex h-full min-h-0 flex-col overflow-hidden"
-                                aria-label={editingZone ? 'Edit high-risk zone' : 'Add high-risk zone'}
-                            >
+                    {showForm ? (
+                        <section
+                            key="form"
+                            className="surface-panel flex h-full min-h-0 flex-col overflow-hidden fade-slide-enter"
+                            aria-label={editingZone ? 'Edit high-risk zone' : 'Add high-risk zone'}
+                        >
                                 {/* Editor Header */}
                                 <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
                                     <div>
@@ -1563,15 +1559,11 @@ const AdminHighRiskZonesPage = () => {
                                         </button>
                                     </div>
                                 </form>
-                            </motion.section>
+                            </section>
                         ) : (
-                            <motion.section
+                            <section
                                 key="list"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                transition={{ duration: 0.15 }}
-                                className="surface-panel flex h-full min-h-0 flex-col overflow-hidden"
+                                className="surface-panel flex h-full min-h-0 flex-col overflow-hidden fade-slide-enter"
                                 aria-label="Marked high-risk zones"
                             >
                                 {/* List Header */}
@@ -1711,9 +1703,8 @@ const AdminHighRiskZonesPage = () => {
                                         })}
                                     </div>
                                 )}
-                            </motion.section>
+                            </section>
                         )}
-                    </AnimatePresence>
                 </div>
             </div>
         </div>
