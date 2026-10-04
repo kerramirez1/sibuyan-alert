@@ -60,6 +60,7 @@ function App() {
                 tasks.push(import('./pages/LoginPage'), import('./pages/DashboardPage'));
             } else if (user?.role === 'reporter') {
                 tasks.push(
+                    import('./pages/ReportPage'),
                     import('./pages/ReporterDashboardPage'),
                     import('./pages/MyReportsPage'),
                     import('./pages/DashboardPage'),

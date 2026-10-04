@@ -598,9 +598,14 @@ export const AuthProvider = ({ children }) => {
     }, [user]);
 
     // Check if user can submit reports
+    // Offline snapshots carry reporterVerificationStatus instead of the live
+    // isVerified flag, so offline reporters use the same rule ProtectedRoute
+    // applies. A true return while offline can never trigger a delivery
+    // attempt: useOfflineReportSync gates on isOnline before canDeliver.
     const canSubmitReports = useCallback(() => {
         if (!user) return false;
-        return user.role === 'reporter' && user.isVerified;
+        if (user.role !== 'reporter') return false;
+        return user.offline === true ? user.reporterVerificationStatus === 'approved' : user.isVerified;
     }, [user]);
 
     // Manual user state update.

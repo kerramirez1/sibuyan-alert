@@ -224,4 +224,29 @@ describe('AuthContext offline session grace', () => {
         expect(screen.getByTestId('offline')).toHaveTextContent('true');
         expect(readSnapshot()?.id).toBe('reporter-1');
     });
+
+    test('canSubmitReports follows the snapshot verification status while offline', async () => {
+        // An approved reporter restores in offline grace mode; the live
+        // isVerified flag is absent from the snapshot, so canSubmitReports
+        // must read reporterVerificationStatus instead of going blind.
+        seedSnapshot(freshSnapshot({ reporterVerificationStatus: 'approved' }));
+        api.get.mockRejectedValue(networkFailure());
+
+        renderProvider();
+
+        await waitFor(() => expect(screen.getByTestId('offline')).toHaveTextContent('true'));
+        expect(latestAuth.user.offline).toBe(true);
+        expect(latestAuth.user.isVerified).toBeUndefined();
+        expect(latestAuth.canSubmitReports()).toBe(true);
+    });
+
+    test('canSubmitReports stays false for a pending reporter in offline mode', async () => {
+        seedSnapshot(freshSnapshot({ reporterVerificationStatus: 'pending' }));
+        api.get.mockRejectedValue(networkFailure());
+
+        renderProvider();
+
+        await waitFor(() => expect(screen.getByTestId('offline')).toHaveTextContent('true'));
+        expect(latestAuth.canSubmitReports()).toBe(false);
+    });
 });
