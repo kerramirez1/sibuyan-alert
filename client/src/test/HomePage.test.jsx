@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from '../router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -231,5 +231,45 @@ describe('HomePage operational landing page', () => {
         await waitFor(() => {
             expect(screen.queryByRole('dialog', { name: 'Terms of Use' })).not.toBeInTheDocument();
         });
+    });
+});
+
+describe('HomePage landing polling fallback', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.getPublic.mockResolvedValue({
+            data: { success: true, data: { verifiedReportsThisMonth: 4 } },
+        });
+        mocks.getMunicipalities.mockResolvedValue({ data: { success: true, data: [] } });
+    });
+
+    test('polls public stats every 45 seconds instead of subscribing to a socket', async () => {
+        vi.useFakeTimers();
+        try {
+            renderPage();
+            // Mount fetch.
+            await act(async () => {});
+            expect(mocks.getPublic).toHaveBeenCalledTimes(1);
+
+            // No socket subscription is used for live updates anymore.
+            expect(mocks.subscribe).not.toHaveBeenCalled();
+
+            // One interval fires scheduleRefresh, whose 400ms debounce then
+            // runs the fetch.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(45000 + 400);
+            });
+            await act(async () => {});
+            expect(mocks.getPublic).toHaveBeenCalledTimes(2);
+
+            // And again on the next interval.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(45000 + 400);
+            });
+            await act(async () => {});
+            expect(mocks.getPublic).toHaveBeenCalledTimes(3);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '../router';
 import { HiOutlineArrowRight } from 'react-icons/hi';
 import { useAuth } from '../context/AuthContext';
-import { useSocket } from '../context/SocketContext';
 import { analyticsAPI, reportsAPI } from '../services/api';
 import LandingHero from '../components/home/LandingHero';
 import HowItWorks from '../components/landing/HowItWorks';
@@ -33,7 +32,6 @@ const getVerifiedPeriodLabel = (period) => {
 
 const HomePage = () => {
     const { isAuthenticated, user } = useAuth();
-    const { subscribe } = useSocket();
     const [municipalities, setMunicipalities] = useState(DEFAULT_MUNICIPALITIES);
     const [publicStats, setPublicStats] = useState(null);
     const [publicStatsState, setPublicStatsState] = useState('loading');
@@ -65,28 +63,24 @@ const HomePage = () => {
         fetchPublicStats();
     }, [fetchPublicStats]);
 
+    // Live public incident updates without a socket: anonymous visitors never
+    // open a socket connection, so the landing page polls the public stats
+    // endpoint every 45 seconds instead. (Authenticated pages keep their
+    // real-time socket feeds.) The initial mount fetch above stays as-is.
     useEffect(() => {
         const scheduleRefresh = () => {
             if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current);
             refreshDebounceRef.current = setTimeout(fetchPublicStats, 400);
         };
 
-        const unsubscribe = [
-            'newReport',
-            'reportVerified',
-            'reportResolved',
-            'reportDeleted',
-            'highRiskZoneCreated',
-            'highRiskZoneUpdated',
-            'highRiskZoneDeleted',
-        ].map((eventName) => subscribe(eventName, scheduleRefresh));
+        const intervalId = setInterval(scheduleRefresh, 45000);
 
         return () => {
+            clearInterval(intervalId);
             if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current);
             refreshDebounceRef.current = null;
-            unsubscribe.forEach((handler) => handler());
         };
-    }, [fetchPublicStats, subscribe]);
+    }, [fetchPublicStats]);
 
     useEffect(() => {
         reportsAPI.getMunicipalities()

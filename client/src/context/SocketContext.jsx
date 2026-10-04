@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { io } from 'socket.io-client';
+// socket.io-client is intentionally NOT statically imported here. It is
+// dynamically imported inside the connection effect, so unauthenticated
+// visitors never download the (~150KB) client and never open an anonymous
+// connection against the server.
 import { useAuth } from './AuthContext';
 import toast from '../utils/appToast';
 import { resolveSocketOrigin } from '../utils/runtimeUrl';
@@ -29,63 +32,90 @@ export const SocketProvider = ({ children }) => {
     const authRetryTimerRef = useRef(null);
     const { user, isAuthenticated } = useAuth();
 
-    // Initialize socket connection
+    // Initialize the socket connection lazily, and only for authenticated
+    // users. Anonymous visitors never fetch socket.io-client and never open
+    // a connection, so the landing page costs the server nothing.
     useEffect(() => {
-        const browserOrigin = typeof window !== 'undefined' && window.location?.origin
-            ? window.location.origin
-            : undefined;
-        const socketUrl = resolveSocketOrigin({
-            socketUrl: import.meta.env.VITE_SOCKET_URL,
-            apiUrl: import.meta.env.VITE_API_URL,
-            browserOrigin,
-        });
+        if (!isAuthenticated) return undefined;
 
-        const socketInstance = io(socketUrl, {
-            transports: ['polling', 'websocket'],
-            autoConnect: true,
-            reconnection: true,
-            // Field connectivity is intermittent by nature; retry forever with
-            // rapid backoff starting at 500ms and capped at 5s (with jitter).
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 500,
-            reconnectionDelayMax: 5000,
-            randomizationFactor: 0.5,
-            timeout: 10000,
-            withCredentials: true,
-        });
+        let cancelled = false;
+        let socketInstance = null;
 
-        socketInstance.on('connect', () => {
-            setConnected(true);
-            // The initial fetch already covers the first connection; only
-            // reconnects bump the version, signalling consumers to resync
-            // data for events missed while the socket was offline.
-            if (hasConnectedOnceRef.current) {
-                setReconnectVersion((version) => version + 1);
+        const connectSocket = async () => {
+            const { io } = await import('socket.io-client');
+            if (cancelled) return;
+
+            const browserOrigin = typeof window !== 'undefined' && window.location?.origin
+                ? window.location.origin
+                : undefined;
+            const socketUrl = resolveSocketOrigin({
+                socketUrl: import.meta.env.VITE_SOCKET_URL,
+                apiUrl: import.meta.env.VITE_API_URL,
+                browserOrigin,
+            });
+
+            socketInstance = io(socketUrl, {
+                transports: ['polling', 'websocket'],
+                autoConnect: true,
+                reconnection: true,
+                // Field connectivity is intermittent by nature; retry forever with
+                // rapid backoff starting at 500ms and capped at 5s (with jitter).
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 500,
+                reconnectionDelayMax: 5000,
+                randomizationFactor: 0.5,
+                timeout: 10000,
+                withCredentials: true,
+            });
+
+            socketInstance.on('connect', () => {
+                setConnected(true);
+                // The initial fetch already covers the first connection; only
+                // reconnects bump the version, signalling consumers to resync
+                // data for events missed while the socket was offline.
+                if (hasConnectedOnceRef.current) {
+                    setReconnectVersion((version) => version + 1);
+                } else {
+                    hasConnectedOnceRef.current = true;
+                }
+            });
+
+            socketInstance.on('disconnect', (reason) => {
+                setConnected(false);
+                // If the server explicitly disconnected the socket (e.g. server restart),
+                // auto-reconnect does not fire automatically. Trigger reconnect immediately.
+                if (reason === 'io server disconnect') {
+                    socketInstance.connect();
+                }
+            });
+
+            socketInstance.on('connect_error', (error) => {
+                console.error('Socket connection error:', error);
+                setConnected(false);
+            });
+
+            if (cancelled) {
+                socketInstance.disconnect();
             } else {
-                hasConnectedOnceRef.current = true;
+                setSocket(socketInstance);
             }
-        });
+        };
 
-        socketInstance.on('disconnect', (reason) => {
-            setConnected(false);
-            // If the server explicitly disconnected the socket (e.g. server restart),
-            // auto-reconnect does not fire automatically. Trigger reconnect immediately.
-            if (reason === 'io server disconnect') {
-                socketInstance.connect();
-            }
-        });
-
-        socketInstance.on('connect_error', (error) => {
-            console.error('Socket connection error:', error);
-            setConnected(false);
-        });
-
-        setSocket(socketInstance);
+        connectSocket();
 
         return () => {
-            socketInstance.disconnect();
+            cancelled = true;
+            // A fresh connection must not inherit the previous session's
+            // "already connected once" state: its first connect is covered
+            // by the initial fetch, not a resync.
+            hasConnectedOnceRef.current = false;
+            if (socketInstance) {
+                socketInstance.disconnect();
+            }
+            setSocket(null);
+            setConnected(false);
         };
-    }, []);
+    }, [isAuthenticated]);
 
     // Fast reconnection on window focus, visibility restoration, and online events
     useEffect(() => {
@@ -320,7 +350,9 @@ export const SocketProvider = ({ children }) => {
         }
     }, [socket, connected]);
 
-    // Subscribe to event
+    // Subscribe to event. Safe to call when there is no socket (e.g. an
+    // unauthenticated visitor): it returns a no-op unsubscribe function so
+    // consumers never have to branch on the socket's presence.
     const subscribe = useCallback((event, callback) => {
         if (socket) {
             socket.on(event, callback);

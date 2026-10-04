@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
@@ -21,22 +21,25 @@ const mocks = vi.hoisted(() => {
     toast.success = vi.fn();
     toast.error = vi.fn();
     const ioMock = vi.fn(() => socket);
+    const user = {
+        _id: 'responder-1',
+        role: 'responder',
+        assignedMunicipality: 'Cajidiocan',
+    };
     return {
         listeners,
         socket,
         ioMock,
         toast,
-        user: {
-            _id: 'responder-1',
-            role: 'responder',
-            assignedMunicipality: 'Cajidiocan',
-        },
+        user,
+        authUser: user,
+        isAuthenticated: true,
     };
 });
 
 vi.mock('socket.io-client', () => ({ io: mocks.ioMock }));
 vi.mock('../context/AuthContext', () => ({
-    useAuth: () => ({ user: mocks.user, isAuthenticated: true }),
+    useAuth: () => ({ user: mocks.authUser, isAuthenticated: mocks.isAuthenticated }),
 }));
 vi.mock('../utils/appToast', () => ({ default: mocks.toast }));
 vi.mock('../utils/runtimeUrl', () => ({ resolveSocketOrigin: () => 'http://localhost:5000' }));
@@ -59,6 +62,14 @@ const trigger = (event, payload) => {
     [...(mocks.listeners.get(event) || [])].forEach((handler) => handler(payload));
 };
 
+// The connection is established after a dynamic import, so every test that
+// touches the socket waits for the io() call to land first.
+const renderConnected = async () => {
+    const result = render(<SocketProvider><Probe /></SocketProvider>);
+    await waitFor(() => expect(mocks.ioMock).toHaveBeenCalledTimes(1));
+    return result;
+};
+
 describe('SocketProvider notification policy', () => {
     beforeEach(() => {
         mocks.listeners.clear();
@@ -71,10 +82,13 @@ describe('SocketProvider notification policy', () => {
         mocks.toast.mockReset();
         mocks.toast.success.mockReset();
         mocks.toast.error.mockReset();
+        mocks.authUser = mocks.user;
+        mocks.isAuthenticated = true;
+        mocks.socket.connected = true;
     });
 
-    test('reconnects indefinitely with rapid capped exponential backoff and jitter', () => {
-        render(<SocketProvider><Probe /></SocketProvider>);
+    test('reconnects indefinitely with rapid capped exponential backoff and jitter', async () => {
+        await renderConnected();
 
         expect(mocks.ioMock).toHaveBeenCalledWith('http://localhost:5000', expect.objectContaining({
             transports: ['polling', 'websocket'],
@@ -86,8 +100,8 @@ describe('SocketProvider notification policy', () => {
         }));
     });
 
-    test('triggers reconnect immediately when manual reconnect is invoked while disconnected', () => {
-        render(<SocketProvider><Probe /></SocketProvider>);
+    test('triggers reconnect immediately when manual reconnect is invoked while disconnected', async () => {
+        await renderConnected();
         mocks.socket.connected = false;
 
         act(() => {
@@ -97,8 +111,8 @@ describe('SocketProvider notification policy', () => {
         expect(mocks.socket.connect).toHaveBeenCalledTimes(1);
     });
 
-    test('reconnects when tab becomes visible and socket is disconnected', () => {
-        render(<SocketProvider><Probe /></SocketProvider>);
+    test('reconnects when tab becomes visible and socket is disconnected', async () => {
+        await renderConnected();
         mocks.socket.connected = false;
 
         act(() => {
@@ -108,8 +122,8 @@ describe('SocketProvider notification policy', () => {
         expect(mocks.socket.connect).toHaveBeenCalledTimes(1);
     });
 
-    test('reconnects immediately when server sends io server disconnect', () => {
-        render(<SocketProvider><Probe /></SocketProvider>);
+    test('reconnects immediately when server sends io server disconnect', async () => {
+        await renderConnected();
         mocks.socket.connect.mockClear();
 
         act(() => trigger('disconnect', 'io server disconnect'));
@@ -117,8 +131,8 @@ describe('SocketProvider notification policy', () => {
         expect(mocks.socket.connect).toHaveBeenCalledTimes(1);
     });
 
-    test('signals consumers to resync only after a reconnect, not the initial connection', () => {
-        render(<SocketProvider><Probe /></SocketProvider>);
+    test('signals consumers to resync only after a reconnect, not the initial connection', async () => {
+        await renderConnected();
         expect(screen.getByLabelText('Reconnect version')).toHaveTextContent('0');
 
         act(() => trigger('connect'));
@@ -132,8 +146,8 @@ describe('SocketProvider notification policy', () => {
         expect(screen.getByLabelText('Reconnect version')).toHaveTextContent('2');
     });
 
-    test('announces a response only to other responder units', () => {
-        render(<SocketProvider><Probe /></SocketProvider>);
+    test('announces a response only to other responder units', async () => {
+        await renderConnected();
 
         act(() => trigger('localUnitResponse', {
             reportId: 'report-1',
@@ -151,8 +165,8 @@ describe('SocketProvider notification policy', () => {
         });
     });
 
-    test('keeps the persisted verified notification without showing a duplicate responder toast', () => {
-        render(<SocketProvider><Probe /></SocketProvider>);
+    test('keeps the persisted verified notification without showing a duplicate responder toast', async () => {
+        await renderConnected();
 
         act(() => trigger('reportVerifiedAlert', {
             id: 'report-1',
@@ -175,17 +189,17 @@ describe('SocketProvider notification policy', () => {
         expect(screen.getByLabelText('Unread notifications')).toHaveTextContent('1');
     });
 
-    test('removes only provider-owned listeners during cleanup', () => {
+    test('removes only provider-owned listeners during cleanup', async () => {
         const externalListener = vi.fn();
         mocks.listeners.set('notification', new Set([externalListener]));
-        const { unmount } = render(<SocketProvider><Probe /></SocketProvider>);
+        const { unmount } = await renderConnected();
 
         unmount();
         expect(mocks.listeners.get('notification')).toContain(externalListener);
     });
 
-    test('announces newly verified incidents to guest viewers only', () => {
-        render(<SocketProvider><Probe /></SocketProvider>);
+    test('announces newly verified incidents to guest viewers only', async () => {
+        await renderConnected();
 
         // Authenticated responder: no public popup (has scoped alerts instead).
         act(() => trigger('reportVerified', {
@@ -196,9 +210,10 @@ describe('SocketProvider notification policy', () => {
         expect(mocks.toast.success).not.toHaveBeenCalled();
 
         // Guest viewer: popup announcement with dedupe key.
-        mocks.user = null;
+        mocks.authUser = null;
         try {
             render(<SocketProvider><Probe /></SocketProvider>);
+            await waitFor(() => expect(mocks.ioMock).toHaveBeenCalledTimes(2));
             act(() => trigger('reportVerified', {
                 id: 'report-9',
                 incidentType: 'Vehicular collision',
@@ -213,11 +228,51 @@ describe('SocketProvider notification policy', () => {
             act(() => trigger('reportVerified', null));
             expect(mocks.toast.success).toHaveBeenCalledTimes(1);
         } finally {
-            mocks.user = {
-                _id: 'responder-1',
-                role: 'responder',
-                assignedMunicipality: 'Cajidiocan',
-            };
+            mocks.authUser = mocks.user;
         }
+    });
+
+    test('creates no socket for unauthenticated visitors', async () => {
+        mocks.authUser = null;
+        mocks.isAuthenticated = false;
+
+        render(<SocketProvider><Probe /></SocketProvider>);
+
+        // Give the dynamic import every chance to resolve: if the provider
+        // were connecting anonymously, io() would have been called by now.
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        });
+
+        expect(mocks.ioMock).not.toHaveBeenCalled();
+    });
+
+    test('subscribe is a safe no-op when there is no socket', async () => {
+        mocks.authUser = null;
+        mocks.isAuthenticated = false;
+
+        let unsubscribe;
+        const SubscribeProbe = () => {
+            const { subscribe } = useSocket();
+            unsubscribe = subscribe('newReport', () => {
+                throw new Error('must never be called without a socket');
+            });
+            return null;
+        };
+        render(<SocketProvider><SubscribeProbe /></SocketProvider>);
+
+        expect(typeof unsubscribe).toBe('function');
+        expect(() => unsubscribe()).not.toThrow();
+        expect(mocks.socket.on).not.toHaveBeenCalled();
+    });
+
+    test('disconnects and drops the socket when the user logs out', async () => {
+        const { rerender } = await renderConnected();
+
+        mocks.authUser = null;
+        mocks.isAuthenticated = false;
+        rerender(<SocketProvider><Probe /></SocketProvider>);
+
+        expect(mocks.socket.disconnect).toHaveBeenCalled();
     });
 });
