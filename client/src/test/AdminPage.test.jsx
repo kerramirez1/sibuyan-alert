@@ -10,6 +10,24 @@ const mocks = vi.hoisted(() => ({
     callbacks: {},
     getResponder: vi.fn(),
     getAdmin: vi.fn(),
+    renderCount: 0,
+    connectivity: { isOffline: false },
+}));
+
+vi.mock('../context/AuthContext', () => ({
+    useAuth: () => ({ user: mocks.user }),
+}));
+
+// The 45s revalidation interval gates on the server-liveness probe; the real
+// hook's /api/health probe has no server to answer in jsdom and would flip
+// these suites offline mid-test.
+vi.mock('../hooks/useConnectivity', () => ({
+    useConnectivity: () => ({
+        isOnline: !mocks.connectivity.isOffline,
+        isOffline: mocks.connectivity.isOffline,
+        lastChangedAt: null,
+        probeNow: async () => !mocks.connectivity.isOffline,
+    }),
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -37,13 +55,16 @@ vi.mock('../services/api', () => ({
 }));
 
 vi.mock('../components/dashboard/ResponderDashboardWorkspace', () => ({
-    default: ({ error, loading, stats }) => (
-        <div>
-            <span>loading:{String(loading)}</span>
-            <span>active:{stats?.activeIncidents ?? 'none'}</span>
-            {error && <span>dashboard-error:{error}</span>}
-        </div>
-    ),
+    default: ({ error, loading, stats }) => {
+        mocks.renderCount += 1;
+        return (
+            <div>
+                <span>loading:{String(loading)}</span>
+                <span>active:{stats?.activeIncidents ?? 'none'}</span>
+                {error && <span>dashboard-error:{error}</span>}
+            </div>
+        );
+    },
 }));
 
 const { default: AdminPage } = await import('../pages/AdminPage');
@@ -57,6 +78,8 @@ describe('AdminPage responder route orchestration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.callbacks = {};
+        mocks.renderCount = 0;
+        mocks.connectivity.isOffline = false;
         mocks.getResponder.mockResolvedValue({
             data: { data: { activeIncidents: 3 } },
         });
@@ -233,5 +256,109 @@ describe('AdminPage dashboard rendering', () => {
         // name it — `/dashboard` alone opens the incident map.
         expect(screen.getByRole('link', { name: 'View all 7 barangays in analytics' }))
             .toHaveAttribute('href', '/dashboard?view=analytics');
+    });
+});
+
+describe('AdminPage weak-signal intervals', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.callbacks = {};
+        mocks.renderCount = 0;
+        mocks.connectivity.isOffline = false;
+        // An earlier describe swaps in a municipal_admin user; these tests
+        // exercise the responder route.
+        mocks.user = {
+            id: 'responder-1',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        };
+        mocks.getResponder.mockResolvedValue({
+            data: { data: { activeIncidents: 3 } },
+        });
+    });
+
+    test('ticks the updated clock every 10s and skips the tick in a hidden tab', async () => {
+        vi.useFakeTimers();
+        const intervalSpy = vi.spyOn(window, 'setInterval');
+
+        render(<AdminPage />);
+        await act(async () => {});
+
+        // The tick is registered at 10s (was 1s): no more per-second
+        // full-dashboard re-renders.
+        const delays = intervalSpy.mock.calls.map(([, delay]) => delay);
+        expect(delays).toContain(10000);
+        expect(delays).not.toContain(1000);
+        const rendersAfterMount = mocks.renderCount;
+        expect(rendersAfterMount).toBeGreaterThan(0);
+
+        // Visible tab: 10s elapse, the tick fires, the clock re-renders.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10000);
+        });
+        expect(mocks.renderCount).toBeGreaterThan(rendersAfterMount);
+
+        // Hidden tab: the interval still fires, but the tick is skipped
+        // instead of burning CPU/battery on a dashboard nobody is looking at.
+        const rendersBeforeHidden = mocks.renderCount;
+        Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+        try {
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10000);
+            });
+        } finally {
+            Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+        }
+        expect(mocks.renderCount).toBe(rendersBeforeHidden);
+    });
+
+    test('revalidates every 45s while online, skips while the server is unreachable', async () => {
+        vi.useFakeTimers();
+        const { clearQueryCache } = await import('../utils/queryCache');
+        clearQueryCache();
+
+        const { rerender } = render(<AdminPage />);
+        await act(async () => {});
+        expect(mocks.getResponder).toHaveBeenCalledTimes(1);
+
+        // 45s while the server is reachable: silent revalidation fires.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(45000);
+        });
+        expect(mocks.getResponder).toHaveBeenCalledTimes(2);
+
+        // 45s while the server is unreachable: skipped — revalidating into a
+        // dead link only burns radio/battery for a doomed request.
+        mocks.connectivity.isOffline = true;
+        rerender(<AdminPage />);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(45000);
+        });
+        expect(mocks.getResponder).toHaveBeenCalledTimes(2);
+    });
+
+    test('midnight rollover still force-refreshes even while the server is unreachable', async () => {
+        vi.useFakeTimers();
+        const { clearQueryCache } = await import('../utils/queryCache');
+        clearQueryCache();
+        // 23:59:50 Manila time: the next 45s tick crosses midnight.
+        vi.setSystemTime(new Date('2026-10-04T15:59:50Z'));
+        mocks.connectivity.isOffline = true;
+
+        render(<AdminPage />);
+        await act(async () => {});
+        expect(mocks.getResponder).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(45000);
+        });
+        // The rollover branch is not gated on reachability: the calendar day
+        // changed, so the dashboard force-refreshes regardless.
+        expect(mocks.getResponder).toHaveBeenCalledTimes(2);
     });
 });

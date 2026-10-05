@@ -235,37 +235,78 @@ export const deduplicateDashboardReports = (reports = []) => {
 // so large datasets are loaded completely instead of silently truncating at
 // the server's per-page limit. Records without an id are preserved in arrival
 // order (like deduplicateDashboardReports) instead of being dropped.
+//
+// Page 1 is fetched alone to learn the page count; the remaining pages fan out
+// with a small concurrency cap so a weak link is saturated, not drowned —
+// sequential awaits cost a full RTT of pure waiting per page. Results merge in
+// page order (1..N), so dedup ties resolve exactly like the old sequential
+// loop: a later page still wins. A failed page is skipped with a warning and
+// the successful pages are kept; only a page-1 failure throws, preserving the
+// caller's error path.
+const FETCH_ALL_PAGE_CONCURRENCY = 3;
+
+const extractPageReports = (response) => {
+    const payload = response?.data?.data ?? response?.data ?? {};
+    const rawReports = Array.isArray(payload?.reports)
+        ? payload.reports
+        : Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload)
+                ? payload
+                : [];
+    return rawReports.filter(Boolean);
+};
+
+const readTotalPages = (response) => {
+    const payload = response?.data?.data ?? response?.data ?? {};
+    const reportedPages = Number(payload?.pagination?.pages ?? 1);
+    return Number.isFinite(reportedPages) && reportedPages > 0
+        ? Math.floor(reportedPages)
+        : 1;
+};
+
 export const fetchAllReportPages = async (fetchPage, params = {}, pageSize = 250) => {
     if (typeof fetchPage !== 'function') return [];
+
+    const firstPage = await fetchPage({ ...params, page: 1, limit: pageSize });
+    const totalPages = readTotalPages(firstPage);
+    const pageResponses = [firstPage];
+
+    if (totalPages > 1) {
+        // Promise pool over pages 2..totalPages. Slots keep page order so the
+        // merge below sees pages 1..N in order.
+        const slots = Array.from({ length: totalPages - 1 }, () => null);
+        let nextPage = 2;
+        const worker = async () => {
+            while (nextPage <= totalPages) {
+                const page = nextPage;
+                nextPage += 1;
+                try {
+                    slots[page - 2] = await fetchPage({ ...params, page, limit: pageSize });
+                } catch (error) {
+                    console.warn(`fetchAllReportPages: skipping failed page ${page}`, error);
+                }
+            }
+        };
+        const workers = Array.from(
+            { length: Math.min(FETCH_ALL_PAGE_CONCURRENCY, totalPages - 1) },
+            () => worker(),
+        );
+        await Promise.all(workers);
+        for (const response of slots) {
+            if (response) pageResponses.push(response);
+        }
+    }
+
     const reportsById = new Map();
     const reportsWithoutId = [];
-    let page = 1;
-    let totalPages = 1;
-
-    do {
-        const response = await fetchPage({ ...params, page, limit: pageSize });
-        const payload = response?.data?.data ?? response?.data ?? {};
-        const rawReports = Array.isArray(payload?.reports)
-            ? payload.reports
-            : Array.isArray(payload?.data)
-                ? payload.data
-                : Array.isArray(payload)
-                    ? payload
-                    : [];
-        const pageReports = rawReports.filter(Boolean);
-
-        pageReports.forEach((report) => {
+    for (const response of pageResponses) {
+        for (const report of extractPageReports(response)) {
             const id = getDashboardReportId(report);
             if (id) reportsById.set(String(id), report);
             else reportsWithoutId.push(report);
-        });
-
-        const reportedPages = Number(payload?.pagination?.pages ?? 1);
-        totalPages = Number.isFinite(reportedPages) && reportedPages > 0
-            ? Math.floor(reportedPages)
-            : 1;
-        page += 1;
-    } while (page <= totalPages);
+        }
+    }
 
     return [...reportsById.values(), ...reportsWithoutId];
 };

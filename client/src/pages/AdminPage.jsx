@@ -18,6 +18,7 @@ import {
 } from 'react-icons/hi';
 import { Skeleton, SkeletonCard, SkeletonRow } from '../components/ui/Skeleton';
 import { useSystemHealth } from '../hooks/useSystemHealth';
+import { useConnectivity } from '../hooks/useConnectivity';
 import { getMapStatusDot, MAP_STATUS_CONFIG } from '../config/mapVisuals';
 import ResponderDashboardWorkspace from '../components/dashboard/ResponderDashboardWorkspace';
 
@@ -120,6 +121,11 @@ const AdminPage = () => {
     const [loading, setLoading] = useState(() => getStaleData(dashboardCacheKey) === null);
     const [dashboardError, setDashboardError] = useState('');
     const { isDegraded: systemDegraded } = useSystemHealth();
+    // Server-liveness probe: the 45s revalidation below must not fire when the
+    // server is unreachable (mobile data ON with no load still reads as link
+    // up). Revalidating into a dead link only burns radio/battery for a request
+    // that cannot succeed.
+    const { isOnline } = useConnectivity();
     const dashboardRequestIdRef = useRef(0);
     const dashboardRefreshTimerRef = useRef(null);
     // Live operations ticker (MVP real-time monitoring): recent socket events,
@@ -257,9 +263,15 @@ const AdminPage = () => {
         };
     }, [fetchPresence, recordActivity, scheduleDashboardRefresh, subscribe]);
 
-    // Ticking "updated Xs ago" clock for the live indicator.
+    // Ticking "updated Xs ago" clock for the live indicator. 10s is plenty for a
+    // label nobody reads at 1s precision; the old 1s tick re-rendered the whole
+    // dashboard (map workspace included) every second. A hidden tab renders
+    // nothing, so the tick is skipped there instead of burning CPU/battery.
     useEffect(() => {
-        const interval = window.setInterval(() => setNowTick(Date.now()), 1000);
+        const interval = window.setInterval(() => {
+            if (typeof document !== 'undefined' && document.hidden) return;
+            setNowTick(Date.now());
+        }, 10000);
         return () => window.clearInterval(interval);
     }, []);
 
@@ -288,14 +300,15 @@ const AdminPage = () => {
             if (nextDateKey !== currentDateKey) {
                 currentDateKey = nextDateKey;
                 fetchDashboardStats({ force: true });
-            } else if (typeof document !== 'undefined' && !document.hidden) {
-                // Periodic background silent revalidation
+            } else if (typeof document !== 'undefined' && !document.hidden && isOnline) {
+                // Periodic background silent revalidation — skipped while the
+                // tab is hidden or the server is unreachable.
                 fetchDashboardStats();
             }
         }, 45000);
 
         return () => window.clearInterval(interval);
-    }, [fetchDashboardStats, userId]);
+    }, [fetchDashboardStats, isOnline, userId]);
 
     // Specialized Responder Operations Hub
     if (user?.role === 'responder') {

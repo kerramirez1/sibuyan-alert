@@ -165,6 +165,91 @@ describe('dashboard report data synchronization', () => {
         expect(reports[0]).toMatchObject({ _id: 'report-1' });
         expect(reports[1]).toMatchObject({ status: 'pending' });
     });
+
+    test('fetches remaining pages in parallel with capped concurrency, preserving page order', async () => {
+        let inFlight = 0;
+        let maxInFlight = 0;
+        const fetchPage = vi.fn(async ({ page, limit }) => {
+            inFlight += 1;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            inFlight -= 1;
+            return {
+                data: {
+                    data: {
+                        reports: [{ _id: `report-p${page}` }],
+                        pagination: { page, pages: 6, limit },
+                    },
+                },
+            };
+        });
+
+        const reports = await fetchAllReportPages(fetchPage, {}, 2);
+
+        expect(fetchPage).toHaveBeenCalledTimes(6);
+        // Page 1 goes first to learn the page count; the rest fan out.
+        expect(fetchPage.mock.calls[0][0]).toEqual({ page: 1, limit: 2 });
+        expect(maxInFlight).toBeGreaterThan(1);
+        expect(maxInFlight).toBeLessThanOrEqual(3);
+        expect(reports.map((report) => report._id)).toEqual([
+            'report-p1',
+            'report-p2',
+            'report-p3',
+            'report-p4',
+            'report-p5',
+            'report-p6',
+        ]);
+    });
+
+    test('later pages still win dedup ties when fetched in parallel', async () => {
+        const fetchPage = vi.fn(({ page, limit }) => Promise.resolve({
+            data: {
+                data: {
+                    reports: [{ _id: 'dup', v: page }],
+                    pagination: { page, pages: 3, limit },
+                },
+            },
+        }));
+
+        const reports = await fetchAllReportPages(fetchPage, {}, 2);
+
+        expect(reports).toHaveLength(1);
+        expect(reports[0]).toMatchObject({ _id: 'dup', v: 3 });
+    });
+
+    test('skips a failed page with a warning and keeps the successful pages', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const fetchPage = vi.fn(({ page, limit }) => {
+                if (page === 3) return Promise.reject(new Error('timeout'));
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            reports: [{ _id: `report-p${page}` }],
+                            pagination: { page, pages: 4, limit },
+                        },
+                    },
+                });
+            });
+
+            const reports = await fetchAllReportPages(fetchPage, {}, 2);
+
+            expect(reports.map((report) => report._id)).toEqual(['report-p1', 'report-p2', 'report-p4']);
+            expect(warnSpy).toHaveBeenCalledWith(
+                'fetchAllReportPages: skipping failed page 3',
+                expect.any(Error),
+            );
+        } finally {
+            warnSpy.mockRestore();
+        }
+    });
+
+    test('a page-1 failure still throws so callers hit their error path', async () => {
+        const fetchPage = vi.fn().mockRejectedValue(new Error('down'));
+
+        await expect(fetchAllReportPages(fetchPage, {}, 2)).rejects.toThrow('down');
+        expect(fetchPage).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('active incidents summary copy', () => {
