@@ -404,6 +404,10 @@ app.use((req, res) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 
+// Background timers registered here are stopped during graceful shutdown.
+// (Dispatch escalation sweeper, GridFS orphan sweeper, ...)
+const backgroundStops = [];
+
 export const startServer = async () => {
     validateRuntimeConfig(process.env);
     const { attachSocketRedisAdapter } = await import('./config/scaling.js');
@@ -414,7 +418,7 @@ export const startServer = async () => {
     // no unit acknowledges would otherwise be indistinguishable from one that
     // was handled, so sweep for overdue incidents and re-page them. Every dyno
     // runs this; the atomic claim in the service makes concurrent sweeps safe.
-    startDispatchEscalationSweeper({ io });
+    backgroundStops.push(startDispatchEscalationSweeper({ io }));
 
     if (!process.env.REDIS_URL?.trim()) {
         console.warn('⚠️ Single-dyno mode: in-memory rate limits + Socket.IO rooms. Scale past 1 web dyno only after setting REDIS_URL.');
@@ -443,14 +447,86 @@ export const startServer = async () => {
     });
 };
 
-if (process.env.NODE_ENV !== 'test') {
+/**
+ * Graceful shutdown (P1-4).
+ *
+ * On SIGTERM/SIGINT (Heroku dyno restart, Ctrl+C): stop background timers,
+ * stop accepting new connections, let in-flight requests finish, disconnect
+ * Socket.IO clients, close MongoDB — all inside a 25s deadline so a hung
+ * drain cannot block the restart. A SIGTERM arriving mid-request completes
+ * the request before the process exits.
+ */
+let isShuttingDown = false;
+export const shutdown = async (signal) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`🛑 ${signal} received: starting graceful shutdown`);
+
+    const deadline = setTimeout(() => {
+        console.error('🛑 Graceful shutdown exceeded 25s: forcing exit');
+        process.exit(1);
+    }, 25000);
+    // The deadline must never hold the process open by itself.
+    if (typeof deadline.unref === 'function') deadline.unref();
+
+    try {
+        // 1. Stop background timers so no new work is scheduled.
+        for (const stop of backgroundStops) {
+            try {
+                stop();
+            } catch (error) {
+                console.error('Background stop failed:', error?.message || error);
+            }
+        }
+        // 2. Stop accepting new connections. Idle keep-alive sockets are
+        // dropped so close() only waits for genuinely in-flight requests.
+        if (typeof httpServer.closeIdleConnections === 'function') {
+            httpServer.closeIdleConnections();
+        }
+        await new Promise((resolve) => httpServer.close(resolve));
+        // 3. Disconnect Socket.IO clients.
+        await new Promise((resolve) => io.close(resolve));
+        // 4. Close MongoDB.
+        await mongoose.connection.close();
+
+        clearTimeout(deadline);
+        console.log('✅ Graceful shutdown complete');
+        process.exit(0);
+    } catch (error) {
+        console.error('🛑 Graceful shutdown failed:', error);
+        clearTimeout(deadline);
+        process.exit(1);
+    }
+};
+
+/**
+ * Crash policy (P1-5). An uncaught exception means the process may be in a
+ * corrupted state: log and exit so the host (Heroku) restarts clean instead
+ * of serving from unknown state. Same for unhandled rejections.
+ *
+ * Exported (with the shutdown-signal registration below) so the policy is
+ * covered by tests without spawning a child process.
+ */
+export const registerCrashHandlers = () => {
     process.on('unhandledRejection', (reason) => {
         console.error('❌ Unhandled Promise Rejection:', reason);
+        process.exit(1);
     });
 
     process.on('uncaughtException', (error) => {
         console.error('❌ Uncaught Exception:', error);
+        process.exit(1);
     });
+};
+
+export const registerShutdownHandlers = () => {
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+};
+
+if (process.env.NODE_ENV !== 'test') {
+    registerShutdownHandlers();
+    registerCrashHandlers();
 
     startServer().catch((error) => {
         console.error(`Failed to start server: ${error.message}`);
