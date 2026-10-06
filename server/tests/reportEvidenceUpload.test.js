@@ -63,7 +63,7 @@ vi.mock('../services/pushService.js', () => ({
 const { attachReportEvidence } = await import('../controllers/reportController.js');
 const { requireEvidenceContributor } = await import('../middleware/roleCheck.js');
 const { default: Report } = await import('../models/Report.js');
-const { uploadFilesToGridFS, deleteGridFsFilesByUrls } = await import('../services/gridFsService.js');
+const { uploadFilesToGridFS, deleteGridFsFilesByUrls, getGridFsBucket } = await import('../services/gridFsService.js');
 const { evidenceProcessingQueue } = await import('../services/evidenceProcessingQueue.js');
 
 const createResponse = () => {
@@ -370,6 +370,91 @@ describe('attachReportEvidence controller (POST /api/reports/:id/evidence)', () 
 
         expect(deleteGridFsFilesByUrls).toHaveBeenCalledWith(['https://example.com/api/files/temp.jpg']);
         expect(res.status).toHaveBeenCalledWith(500);
+    });
+
+    test('returns 200 without duplicating when the photoId is already attached (idempotent replay)', async () => {
+        const fakeReport = {
+            _id: validReportId,
+            reporter: reporterId,
+            status: 'pending',
+            images: ['https://example.com/api/files/existing.jpg'],
+            evidenceMetadata: [],
+            municipalityName: 'Cajidiocan',
+            save: vi.fn().mockResolvedValue(true),
+            populate: vi.fn().mockResolvedValue(true),
+        };
+        Report.findById.mockResolvedValue(fakeReport);
+        // A GridFS file carrying this photoId is already attached to the report.
+        getGridFsBucket.mockReturnValue({
+            find: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                    toArray: vi.fn().mockResolvedValue([{ _id: 'gridfs-file-1' }]),
+                }),
+            }),
+        });
+
+        const req = {
+            params: { id: validReportId },
+            body: { photoId: 'photo-uuid-123' },
+            user: { _id: reporterId, role: 'reporter' },
+            files: [{ buffer: Buffer.from('new-photo-bytes'), originalname: 'photo.jpg' }],
+            app: { get: vi.fn().mockReturnValue(null) },
+        };
+        const res = createResponse();
+
+        await attachReportEvidence(req, res);
+
+        expect(uploadFilesToGridFS).not.toHaveBeenCalled();
+        expect(fakeReport.save).not.toHaveBeenCalled();
+        expect(fakeReport.images).toHaveLength(1);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            message: 'Evidence photo already attached.',
+        }));
+    });
+
+    test('stores a new photoId in GridFS metadata for future idempotency checks', async () => {
+        const fakeReport = {
+            _id: validReportId,
+            reporter: reporterId,
+            status: 'pending',
+            images: [],
+            evidenceMetadata: [],
+            municipalityName: 'Cajidiocan',
+            save: vi.fn().mockResolvedValue(true),
+            populate: vi.fn().mockResolvedValue(true),
+        };
+        Report.findById.mockResolvedValue(fakeReport);
+        getGridFsBucket.mockReturnValue({
+            find: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                    toArray: vi.fn().mockResolvedValue([]),
+                }),
+            }),
+        });
+        uploadFilesToGridFS.mockResolvedValue([
+            { url: 'https://example.com/api/files/new.jpg' },
+        ]);
+
+        const req = {
+            params: { id: validReportId },
+            body: { photoId: 'photo-uuid-456' },
+            user: { _id: reporterId, role: 'reporter' },
+            files: [{ buffer: Buffer.from('img'), originalname: 'photo.jpg' }],
+            app: { get: vi.fn().mockReturnValue(null) },
+        };
+        const res = createResponse();
+
+        await attachReportEvidence(req, res);
+
+        expect(uploadFilesToGridFS).toHaveBeenCalledWith(
+            expect.any(Array),
+            expect.objectContaining({ photoId: 'photo-uuid-456' })
+        );
+        expect(fakeReport.images).toHaveLength(1);
+        expect(res.status).toHaveBeenCalledWith(200);
+        await evidenceProcessingQueue.drain();
     });
 
     test('broadcasts reportEvidenceUpdated to both municipality and reporters rooms', async () => {

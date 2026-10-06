@@ -71,6 +71,12 @@ export const uploadFileToGridFS = (file, metadata = {}) => {
             resourceId: metadata.resourceId && mongoose.isValidObjectId(metadata.resourceId)
                 ? new mongoose.Types.ObjectId(metadata.resourceId) : null,
             municipalityName: metadata.municipalityName || null,
+            // Idempotency key for retried evidence uploads: the client sends
+            // the photoId assigned at enqueue time, and attachReportEvidence
+            // skips storing a photoId already attached to the report.
+            photoId: typeof metadata.photoId === 'string' && metadata.photoId.trim()
+                ? metadata.photoId.trim()
+                : null,
             uploadedAt: new Date(),
         },
     });

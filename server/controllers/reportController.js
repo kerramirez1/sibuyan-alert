@@ -1884,6 +1884,28 @@ export const attachReportEvidence = async (req, res) => {
             });
         }
 
+        // Idempotency: a retried upload carries the photoId assigned when the
+        // photo was enqueued. If a GridFS file with this photoId is already
+        // attached to the report, acknowledge without storing or appending a
+        // duplicate. Checked before the photo-count limit so a replay is never
+        // rejected as "too many photos".
+        const photoId = typeof req.body?.photoId === 'string' && req.body.photoId.trim()
+            ? req.body.photoId.trim()
+            : null;
+        if (photoId) {
+            const alreadyAttached = await getGridFsBucket()
+                .find({ 'metadata.photoId': photoId, 'metadata.resourceId': report._id })
+                .limit(1)
+                .toArray();
+            if (alreadyAttached.length > 0) {
+                return res.status(200).json({
+                    success: true,
+                    message: 'Evidence photo already attached.',
+                    data: report,
+                });
+            }
+        }
+
         const existingCount = Array.isArray(report.images) ? report.images.length : 0;
         const newCount = req.files.length;
         if (existingCount + newCount > 5) {
@@ -1901,6 +1923,7 @@ export const attachReportEvidence = async (req, res) => {
             ownerId: req.user._id,
             resourceId: report._id,
             municipalityName: report.municipalityName,
+            photoId,
         });
         uploadedImageUrls = storedImages.map(({ url }) => url);
 

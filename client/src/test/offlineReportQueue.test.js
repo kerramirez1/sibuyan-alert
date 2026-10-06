@@ -931,6 +931,9 @@ describe('offline report queue', () => {
                 const formData = buildPhotoFormData(entry);
                 expect(formData.getAll('images')).toHaveLength(1);
                 expect(formData.get('images').name).toBe('scene.jpg');
+                // Idempotency key for the evidence endpoint: the server skips
+                // a photoId it has already attached.
+                expect(formData.get('photoId')).toBe('key:photo-0');
             } finally {
                 storage.restore();
             }

@@ -401,6 +401,12 @@ export const buildPhotoFormData = (entry = {}) => {
     if (entry?.photo) {
         formData.append('images', entry.photo, entry.photoName || entry.photo?.name || 'evidence.jpg');
     }
+    // Idempotency key: the server skips (does not re-store) a photoId it has
+    // already attached to the report, so a retried upload cannot duplicate
+    // the photo. The entry's clientReportId IS the photoId assigned at enqueue.
+    if (entry?.clientReportId) {
+        formData.append('photoId', entry.clientReportId);
+    }
     return formData;
 };
 
