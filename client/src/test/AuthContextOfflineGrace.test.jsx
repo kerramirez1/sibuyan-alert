@@ -22,6 +22,14 @@ vi.mock('../utils/appToast', () => ({
     dismissActiveToast: vi.fn(),
 }));
 
+// P2-10: AuthContext revalidates on the probe-corrected isOnline false→true
+// transition. The mock makes the probe value controllable per render.
+vi.mock('../hooks/useConnectivity', () => ({
+    useConnectivity: vi.fn(),
+}));
+
+import { useConnectivity } from '../hooks/useConnectivity';
+
 // The account a reporter has while they are allowed to submit reports.
 const approvedReporter = {
     id: 'reporter-1',
@@ -85,6 +93,14 @@ describe('AuthContext offline session grace', () => {
         vi.clearAllMocks();
         latestAuth = null;
         window.localStorage.clear();
+        // Default: link up and server reachable (matches the pre-P2-10
+        // behavior the existing tests were written against).
+        useConnectivity.mockReturnValue({
+            isOnline: true,
+            isOffline: false,
+            lastChangedAt: null,
+            probeNow: vi.fn(),
+        });
     });
 
     afterEach(() => {
@@ -205,6 +221,47 @@ describe('AuthContext offline session grace', () => {
         expect(screen.getByTestId('name')).toHaveTextContent('Juan Dela Cruz');
         // The snapshot is refreshed from the live session.
         expect(readSnapshot()?.reporterVerificationStatus).toBe('approved');
+    });
+
+    test('revalidates when the probe-corrected isOnline flips false→true without a raw online event', async () => {
+        // No-load SIM scenario: the link is up but the server is unreachable.
+        useConnectivity.mockReturnValue({
+            isOnline: false,
+            isOffline: true,
+            lastChangedAt: Date.now(),
+            probeNow: vi.fn(),
+        });
+        seedSnapshot();
+        api.get.mockRejectedValue(networkFailure());
+
+        const { rerender } = renderProvider();
+
+        await waitFor(() => expect(screen.getByTestId('offline')).toHaveTextContent('true'));
+        const callsBefore = api.get.mock.calls.length;
+
+        // Prepaid load arrives: the probe corrects isOnline to true. No
+        // window 'online' event fires (the link never dropped).
+        useConnectivity.mockReturnValue({
+            isOnline: true,
+            isOffline: false,
+            lastChangedAt: Date.now(),
+            probeNow: vi.fn(),
+        });
+        api.get.mockResolvedValue({ data: { success: true, data: approvedReporter } });
+
+        await act(async () => {
+            rerender(
+                <MemoryRouter>
+                    <AuthProvider>
+                        <AuthProbe />
+                    </AuthProvider>
+                </MemoryRouter>,
+            );
+        });
+
+        await waitFor(() => expect(api.get.mock.calls.length).toBeGreaterThan(callsBefore));
+        await waitFor(() => expect(screen.getByTestId('offline')).toHaveTextContent('undefined'));
+        expect(screen.getByTestId('name')).toHaveTextContent('Juan Dela Cruz');
     });
 
     test('a failed revalidation keeps offline mode and the snapshot', async () => {

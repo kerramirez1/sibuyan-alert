@@ -23,6 +23,7 @@ import {
     readOfflineSnapshot,
     writeOfflineSnapshot,
 } from '../utils/offlineUserSnapshot';
+import { useConnectivity } from '../hooks/useConnectivity';
 
 const AuthContext = createContext(null);
 
@@ -177,6 +178,21 @@ export const AuthProvider = ({ children }) => {
         window.addEventListener('online', handleOnline);
         return () => window.removeEventListener('online', handleOnline);
     }, [user?.offline, revalidateSession]);
+
+    // P2-10: probe-driven revalidation. The raw window 'online' event above
+    // never fires when the link was always up but the server was unreachable
+    // (mobile data on, no prepaid load) — the probe-corrected isOnline is the
+    // only signal that reachability returned. On a false→true transition,
+    // re-validate the session exactly like the 'online' path.
+    const { isOnline: probeIsOnline } = useConnectivity();
+    const prevProbeIsOnlineRef = useRef(probeIsOnline);
+    useEffect(() => {
+        const wasOnline = prevProbeIsOnlineRef.current;
+        prevProbeIsOnlineRef.current = probeIsOnline;
+        if (!wasOnline && probeIsOnline && user?.offline) {
+            revalidateSession();
+        }
+    }, [probeIsOnline, user?.offline, revalidateSession]);
 
     // Proactive background session renewal (every 10 minutes) and on tab visibility restoration.
     // Keeps the 15-minute HttpOnly access token fresh even during passive dashboard monitoring.

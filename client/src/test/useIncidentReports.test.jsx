@@ -86,4 +86,43 @@ describe('useIncidentReports realtime synchronization', () => {
         unmount();
         expect(listeners.size).toBe(0);
     });
+
+    test('a stale tab response never overwrites the current tab (P2-9)', async () => {
+        clearQueryCache();
+        // The pending fetch hangs; the verified fetch resolves immediately.
+        let resolvePending;
+        const pendingPromise = new Promise((resolve) => { resolvePending = resolve; });
+        getReportsMock.mockImplementation((params) => (
+            params?.status === 'pending' ? pendingPromise : fetchQueuePage(['verified-1'])
+        ));
+
+        const { result } = renderHook(() => useIncidentReports({
+            subscribe: subscribeMock,
+            role: 'municipal_admin',
+            initialStatus: 'pending',
+        }));
+
+        // Rapid pending→verified tab switch before the pending response lands.
+        await act(async () => {
+            result.current.setStatus('verified');
+        });
+        await waitFor(() => expect(result.current.reports.map((r) => r._id)).toEqual(['verified-1']));
+        expect(result.current.status).toBe('verified');
+
+        // The stale pending response finally arrives — it must be ignored.
+        await act(async () => {
+            resolvePending({
+                data: {
+                    data: {
+                        reports: [{ _id: 'pending-1', status: 'pending' }],
+                        stats: {},
+                        pagination: { page: 1, limit: 20, total: 1, pages: 1 },
+                    },
+                },
+            });
+        });
+
+        expect(result.current.reports.map((r) => r._id)).toEqual(['verified-1']);
+        expect(result.current.status).toBe('verified');
+    });
 });

@@ -50,6 +50,11 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
     const [pagination, setPagination] = useState(EMPTY_PAGINATION);
     const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
 
+    // P2-9: monotonic id for in-flight queue fetches. A newer fetch (e.g. a
+    // rapid pending→verified tab switch) invalidates older ones: a stale
+    // response arriving late must not overwrite the list for the current tab.
+    const fetchRequestIdRef = useRef(0);
+
     useEffect(() => {
         if (!status || getRoleStatuses(role).includes(status)) return;
         setStatusState('');
@@ -57,6 +62,8 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
     }, [role, status]);
 
     const fetchReports = useCallback(async ({ silent = false, force = false } = {}) => {
+        const requestId = ++fetchRequestIdRef.current;
+        const isStaleResponse = () => requestId !== fetchRequestIdRef.current;
         const cacheKey = getIncidentQueueCacheKey({ role, responderView, status, page, appliedSearch, focusedReportId });
         // Explicit user actions (Refresh / Try again) bypass the fresh-cache
         // shortcut; automatic mount fetches use it to kill the 2nd-visit skeleton.
@@ -116,6 +123,9 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             const response = force
                 ? await adminAPI.getReports(params)
                 : await dedupedFetch(cacheKey, () => adminAPI.getReports(params));
+            // A newer fetch started while this one was in flight: drop the
+            // stale response so the list always matches the selected tab.
+            if (isStaleResponse()) return;
             const data = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) ? response.data.data : {};
             const nextReports = Array.isArray(data.reports) ? data.reports.filter(Boolean) : [];
             const nextStats = data.stats && typeof data.stats === 'object' && !Array.isArray(data.stats) ? data.stats : null;
@@ -149,9 +159,14 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             setCachedData(cacheKey, { reports: nextReports, stats: nextStats, pagination: nextPagination });
             setLastUpdatedAt(Date.now());
         } catch (requestError) {
+            // A stale request's error must not surface over the newer fetch.
+            if (isStaleResponse()) return;
             // Keep stale queue on screen; only surface error when cache is empty.
             if (getStaleData(cacheKey) === null) setError(getErrorMessage(requestError));
         } finally {
+            // Only the latest fetch may settle the loading state; an older
+            // fetch finishing late must not clear a newer fetch's spinner.
+            if (isStaleResponse()) return;
             if (!silent) setLoading(false);
             else if (getStaleData(cacheKey) !== null) setLoading(false);
         }
