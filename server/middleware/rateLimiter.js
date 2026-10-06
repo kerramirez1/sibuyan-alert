@@ -62,6 +62,15 @@ export const reportCreationLimiter = rateLimit(withStore({
     max: 10, // 10 reports per 10 minutes
     standardHeaders: true,
     legacyHeaders: false,
+    // Key by authenticated user id, not IP: field reporters share carrier NAT
+    // IPs, and an IP-keyed budget would let one heavy user starve every other
+    // reporter behind the same address. Unauthenticated callers (none on the
+    // report routes today, but defensively) fall back to IP.
+    keyGenerator: (req) => {
+        const userId = req.user?._id || req.user?.id;
+        if (userId) return `report-user:${userId}`;
+        return `report-ip:${req.ip}`;
+    },
     message: {
         success: false,
         message: 'Too many reports submitted. Please try again shortly.',
@@ -109,6 +118,23 @@ export const searchLimiter = rateLimit(withStore({
     message: {
         success: false,
         message: 'Too many searches. Please wait a moment and try again.',
+    },
+}));
+
+/**
+ * Analytics dashboards: same budget as search (60/min/IP). The aggregations
+ * behind these endpoints are the heaviest reads in the API, and the public
+ * one is unauthenticated — a scrape loop must not be able to run them
+ * unbounded.
+ */
+export const analyticsLimiter = rateLimit(withStore({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many analytics requests. Please wait a moment and try again.',
     },
 }));
 

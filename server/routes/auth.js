@@ -38,7 +38,7 @@ router.post('/login', authLimiter, validateLogin, login);
 router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, forgotPassword);
 router.post('/reset-password/:token', authLimiter, validateResetPassword, resetPassword);
 router.post('/refresh', authLimiter, refreshSession);
-router.post('/logout', logout);
+router.post('/logout', authLimiter, logout);
 
 
 // Protected routes
