@@ -1,4 +1,5 @@
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import { createServer } from 'http';
@@ -54,7 +55,7 @@ import fileRoutes from './routes/files.js';
 
 // Initialize Express app
 const app = express();
-const httpServer = createServer(app);
+export const httpServer = createServer(app);
 
 if (process.env.NODE_ENV === 'production') {
     // Heroku terminates TLS at its router. Trust only the first proxy so rate
@@ -192,6 +193,22 @@ app.use(compression({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Helmet's CSP-less defaults. Placed BEFORE the manual header middleware so
+// the existing explicit choices below stay authoritative on conflicts
+// (X-Frame-Options DENY, Referrer-Policy, production-only HSTS). Disabled:
+// - contentSecurityPolicy — needs per-page tuning (Vite inline chunks, map
+//   workers); excluded per the security review's "CSP-less defaults".
+// - crossOriginEmbedderPolicy (require-corp) — would block the cross-origin
+//   raster tile layers (Esri/OSM), which MapLibre loads via no-cors <img>.
+// - crossOriginResourcePolicy (same-origin) — would block dev <img> loads
+//   from :5173 to the :5000 API.
+// - hsts — the manual middleware keeps setting production-only HSTS as today.
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+    hsts: false,
+}));
 app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -252,6 +269,29 @@ const authenticateSocketRequest = async (socket) => {
     const identity = await authenticateAccessToken(token);
     return identity?.user || null;
 };
+
+// P2-2: validate the session cookie at the handshake, before any connection
+// state exists. Previously authentication happened lazily inside the 'join'
+// event, which left anonymous sockets connected but unauthenticated. The
+// 'join' handler below keeps its own check as defense-in-depth.
+io.use(async (socket, next) => {
+    try {
+        const user = await authenticateSocketRequest(socket);
+        if (!user?._id) {
+            return next(new Error('Unauthorized: authentication required'));
+        }
+        socket.data.user = {
+            id: user._id.toString(),
+            role: user.role,
+            assignedMunicipality: user.assignedMunicipality,
+        };
+        return next();
+    } catch (error) {
+        console.error('Socket handshake auth error:', error.message);
+        return next(new Error('Authentication service unavailable'));
+    }
+});
+
 io.on('connection', (socket) => {
     const getAuthenticatedUser = () => socket.data.user || null;
     // Join user-specific room for incident alerts.
