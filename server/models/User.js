@@ -294,6 +294,12 @@ userSchema.virtual('profile').get(function () {
 userSchema.set('toJSON', { virtuals: true });
 userSchema.set('toObject', { virtuals: true });
 
+// P2-4: operational lookups by role + municipality (responder/admin
+// directory queries) and token lookups for password reset / invitation
+// acceptance (sparse: most users have no token outstanding).
+userSchema.index({ role: 1, assignedMunicipality: 1 });
+userSchema.index({ resetPasswordToken: 1 }, { sparse: true });
+
 const User = mongoose.model('User', userSchema);
 
 export default User;

@@ -32,6 +32,7 @@ import { configureWebPush } from './services/pushService.js';
 import { ensureAnalyticsView } from './services/analyticsViewService.js';
 import { initFaceDetector } from './services/faceDetectionService.js';
 import { startDispatchEscalationSweeper } from './services/dispatchEscalationService.js';
+import { startGridFsOrphanSweeper } from './services/gridFsOrphanSweeper.js';
 import { authenticateAccessToken } from './middleware/auth.js';
 import { csrfProtection } from './middleware/csrf.js';
 import { ACCESS_COOKIE_NAME } from './config/authConfig.js';
@@ -459,6 +460,8 @@ export const startServer = async () => {
     // was handled, so sweep for overdue incidents and re-page them. Every dyno
     // runs this; the atomic claim in the service makes concurrent sweeps safe.
     backgroundStops.push(startDispatchEscalationSweeper({ io }));
+    // P2-7: daily GridFS orphan sweep (also registered for graceful shutdown).
+    backgroundStops.push(startGridFsOrphanSweeper());
 
     if (!process.env.REDIS_URL?.trim()) {
         console.warn('⚠️ Single-dyno mode: in-memory rate limits + Socket.IO rooms. Scale past 1 web dyno only after setting REDIS_URL.');
