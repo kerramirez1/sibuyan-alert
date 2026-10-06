@@ -250,6 +250,9 @@ export const createReport = async (req, res) => {
                 .populate('municipality', 'name code');
 
             if (replayed) {
+                // F5: idempotent replay — the retried upload's temp files must
+                // not survive a request that stores nothing.
+                await cleanupTempUploadFiles(req.files);
                 return res.status(200).json({
                     success: true,
                     replayed: true,
@@ -288,6 +291,8 @@ export const createReport = async (req, res) => {
         // Validate required fields
         const finalIncidentTime = incidentTime || accidentTime;
         if (!finalIncidentTime) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 message: 'Incident time is required',
@@ -300,6 +305,8 @@ export const createReport = async (req, res) => {
 
         // Validate category
         if (!INCIDENT_CATEGORIES[finalCategory]) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 message: 'Invalid incident category',
@@ -319,6 +326,8 @@ export const createReport = async (req, res) => {
 
         const capture = parseLocationCapture({ locationSource, locationAccuracy, locationCapturedAt });
         if (!capture.valid) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({ success: false, message: capture.message });
         }
 
@@ -327,6 +336,8 @@ export const createReport = async (req, res) => {
                 ? locationResult.warnings.join('. ')
                 : 'Could not process location. Please provide valid coordinates or address.';
 
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 message: errorMessage,
@@ -335,6 +346,8 @@ export const createReport = async (req, res) => {
 
         // Validate the location is within Sibuyan Island
         if (!isWithinSibuyanBounds(locationResult.coordinates.lat, locationResult.coordinates.lng)) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 message: 'Location must be within Sibuyan Island',
@@ -343,6 +356,8 @@ export const createReport = async (req, res) => {
         }
 
         if (locationResult.municipalityAssignment !== 'matched') {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 code: 'MUNICIPALITY_UNASSIGNED',
@@ -376,6 +391,8 @@ export const createReport = async (req, res) => {
         const confirmDistinct = String(req.body.confirmDistinct ?? '') === 'true';
 
         if (duplicateCandidates.length > 0 && !confirmDistinct) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(409).json({
                 success: false,
                 code: 'POSSIBLE_DUPLICATE',
@@ -1849,6 +1866,8 @@ export const attachReportEvidence = async (req, res) => {
     try {
         const { id } = req.params;
         if (!mongoose.isValidObjectId(id)) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 code: 'INVALID_REPORT_ID',
@@ -1866,6 +1885,8 @@ export const attachReportEvidence = async (req, res) => {
 
         const report = await Report.findById(id);
         if (!report) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(404).json({
                 success: false,
                 code: 'REPORT_NOT_FOUND',
@@ -1882,6 +1903,8 @@ export const attachReportEvidence = async (req, res) => {
         );
 
         if (!isOwner && !isOperational) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(403).json({
                 success: false,
                 code: 'FORBIDDEN',
@@ -1890,6 +1913,8 @@ export const attachReportEvidence = async (req, res) => {
         }
 
         if (['resolved', 'rejected'].includes(report.status)) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 code: 'REPORT_CLOSED',
@@ -1911,6 +1936,9 @@ export const attachReportEvidence = async (req, res) => {
                 .limit(1)
                 .toArray();
             if (alreadyAttached.length > 0) {
+                // F5: idempotent replay — the retried upload's temp files must
+                // not survive a request that stores nothing.
+                await cleanupTempUploadFiles(req.files);
                 return res.status(200).json({
                     success: true,
                     message: 'Evidence photo already attached.',
@@ -1922,6 +1950,8 @@ export const attachReportEvidence = async (req, res) => {
         const existingCount = Array.isArray(report.images) ? report.images.length : 0;
         const newCount = req.files.length;
         if (existingCount + newCount > 5) {
+            // F5: disk temp files must not survive a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 code: 'EXCEEDS_IMAGE_LIMIT',
