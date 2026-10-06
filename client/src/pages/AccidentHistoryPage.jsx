@@ -297,10 +297,19 @@ const AccidentHistoryPage = () => {
         Boolean(isAuthenticated && user && ['municipal_admin', 'responder'].includes(user.role))
     ), [isAuthenticated, user]);
 
+    // Municipal sovereignty invariant: full operational details (coordinates,
+    // reporter name, responder identity/notes, original evidence) never cross
+    // municipalities. Cross-municipality rows render the public projection.
+    const showFullDetails = (report) => (
+        canViewFullDetails && report?.municipalityName === user?.assignedMunicipality
+    );
+
     const requestedDateFilter = searchParams.get('date');
-    // Role-scoped archive key: admins fetch full details, everyone else the
-    // public projection. Session-scoped (wiped on logout), so no leakage.
-    const historyCacheKey = `accident-history:${canViewFullDetails ? 'full' : 'public'}`;
+    // Session-scoped (wiped on logout), so no leakage. The key was renamed
+    // when the page became island-wide for operational users: the old
+    // 'accident-history:full'/'public' caches hold jurisdiction-scoped data
+    // and must never be reused.
+    const historyCacheKey = 'accident-history:island-v1';
     const [reports, setReports] = useState(() => {
         const cached = getStaleData(historyCacheKey);
         return Array.isArray(cached) ? cached : [];
@@ -373,10 +382,35 @@ const AccidentHistoryPage = () => {
         }
 
         try {
-            const fetchPage = canViewFullDetails
-                ? (pageParams) => adminAPI.getReports({ status: 'resolved', ...pageParams })
-                : (pageParams) => reportsAPI.getAll({ status: 'resolved', ...pageParams });
-            const rows = await dedupedFetch(`fetch:${historyCacheKey}`, () => fetchAllReportPages(fetchPage, { status: 'resolved' }, 250));
+            let rows;
+            if (canViewFullDetails) {
+                // Operational users: own municipality's full details (from the
+                // jurisdiction-scoped admin endpoint) merged with the
+                // island-wide public projection. Rows present in both resolve
+                // to the full-detail copy; the admin endpoint can never
+                // supply cross-municipality detail, so no full details leak.
+                const [ownMunicipality, islandWide] = await Promise.all([
+                    dedupedFetch(`fetch:${historyCacheKey}:own`, () => fetchAllReportPages(
+                        (pageParams) => adminAPI.getReports({ status: 'resolved', ...pageParams }),
+                        { status: 'resolved' },
+                        250
+                    )),
+                    dedupedFetch(`fetch:${historyCacheKey}:island`, () => fetchAllReportPages(
+                        (pageParams) => reportsAPI.getAll({ status: 'resolved', ...pageParams }),
+                        { status: 'resolved' },
+                        250
+                    )),
+                ]);
+                const ownReports = (Array.isArray(ownMunicipality) ? ownMunicipality : []).filter(Boolean);
+                const ownIds = new Set(ownReports.map((report) => String(report?._id)));
+                const islandExtra = (Array.isArray(islandWide) ? islandWide : [])
+                    .filter(Boolean)
+                    .filter((report) => !ownIds.has(String(report?._id)));
+                rows = [...ownReports, ...islandExtra];
+            } else {
+                const fetchPage = (pageParams) => reportsAPI.getAll({ status: 'resolved', ...pageParams });
+                rows = await dedupedFetch(`fetch:${historyCacheKey}`, () => fetchAllReportPages(fetchPage, { status: 'resolved' }, 250));
+            }
             const nextReports = (Array.isArray(rows) ? rows : [])
                 .filter(Boolean)
                 .filter((report) => report?.status === 'resolved');
@@ -1073,7 +1107,7 @@ const AccidentHistoryPage = () => {
                                                         ['Resolved date', formatDate(resolvedDate, 'MMM d, yyyy h:mm a')],
                                                         ['Municipality', getPhysicalMunicipality(report) || 'Not available'],
                                                         ['Casualties', casualtyCount ? `${dossierInjured} injured, ${dossierFatalities} fatal, ${dossierMissing} missing` : 'None recorded'],
-                                                        ...(canViewFullDetails ? [
+                                                        ...(showFullDetails(report) ? [
                                                             ['Coordinates', getCoordinates(report)],
                                                             ['Reported by', report.reporter?.name || 'Anonymous'],
                                                         ] : []),
@@ -1093,7 +1127,7 @@ const AccidentHistoryPage = () => {
                                                             <span className="text-[11px] font-semibold uppercase tracking-wider">
                                                                 Handled by {report.respondedBy?.agency || report.resolvedBy?.agency || 'Emergency Services'}
                                                             </span>
-                                                            {canViewFullDetails && (
+                                                            {showFullDetails(report) && (
                                                                 <span className="text-[11px] font-medium text-brand-700 dark:text-sky-400">
                                                                     ({report.respondedBy?.name || report.resolvedBy?.name || 'Responder'}{report.resolutionNotes ? ` — ${report.resolutionNotes}` : ''})
                                                                 </span>
@@ -1101,7 +1135,7 @@ const AccidentHistoryPage = () => {
                                                         </div>
                                                     ) : <div />}
 
-                                                    {canViewFullDetails ? (
+                                                    {showFullDetails(report) ? (
                                                         (report.images?.length || report.evidence?.items?.length) ? (
                                                             <div className="flex items-center gap-2">
                                                                 <ProtectedEvidenceGallery

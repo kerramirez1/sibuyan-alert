@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from '../router';
 
 const mocks = vi.hoisted(() => ({
+    // Swappable per test: the page reads mocks.authUser through the Auth mock.
+    authUser: { _id: 'responder-1', role: 'responder', assignedMunicipality: 'Magdiwang' },
     getReports: vi.fn(),
+    getAll: vi.fn(),
     getMunicipalities: vi.fn(),
     recordViewEvent: vi.fn(),
     subscribe: vi.fn(() => () => {}),
@@ -12,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../context/AuthContext', () => ({
     useAuth: () => ({
         isAuthenticated: true,
-        user: { _id: 'responder-1', role: 'responder' },
+        user: mocks.authUser,
     }),
 }));
 
@@ -23,7 +26,7 @@ vi.mock('../context/SocketContext', () => ({
 vi.mock('../services/api', () => ({
     adminAPI: { getReports: mocks.getReports },
     reportsAPI: {
-        getAll: vi.fn(),
+        getAll: mocks.getAll,
         getMunicipalities: mocks.getMunicipalities,
     },
     // View recording lives on its own export now — one home for the reach
@@ -43,7 +46,15 @@ describe('AccidentHistoryPage features and filters', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        // mockReset (not just clear): drops any mockRejectedValueOnce queue
+        // left by an earlier test, e.g. the cached-archive offline case.
+        mocks.getReports.mockReset();
+        mocks.getAll.mockReset();
+        mocks.authUser = { _id: 'responder-1', role: 'responder', assignedMunicipality: 'Magdiwang' };
         mocks.recordViewEvent.mockResolvedValue({ data: { data: { viewCount: 9, counted: true } } });
+        // Default island-wide public projection: empty, so the pre-existing
+        // tests keep their merged list of 3 admin-endpoint reports.
+        mocks.getAll.mockResolvedValue({ data: { data: { reports: [] } } });
         mocks.getMunicipalities.mockResolvedValue({
             data: {
                 success: true,
@@ -155,11 +166,13 @@ describe('AccidentHistoryPage features and filters', () => {
 
         await screen.findByRole('heading', { level: 1, name: 'Accident history' });
 
-        const expandButtons = screen.getAllByRole('button', { name: /Expand details/i });
-        fireEvent.click(expandButtons[0]);
+        // Expand the own-municipality (Magdiwang) card: full operational
+        // details render only for the user's own municipality.
+        const magdiwangCard = screen.getByText('Tampayan, Magdiwang').closest('article');
+        fireEvent.click(within(magdiwangCard).getByRole('button', { name: /Expand details/i }));
 
         await waitFor(() => expect(mocks.recordViewEvent).toHaveBeenCalledTimes(1));
-        expect(mocks.recordViewEvent).toHaveBeenCalledWith({ targetType: 'report', targetId: 'today-report' });
+        expect(mocks.recordViewEvent).toHaveBeenCalledWith({ targetType: 'report', targetId: 'magdiwang-report' });
 
         // The expand is still recorded, but the archive no longer prints a
         // per-record count: reach is read on the Analytics dashboard's reach
@@ -168,9 +181,9 @@ describe('AccidentHistoryPage features and filters', () => {
         expect(screen.getByText('Reported by')).toBeInTheDocument();
 
         // Collapse and re-expand must not inflate the count.
-        fireEvent.click(screen.getByRole('button', { name: /Collapse details/i }));
-        fireEvent.click((await screen.findAllByRole('button', { name: /Expand details/i }))[0]);
-        await waitFor(() => expect(screen.getByRole('button', { name: /Collapse details/i })).toBeInTheDocument());
+        fireEvent.click(within(magdiwangCard).getByRole('button', { name: /Collapse details/i }));
+        fireEvent.click((await within(magdiwangCard).findAllByRole('button', { name: /Expand details/i }))[0]);
+        await waitFor(() => expect(within(magdiwangCard).getByRole('button', { name: /Collapse details/i })).toBeInTheDocument());
         expect(mocks.recordViewEvent).toHaveBeenCalledTimes(1);
     });
 
@@ -473,5 +486,172 @@ describe('AccidentHistoryPage features and filters', () => {
         expect(screen.getByText('Poblacion, Cajidiocan')).toBeInTheDocument();
         expect(screen.queryByLabelText('Loading accident archive')).not.toBeInTheDocument();
         expect(mocks.getReports).toHaveBeenCalledTimes(1);
+    });
+
+    test('admin sees merged island-wide resolved reports from both endpoints', async () => {
+        mocks.authUser = { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Magdiwang' };
+
+        const magdiwangFull = {
+            _id: 'mdg-full-1',
+            status: 'resolved',
+            municipalityName: 'Magdiwang',
+            barangay: 'Tampayan',
+            severity: 'critical',
+            resolvedAt: older.toISOString(),
+            createdAt: older.toISOString(),
+            reporter: { name: 'Juan Dela Cruz' },
+            coordinates: { lat: 12.1234, lng: 122.5678 },
+            respondedBy: { name: 'Responder One', agency: 'MDRRMO' },
+            resolutionNotes: 'Area cleared',
+            images: [],
+        };
+        // Own municipality: full operational details from the admin endpoint.
+        mocks.getReports.mockResolvedValue({ data: { data: { reports: [magdiwangFull] } } });
+        // Island-wide public projection, including a second copy of the
+        // Magdiwang report that must be deduped away.
+        mocks.getAll.mockResolvedValue({ data: { data: { reports: [
+            {
+                _id: 'caj-pub-1',
+                status: 'resolved',
+                municipalityName: 'Cajidiocan',
+                barangay: 'Poblacion',
+                severity: 'moderate',
+                resolvedAt: now.toISOString(),
+                createdAt: now.toISOString(),
+            },
+            {
+                _id: 'sf-pub-1',
+                status: 'resolved',
+                municipalityName: 'San Fernando',
+                barangay: 'Cambajao',
+                severity: 'severe',
+                resolvedAt: older.toISOString(),
+                createdAt: older.toISOString(),
+            },
+            { ...magdiwangFull, reporter: undefined, coordinates: undefined, respondedBy: undefined },
+        ] } } });
+
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('Poblacion, Cajidiocan');
+        expect(screen.getByText('Cambajao, San Fernando')).toBeInTheDocument();
+        // Deduplicated: the Magdiwang report appears once, as the full copy.
+        expect(screen.getAllByText('Tampayan, Magdiwang')).toHaveLength(1);
+
+        expect(mocks.getReports).toHaveBeenCalledWith({ limit: 250, page: 1, status: 'resolved' });
+        expect(mocks.getAll).toHaveBeenCalledWith({ limit: 250, page: 1, status: 'resolved' });
+    });
+
+    test("dossier gates full details to the admin's own municipality", async () => {
+        mocks.authUser = { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Magdiwang' };
+
+        const magdiwangFull = {
+            _id: 'mdg-full-1',
+            status: 'resolved',
+            municipalityName: 'Magdiwang',
+            barangay: 'Tampayan',
+            severity: 'critical',
+            resolvedAt: older.toISOString(),
+            createdAt: older.toISOString(),
+            reporter: { name: 'Juan Dela Cruz' },
+            coordinates: { lat: 12.1234, lng: 122.5678 },
+            respondedBy: { name: 'Responder One', agency: 'MDRRMO' },
+            resolutionNotes: 'Area cleared',
+            images: [],
+        };
+        mocks.getReports.mockResolvedValue({ data: { data: { reports: [magdiwangFull] } } });
+        mocks.getAll.mockResolvedValue({ data: { data: { reports: [
+            {
+                _id: 'caj-pub-1',
+                status: 'resolved',
+                municipalityName: 'Cajidiocan',
+                barangay: 'Poblacion',
+                severity: 'moderate',
+                resolvedAt: now.toISOString(),
+                createdAt: now.toISOString(),
+            },
+        ] } } });
+
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        // Own municipality: coordinates, reporter, and responder identity render.
+        await screen.findByText('Tampayan, Magdiwang');
+        const magdiwangCard = screen.getByText('Tampayan, Magdiwang').closest('article');
+        fireEvent.click(within(magdiwangCard).getByRole('button', { name: /Expand details/i }));
+        await waitFor(() => expect(within(magdiwangCard).getByText('Reported by')).toBeInTheDocument());
+        expect(within(magdiwangCard).getByText('Coordinates')).toBeInTheDocument();
+        expect(within(magdiwangCard).getByText(/Juan Dela Cruz/)).toBeInTheDocument();
+        expect(within(magdiwangCard).getByText(/Responder One/)).toBeInTheDocument();
+        expect(within(magdiwangCard).queryByText(/Protected details restricted/)).not.toBeInTheDocument();
+
+        // Cross-municipality: public projection — no coordinates, no reporter
+        // name, no responder identity; the lock message renders instead.
+        const cajidiocanCard = screen.getByText('Poblacion, Cajidiocan').closest('article');
+        fireEvent.click(within(cajidiocanCard).getByRole('button', { name: /Expand details/i }));
+        await waitFor(() => expect(within(cajidiocanCard).getByText(/Protected details restricted/)).toBeInTheDocument());
+        expect(within(cajidiocanCard).queryByText('Coordinates')).not.toBeInTheDocument();
+        expect(within(cajidiocanCard).queryByText('Reported by')).not.toBeInTheDocument();
+        expect(within(cajidiocanCard).queryByText(/Juan Dela Cruz/)).not.toBeInTheDocument();
+        expect(within(cajidiocanCard).queryByText(/Responder One/)).not.toBeInTheDocument();
+    });
+
+    test('municipality filter narrows the merged list to one municipality', async () => {
+        mocks.authUser = { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Magdiwang' };
+
+        mocks.getReports.mockResolvedValue({ data: { data: { reports: [
+            {
+                _id: 'mdg-full-1',
+                status: 'resolved',
+                municipalityName: 'Magdiwang',
+                barangay: 'Tampayan',
+                severity: 'critical',
+                resolvedAt: older.toISOString(),
+                createdAt: older.toISOString(),
+            },
+        ] } } });
+        mocks.getAll.mockResolvedValue({ data: { data: { reports: [
+            {
+                _id: 'caj-pub-1',
+                status: 'resolved',
+                municipalityName: 'Cajidiocan',
+                barangay: 'Poblacion',
+                severity: 'moderate',
+                resolvedAt: now.toISOString(),
+                createdAt: now.toISOString(),
+            },
+            {
+                _id: 'sf-pub-1',
+                status: 'resolved',
+                municipalityName: 'San Fernando',
+                barangay: 'Cambajao',
+                severity: 'severe',
+                resolvedAt: older.toISOString(),
+                createdAt: older.toISOString(),
+            },
+        ] } } });
+
+        render(
+            <MemoryRouter>
+                <AccidentHistoryPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('Poblacion, Cajidiocan');
+        expect(screen.getByText('Cambajao, San Fernando')).toBeInTheDocument();
+        expect(screen.getByText('Tampayan, Magdiwang')).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText('Filter by municipality'), { target: { value: 'Cajidiocan' } });
+
+        await waitFor(() => expect(screen.queryByText('Tampayan, Magdiwang')).not.toBeInTheDocument());
+        expect(screen.getByText('Poblacion, Cajidiocan')).toBeInTheDocument();
+        expect(screen.queryByText('Cambajao, San Fernando')).not.toBeInTheDocument();
     });
 });
