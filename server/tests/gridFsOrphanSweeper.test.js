@@ -61,17 +61,37 @@ describe('P2-7 GridFS orphan sweeper', () => {
     });
 
     test('deletes files whose resourceId matches no Report and keeps the rest', async () => {
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
         mocks.reportIds = ['64b100000000000000000001'];
         mocks.files = [
-            { _id: 'file-keep', metadata: { resourceId: '64b100000000000000000001' } },
-            { _id: 'file-orphan', metadata: { resourceId: '64b100000000000000000002' } },
-            { _id: 'file-noresource', metadata: { resourceId: null } },
+            { _id: 'file-keep', metadata: { resourceId: '64b100000000000000000001', uploadedAt: twoHoursAgo } },
+            { _id: 'file-orphan', metadata: { resourceId: '64b100000000000000000002', uploadedAt: twoHoursAgo } },
+            { _id: 'file-noresource', metadata: { resourceId: null, uploadedAt: twoHoursAgo } },
         ];
 
         const result = await sweepGridFsOrphans();
 
         expect(result).toEqual({ checked: 2, deleted: 1 });
         expect(mocks.deleted).toEqual(['file-orphan']);
+    });
+
+    test('never deletes a just-uploaded file inside the age grace window (F2)', async () => {
+        const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+        mocks.reportIds = [];
+        mocks.files = [
+            // In-flight upload: resourceId has no Report YET — must survive.
+            { _id: 'file-inflight', metadata: { resourceId: '64b100000000000000000003', uploadedAt: oneMinuteAgo } },
+            // Genuinely orphaned and old — must be deleted.
+            { _id: 'file-old-orphan', metadata: { resourceId: '64b100000000000000000004', uploadedAt: twoHoursAgo } },
+            // No usable timestamp — fail safe, skip.
+            { _id: 'file-no-timestamp', metadata: { resourceId: '64b100000000000000000005' } },
+        ];
+
+        const result = await sweepGridFsOrphans();
+
+        expect(result).toEqual({ checked: 3, deleted: 1 });
+        expect(mocks.deleted).toEqual(['file-old-orphan']);
     });
 
     test('returns zero counts when no files reference reports', async () => {

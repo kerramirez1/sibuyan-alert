@@ -62,7 +62,7 @@ describe('deleteUser responder/audit guard (P2-8)', () => {
         app: { get: vi.fn(() => null) },
     });
 
-    test('queries all five audit-trail branches in one $or', async () => {
+    test('queries all nine audit-trail branches in one $or', async () => {
         setupUsers();
         Report.exists.mockResolvedValue(null);
 
@@ -71,7 +71,7 @@ describe('deleteUser responder/audit guard (P2-8)', () => {
 
         expect(Report.exists).toHaveBeenCalledTimes(1);
         const query = Report.exists.mock.calls[0][0];
-        expect(query.$or).toHaveLength(5);
+        expect(query.$or).toHaveLength(9);
         const branches = query.$or.map((b) => JSON.stringify(b));
         expect(branches).toContain(JSON.stringify({
             reporter: 'target-1',
@@ -81,6 +81,11 @@ describe('deleteUser responder/audit guard (P2-8)', () => {
         expect(branches).toContain(JSON.stringify({ verifiedBy: 'target-1' }));
         expect(branches).toContain(JSON.stringify({ resolvedBy: 'target-1' }));
         expect(branches).toContain(JSON.stringify({ respondedBy: 'target-1' }));
+        // F3: transfer history, dispatch acknowledgement, report updates.
+        expect(branches).toContain(JSON.stringify({ 'transferHistory.transferredBy': 'target-1' }));
+        expect(branches).toContain(JSON.stringify({ 'transferHistory.acknowledgedBy': 'target-1' }));
+        expect(branches).toContain(JSON.stringify({ 'dispatch.acknowledgedBy': 'target-1' }));
+        expect(branches).toContain(JSON.stringify({ 'reportUpdates.author': 'target-1' }));
     });
 
     test('blocks with 400 when the user is linked to any incident report', async () => {

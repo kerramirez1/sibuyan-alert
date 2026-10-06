@@ -166,9 +166,12 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         } finally {
             // Only the latest fetch may settle the loading state; an older
             // fetch finishing late must not clear a newer fetch's spinner.
-            if (isStaleResponse()) return;
-            if (!silent) setLoading(false);
-            else if (getStaleData(cacheKey) !== null) setLoading(false);
+            // (Wrapped instead of early-return: return inside finally is
+            // banned by no-unsafe-finally.)
+            if (!isStaleResponse()) {
+                if (!silent) setLoading(false);
+                else if (getStaleData(cacheKey) !== null) setLoading(false);
+            }
         }
     }, [appliedSearch, focusedReportId, page, responderView, role, status]);
 

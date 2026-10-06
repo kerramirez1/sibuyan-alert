@@ -9,6 +9,7 @@ import {
     isSupportedIncidentType,
 } from '../config/incidentCategories.js';
 import { CREATABLE_UNIT_TYPES, RESPONDER_UNIT_TYPES } from '../config/responderUnits.js';
+import { cleanupTempUploadFiles, collectRequestFiles } from './upload.js';
 
 const REPORT_COUNT_FIELDS = [
     ['casualties', 'injured'],
@@ -100,6 +101,23 @@ export const validateResetPassword = [
 
 // ===================== REPORT VALIDATORS =====================
 
+/**
+ * 400 handler for the report-create chain. Evidence files sit on disk by the
+ * time validation runs (uploadReportImages precedes it in the route chain),
+ * so a rejected request must delete its temp files. cleanupTempUploadFiles
+ * only removes files that actually have a disk path, so memory-storage
+ * uploads are untouched. Response shape is identical to
+ * handleValidationErrors — this just adds cleanup first.
+ */
+const handleCreateReportValidationErrors = async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        // F4: disk temp files must not survive a rejected request.
+        await cleanupTempUploadFiles(collectRequestFiles(req));
+    }
+    return handleValidationErrors(req, res, next);
+};
+
 export const validateCreateReport = [
     body().custom((_, { req }) => {
         const incidentTime = req.body.incidentTime || req.body.accidentTime;
@@ -178,7 +196,7 @@ export const validateCreateReport = [
     body('clientReportId')
         .optional({ checkFalsy: true })
         .isLength({ max: 100 }).withMessage('clientReportId cannot exceed 100 characters'),
-    handleValidationErrors,
+    handleCreateReportValidationErrors,
 ];
 
 export const validateMongoIdParam = [

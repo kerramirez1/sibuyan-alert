@@ -173,24 +173,36 @@ const hasSafeIdentityDimensions = (buffer, mimetype) => {
         && dimensions.width * dimensions.height <= MAX_IDENTITY_PIXELS;
 };
 
+/**
+ * Flatten every multer file attachment (req.file, req.files array, or
+ * req.files field-name map) into one list.
+ */
+export const collectRequestFiles = (req) => {
+    const nestedFiles = req.files && !Array.isArray(req.files)
+        ? Object.values(req.files).flat()
+        : req.files || [];
+    return [req.file, ...nestedFiles].filter(Boolean);
+};
+
 export const validateUploadContent = async (req, res, next) => {
     try {
-        const nestedFiles = req.files && !Array.isArray(req.files)
-            ? Object.values(req.files).flat()
-            : req.files || [];
-        const files = [req.file, ...nestedFiles].filter(Boolean);
+        const files = collectRequestFiles(req);
 
         for (const file of files) {
             // Disk-backed uploads are read transiently, one file at a time —
             // never held for the whole request.
             const buffer = await readUploadBuffer(file);
             if (!hasExpectedSignature(buffer, file.mimetype)) {
+                // F4: disk temp files must not survive a rejected request.
+                await cleanupTempUploadFiles(files);
                 return res.status(400).json({
                     success: false,
                     message: `${file.originalname || 'Uploaded file'} does not match its declared file type`,
                 });
             }
             if (IDENTITY_IMAGE_FIELDS.has(file.fieldname) && !hasSafeIdentityDimensions(buffer, file.mimetype)) {
+                // F4: disk temp files must not survive a rejected request.
+                await cleanupTempUploadFiles(files);
                 return res.status(400).json({
                     success: false,
                     message: 'ID and selfie photos must be readable images of at least 480 × 300 pixels',
@@ -253,8 +265,14 @@ export const uploadAvatar = multer({
     ),
 }).single('avatar');
 
-export const handleMulterError = (error, req, res, next) => {
+export const handleMulterError = async (error, req, res, next) => {
     if (!error) return next();
+
+    // F4: multer leaves partial/complete disk files behind on errors such as
+    // LIMIT_FILE_SIZE — clean them up before responding. collectRequestFiles
+    // also picks up memory-storage uploads, but cleanupTempUploadFiles only
+    // removes files that actually have a disk path.
+    await cleanupTempUploadFiles(collectRequestFiles(req));
 
     if (error instanceof multer.MulterError) {
         const messages = {
@@ -283,5 +301,6 @@ export default {
     validateUploadContent,
     requireRegistrationVerificationImages,
     readUploadBuffer,
+    collectRequestFiles,
     cleanupTempUploadFiles,
 };

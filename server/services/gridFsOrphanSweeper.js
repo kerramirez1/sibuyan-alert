@@ -16,6 +16,20 @@ import { getGridFsBucket } from './gridFsService.js';
 
 const ORPHAN_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000; // daily
 
+// F2: age grace. GridFS files land BEFORE Report.create() in createReport,
+// so a sweep running in that window must never delete a just-uploaded photo.
+// Only files older than this are eligible for deletion.
+const ORPHAN_AGE_GRACE_MS = 60 * 60 * 1000; // 1 hour
+
+const isOldEnoughToDelete = (file) => {
+    const uploadedAt = file?.metadata?.uploadedAt;
+    // Absent or unparsable timestamp: fail safe, skip the file.
+    if (!uploadedAt) return false;
+    const ts = new Date(uploadedAt).getTime();
+    if (!Number.isFinite(ts)) return false;
+    return Date.now() - ts > ORPHAN_AGE_GRACE_MS;
+};
+
 const toObjectIdOrNull = (value) => {
     if (value instanceof mongoose.Types.ObjectId) return value;
     if (typeof value === 'string' && mongoose.isValidObjectId(value)) {
@@ -61,6 +75,9 @@ export const sweepGridFsOrphans = async () => {
     for (const resourceId of orphanIds) {
         const orphanFiles = await bucket.find({ 'metadata.resourceId': resourceId }).toArray();
         for (const orphan of orphanFiles) {
+            // F2: never delete a file still inside the in-flight-upload grace
+            // window (or one with no usable timestamp).
+            if (!isOldEnoughToDelete(orphan)) continue;
             try {
                 await bucket.delete(orphan._id);
                 deleted += 1;

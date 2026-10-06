@@ -1196,6 +1196,8 @@ export const deleteUser = async (req, res) => {
         // P2-8: extended beyond the reporter's own production reports — a user
         // referenced as a responder, verifier, or resolver is part of the
         // incident audit trail and must not be deleted either.
+        // F3: transfer history, dispatch acknowledgement, and report updates
+        // are audit references too.
         const hasBlockingReports = await Report.exists({
             $or: [
                 { reporter: user._id, status: { $in: ['verified', 'responding', 'resolved'] } },
@@ -1203,13 +1205,17 @@ export const deleteUser = async (req, res) => {
                 { verifiedBy: user._id },
                 { resolvedBy: user._id },
                 { respondedBy: user._id },
+                { 'transferHistory.transferredBy': user._id },
+                { 'transferHistory.acknowledgedBy': user._id },
+                { 'dispatch.acknowledgedBy': user._id },
+                { 'reportUpdates.author': user._id },
             ],
         });
 
         if (hasBlockingReports) {
             return res.status(400).json({
                 success: false,
-                message: 'Cannot delete user linked to incident reports (as reporter, responder, verifier, or resolver). Reassign or archive reports first.',
+                message: 'Cannot delete user linked to incident reports (as reporter, responder, verifier, resolver, or in transfer/dispatch/update history). Reassign or archive reports first.',
             });
         }
 
