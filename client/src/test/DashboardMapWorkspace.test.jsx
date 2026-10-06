@@ -581,7 +581,7 @@ describe('DashboardMapWorkspace permissions', () => {
 
         const map = screen.getByRole('region', { name: 'Live incident map' });
         const frame = screen.getByTestId('map-view').parentElement;
-        const outlet = screen.getByTestId('guest-map-empty-state');
+        const outlet = screen.getByTestId('map-empty-state-outlet');
         expect(outlet.parentElement).toBe(map);
         expect(frame).not.toContainElement(outlet);
         expect(frame.compareDocumentPosition(outlet) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -605,9 +605,74 @@ describe('DashboardMapWorkspace permissions', () => {
             expect(card).not.toHaveClass('max-sm:min-h-[104px]', 'col-span-2');
             expect(card).toHaveClass('px-3', 'py-3', 'sm:px-4', 'lg:justify-center');
         }
-        expect(screen.queryByTestId('guest-map-empty-state')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('map-empty-state-outlet')).not.toBeInTheDocument();
         expect(mapPropsSpy.mock.lastCall[0].emptyStatePlacement).toBeUndefined();
         expect(mapPropsSpy.mock.lastCall[0].emptyStateTarget).toBeNull();
+    });
+
+    test('renders the empty-state below the map on phone viewports for authenticated users', () => {
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(max-width: 639px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            renderWorkspace(createProps({
+                user: { _id: 'member-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+                isAuthenticated: true,
+                isReporter: false,
+                isResponder: false,
+                isAdmin: true,
+            }));
+
+            const map = screen.getByRole('region', { name: 'Live incident map' });
+            const frame = screen.getByTestId('map-view').parentElement;
+            const outlet = screen.getByTestId('map-empty-state-outlet');
+            expect(outlet.parentElement).toBe(map);
+            expect(frame).not.toContainElement(outlet);
+            expect(frame.compareDocumentPosition(outlet) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(outlet).toHaveClass('empty:hidden');
+            expect(mapPropsSpy.mock.lastCall[0].emptyStatePlacement).toBe('external');
+            expect(mapPropsSpy.mock.lastCall[0].emptyStateTarget).toBe(outlet);
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
+    });
+
+    test('keeps the external empty-state bar for guests on phone viewports', () => {
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(max-width: 639px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        try {
+            renderWorkspace(createProps({
+                user: null,
+                isAuthenticated: false,
+                isReporter: false,
+            }));
+
+            const outlet = screen.getByTestId('map-empty-state-outlet');
+            expect(outlet).toHaveClass('empty:hidden');
+            expect(mapPropsSpy.mock.lastCall[0].emptyStatePlacement).toBe('external');
+            expect(mapPropsSpy.mock.lastCall[0].emptyStateTarget).toBe(outlet);
+        } finally {
+            window.matchMedia = originalMatchMedia;
+        }
     });
 
     test('does not apply guest sizing to an authenticated community account using public metrics', () => {

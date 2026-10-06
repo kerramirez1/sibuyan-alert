@@ -568,7 +568,7 @@ const DashboardMapWorkspace = ({
     viewSwitch = null,
 }) => {
     const isGuestLayout = !isAuthenticated;
-    const [guestEmptyStateTarget, setGuestEmptyStateTarget] = useState(null);
+    const [mapEmptyStateTarget, setMapEmptyStateTarget] = useState(null);
     const focusRequestSequenceRef = useRef(0);
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
@@ -1931,8 +1931,8 @@ const DashboardMapWorkspace = ({
                         viewerRole={user?.role || 'guest'}
                         viewer={user}
                         showDataState
-                        emptyStatePlacement={isGuestLayout ? 'external' : undefined}
-                        emptyStateTarget={isGuestLayout ? guestEmptyStateTarget : null}
+                        emptyStatePlacement={(isGuestLayout || isPhoneViewport) ? 'external' : undefined}
+                        emptyStateTarget={(isGuestLayout || isPhoneViewport) ? mapEmptyStateTarget : null}
                         enable3D
                         // Per role: operators open on the incidents in front of
                         // them, guests open on the whole island. The report set
@@ -2153,10 +2153,10 @@ const DashboardMapWorkspace = ({
                         </MapOverlayPanel>
                     )}
                 </div>
-                {isGuestLayout && (
+                {(isGuestLayout || isPhoneViewport) && (
                     <div
-                        ref={setGuestEmptyStateTarget}
-                        data-testid="guest-map-empty-state"
+                        ref={setMapEmptyStateTarget}
+                        data-testid="map-empty-state-outlet"
                         className="empty:hidden lg:shrink-0"
                     />
                 )}

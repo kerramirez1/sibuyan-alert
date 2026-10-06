@@ -2349,7 +2349,7 @@ const MapView = ({
             {mapReady && showDataState && mapIsEmpty && !dataLoading && (
                 emptyStatePlacement === 'external'
                     ? emptyStateTarget && createPortal(
-                        <div className="border-t border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-medium leading-relaxed text-[var(--text-secondary)]" role="status">
+                        <div className="border-t border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] font-medium leading-relaxed text-[var(--text-secondary)] sm:px-3 sm:py-2 sm:text-xs" role="status">
                             {emptyMapMessage}
                         </div>,
                         emptyStateTarget,
