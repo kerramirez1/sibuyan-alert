@@ -854,7 +854,7 @@ const SEARCH_OPERATIONAL_STATUSES = ['pending', 'verified', 'transferred', 'resp
 const SEARCH_TEXT_FIELDS = ['title', 'address', 'barangay', 'municipalityName', 'incidentType', 'description'];
 // Zones are public, island-wide, and active-only by design (mirrors
 // GET /api/high-risk-zones) — no per-role filter needed, same rows for all.
-const SEARCH_ZONE_TEXT_FIELDS = ['name', 'description', 'barangay', 'municipality', 'type'];
+const SEARCH_ZONE_TEXT_FIELDS = ['name', 'description', 'barangay', 'municipality', 'type', 'severity'];
 const SEARCH_ZONE_LIMIT = 8;
 
 const escapeSearchRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

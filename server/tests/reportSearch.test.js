@@ -177,4 +177,66 @@ describe('GET /api/reports/search (MVP RBAC search)', () => {
         // Photos never leave the server in search payloads
         expect(zone).not.toHaveProperty('photos');
     });
+
+    test('matches zones by severity text (q=high)', async () => {
+        const reportLean = vi.fn().mockResolvedValue([]);
+        const reportChain = {
+            select: vi.fn().mockReturnThis(),
+            sort: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockReturnValue({ maxTimeMS: vi.fn().mockReturnValue({ lean: reportLean }) }),
+        };
+        vi.spyOn(Report, 'find').mockReturnValue(reportChain);
+        // 'high' appears in none of the text fields — only in severity.
+        const zoneFindSpy = stubZoneFind([
+            {
+                _id: new mongoose.Types.ObjectId(),
+                name: 'Cambijang Curve',
+                description: 'Sharp curve with frequent overshoot',
+                type: 'accident_prone',
+                severity: 'high',
+                municipality: 'Cajidiocan',
+                barangay: 'Cambijang',
+                coordinates: { lat: 12.4044, lng: 122.6897 },
+                radius: 150,
+                createdAt: new Date('2026-07-01T08:00:00Z'),
+            },
+        ]);
+
+        const app = createTestApp(null);
+        const response = await request(app).get('/api/reports/search?q=high');
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.zones).toHaveLength(1);
+        const filter = zoneFindSpy.mock.calls[0][0];
+        expect(JSON.stringify(filter)).toContain('"severity"');
+        const severityClause = filter.$or.find((clause) => 'severity' in clause);
+        expect(severityClause).toBeDefined();
+        expect(severityClause.severity).toBeInstanceOf(RegExp);
+        expect(severityClause.severity.source).toBe('high');
+        expect(severityClause.severity.flags).toBe('i');
+    });
+
+    test('builds a severity clause carrying the /critical/i pattern (q=critical)', async () => {
+        const reportLean = vi.fn().mockResolvedValue([]);
+        const reportChain = {
+            select: vi.fn().mockReturnThis(),
+            sort: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockReturnValue({ maxTimeMS: vi.fn().mockReturnValue({ lean: reportLean }) }),
+        };
+        vi.spyOn(Report, 'find').mockReturnValue(reportChain);
+        // No critical zone in the stub — filter-level assertion only.
+        const zoneFindSpy = stubZoneFind([]);
+
+        const app = createTestApp(null);
+        const response = await request(app).get('/api/reports/search?q=critical');
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.zones).toHaveLength(0);
+        const filter = zoneFindSpy.mock.calls[0][0];
+        const severityClause = filter.$or.find((clause) => 'severity' in clause);
+        expect(severityClause).toBeDefined();
+        expect(severityClause.severity).toBeInstanceOf(RegExp);
+        expect(severityClause.severity.source).toBe('critical');
+        expect(severityClause.severity.flags).toBe('i');
+    });
 });
