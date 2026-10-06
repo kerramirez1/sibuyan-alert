@@ -1193,15 +1193,23 @@ export const deleteUser = async (req, res) => {
         }
 
         // Check if user has verified reports (prevent orphaning production records)
-        const hasVerifiedReports = await Report.exists({
-            reporter: user._id,
-            status: { $in: ['verified', 'responding', 'resolved'] }
+        // P2-8: extended beyond the reporter's own production reports — a user
+        // referenced as a responder, verifier, or resolver is part of the
+        // incident audit trail and must not be deleted either.
+        const hasBlockingReports = await Report.exists({
+            $or: [
+                { reporter: user._id, status: { $in: ['verified', 'responding', 'resolved'] } },
+                { 'responders.user': user._id },
+                { verifiedBy: user._id },
+                { resolvedBy: user._id },
+                { respondedBy: user._id },
+            ],
         });
 
-        if (hasVerifiedReports) {
+        if (hasBlockingReports) {
             return res.status(400).json({
                 success: false,
-                message: 'Cannot delete user with verified/responding/resolved reports. Reassign or archive reports first.',
+                message: 'Cannot delete user linked to incident reports (as reporter, responder, verifier, or resolver). Reassign or archive reports first.',
             });
         }
 
