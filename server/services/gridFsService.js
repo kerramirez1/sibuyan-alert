@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { promises as fs } from 'fs';
 import { mapWithConcurrency } from '../utils/concurrency.js';
 
 export const GRID_FS_BUCKET_NAME = 'media';
@@ -52,8 +53,13 @@ export const parseGridFsFileId = (value) => {
         : null;
 };
 
-export const uploadFileToGridFS = (file, metadata = {}) => {
-    if (!file?.buffer?.length) {
+export const uploadFileToGridFS = async (file, metadata = {}) => {
+    // P2-11: report-evidence uploads are disk-backed (multer diskStorage), so
+    // bytes are read transiently here instead of arriving in file.buffer.
+    const buffer = file?.buffer?.length
+        ? file.buffer
+        : (file?.path ? await fs.readFile(file.path) : null);
+    if (!buffer?.length) {
         throw new Error('Cannot store an empty upload');
     }
 
@@ -91,7 +97,7 @@ export const uploadFileToGridFS = (file, metadata = {}) => {
                 mimeType: file.mimetype,
             });
         });
-        uploadStream.end(file.buffer);
+        uploadStream.end(buffer);
     });
 };
 

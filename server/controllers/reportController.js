@@ -1,6 +1,7 @@
 import Report from '../models/Report.js';
 import HighRiskZone from '../models/HighRiskZone.js';
 import mongoose from 'mongoose';
+import { promises as fs } from 'fs';
 import { toPublicReport, buildReportEvidenceObject } from '../utils/publicReport.js';
 import { canViewOperationalReport, getEntityId } from '../utils/reportAccess.js';
 import User from '../models/User.js';
@@ -13,6 +14,7 @@ import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
 import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket } from '../services/gridFsService.js';
+import { readUploadBuffer, cleanupTempUploadFiles } from '../middleware/upload.js';
 import { generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
 import { evidenceProcessingQueue } from '../services/evidenceProcessingQueue.js';
 import { INCIDENT_CATEGORIES } from '../config/incidentCategories.js';
@@ -148,8 +150,10 @@ const scheduleEvidenceMetadataProcessing = (reportId, files, { startIndex = 0 } 
             let entry;
 
             try {
+                // P2-11: disk-backed uploads are read transiently here.
+                const buffer = await readUploadBuffer(file);
                 const derivative = await generateRedactedEvidenceDerivative(
-                    file.buffer,
+                    buffer,
                     EVIDENCE_ANALYSIS_OPTIONS,
                 );
                 entry = buildEvidenceMetadataEntry(evidenceIndex, derivative.metadata);
@@ -159,6 +163,12 @@ const scheduleEvidenceMetadataProcessing = (reportId, files, { startIndex = 0 } 
             }
 
             await persistEvidenceMetadata(reportId, evidenceIndex, entry);
+
+            // The temp file's bytes are no longer needed once its metadata is
+            // persisted — drop it so disk usage stays bounded.
+            if (file?.path && !file?.buffer) {
+                await fs.unlink(file.path).catch(() => {});
+            }
         });
     });
 
@@ -578,6 +588,9 @@ export const createReport = async (req, res) => {
             data: report,
         });
     } catch (error) {
+        // P2-11: the deferred metadata queue never ran on this path, so drop
+        // the disk-backed temp files here (best-effort).
+        await cleanupTempUploadFiles(req.files);
         if (!report && uploadedImageUrls.length) {
             await deleteGridFsFilesByUrls(uploadedImageUrls);
         }
@@ -1969,6 +1982,9 @@ export const attachReportEvidence = async (req, res) => {
             data: report,
         });
     } catch (error) {
+        // P2-11: the deferred metadata queue never ran on this path, so drop
+        // the disk-backed temp files here (best-effort).
+        await cleanupTempUploadFiles(req.files);
         if (!isSaved && uploadedImageUrls.length) {
             await deleteGridFsFilesByUrls(uploadedImageUrls).catch((delErr) => {
                 console.error('GridFS cleanup error after evidence attach failure:', delErr);

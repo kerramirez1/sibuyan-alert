@@ -1,7 +1,10 @@
 import { describe, expect, test, vi as jest } from 'vitest';
+import { promises as fs } from 'fs';
+import os from 'os';
+import path from 'path';
 import { canReadFile } from '../controllers/fileController.js';
 import { parseGridFsFileId, sanitizeFilename } from '../services/gridFsService.js';
-import { readImageDimensions, validateUploadContent } from '../middleware/upload.js';
+import { readImageDimensions, validateUploadContent, readUploadBuffer, cleanupTempUploadFiles } from '../middleware/upload.js';
 
 const privateFile = {
     metadata: {
@@ -108,7 +111,7 @@ describe('GridFS URL utilities', () => {
 });
 
 describe('upload content validation', () => {
-    test('accepts a file whose binary signature matches its MIME type', () => {
+    test('accepts a file whose binary signature matches its MIME type', async () => {
         const req = {
             file: {
                 originalname: 'photo.png',
@@ -117,11 +120,11 @@ describe('upload content validation', () => {
             },
         };
         const next = jest.fn();
-        validateUploadContent(req, {}, next);
+        await validateUploadContent(req, {}, next);
         expect(next).toHaveBeenCalledTimes(1);
     });
 
-    test('rejects MIME spoofing before database storage', () => {
+    test('rejects MIME spoofing before database storage', async () => {
         const req = {
             files: [{
                 originalname: 'fake.jpg',
@@ -134,12 +137,12 @@ describe('upload content validation', () => {
             json: jest.fn().mockReturnThis(),
         };
         const next = jest.fn();
-        validateUploadContent(req, res, next);
+        await validateUploadContent(req, res, next);
         expect(next).not.toHaveBeenCalled();
         expect(res.status).toHaveBeenCalledWith(400);
     });
 
-    test('reads and accepts safe dimensions for identity images', () => {
+    test('reads and accepts safe dimensions for identity images', async () => {
         const buffer = Buffer.alloc(24);
         Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(buffer);
         buffer.writeUInt32BE(1200, 16);
@@ -148,11 +151,11 @@ describe('upload content validation', () => {
         expect(readImageDimensions(file)).toEqual({ width: 1200, height: 750 });
 
         const next = jest.fn();
-        validateUploadContent({ files: { idDocument: [file] } }, {}, next);
+        await validateUploadContent({ files: { idDocument: [file] } }, {}, next);
         expect(next).toHaveBeenCalledTimes(1);
     });
 
-    test('rejects identity images with unreadable or unsafe dimensions', () => {
+    test('rejects identity images with unreadable or unsafe dimensions', async () => {
         const buffer = Buffer.alloc(24);
         Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(buffer);
         buffer.writeUInt32BE(200, 16);
@@ -163,7 +166,7 @@ describe('upload content validation', () => {
         };
         const next = jest.fn();
 
-        validateUploadContent({ files: { idDocument: [{
+        await validateUploadContent({ files: { idDocument: [{
             fieldname: 'idDocument',
             originalname: 'tiny.png',
             mimetype: 'image/png',
@@ -173,5 +176,50 @@ describe('upload content validation', () => {
         expect(next).not.toHaveBeenCalled();
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/480 × 300/) }));
+    });
+});
+
+describe('P2-11 disk-backed evidence uploads', () => {
+    const writeTempJpeg = async () => {
+        const tmp = path.join(os.tmpdir(), `p211-test-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`);
+        // Minimal JPEG header: SOI + APP0 marker is enough for the signature check.
+        await fs.writeFile(tmp, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]));
+        return tmp;
+    };
+
+    test('readUploadBuffer reads disk-backed files (no buffer)', async () => {
+        const tmp = await writeTempJpeg();
+        try {
+            const buffer = await readUploadBuffer({ path: tmp, originalname: 'p.jpg', mimetype: 'image/jpeg' });
+            expect(buffer[0]).toBe(0xff);
+            expect(buffer[1]).toBe(0xd8);
+        } finally {
+            await fs.unlink(tmp).catch(() => {});
+        }
+    });
+
+    test('validateUploadContent accepts a disk-backed file whose signature matches', async () => {
+        const tmp = await writeTempJpeg();
+        const files = [{ path: tmp, originalname: 'p.jpg', mimetype: 'image/jpeg' }];
+        try {
+            const next = jest.fn();
+            await validateUploadContent({ files }, {}, next);
+            expect(next).toHaveBeenCalledTimes(1);
+        } finally {
+            await cleanupTempUploadFiles(files);
+        }
+    });
+
+    test('cleanupTempUploadFiles removes disk temp files and ignores memory files', async () => {
+        const tmp = await writeTempJpeg();
+        await cleanupTempUploadFiles([
+            { path: tmp, originalname: 'p.jpg' },
+            { buffer: Buffer.from([1, 2, 3]), originalname: 'mem.jpg' },
+        ]);
+        await expect(fs.access(tmp)).rejects.toThrow();
+    });
+
+    test('readUploadBuffer rejects a file with neither buffer nor path', async () => {
+        await expect(readUploadBuffer({ originalname: 'empty.jpg' })).rejects.toThrow('no readable content');
     });
 });

@@ -1,4 +1,8 @@
 import multer from 'multer';
+import { promises as fs } from 'fs';
+import os from 'os';
+import path from 'path';
+import crypto from 'crypto';
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const IDENTITY_IMAGE_FIELDS = new Set(['idDocument', 'selfiePhoto']);
@@ -36,17 +40,54 @@ const createFileFilter = (allowedTypes, message) => (req, file, callback) => {
 
 const memoryStorage = multer.memoryStorage();
 
-const hasExpectedSignature = (file) => {
-    const buffer = file?.buffer;
+/**
+ * P2-11: report-evidence uploads are disk-backed. Five 5MB photos held in RAM
+ * per request is a memory-exhaustion vector under concurrent uploads; the
+ * OS temp dir (ephemeral disk on Heroku) is fine for these transient files.
+ * Identity/avatar uploads stay on memory storage — they are small, single
+ * files validated inline.
+ */
+const evidenceDiskStorage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, os.tmpdir()),
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname || '').slice(0, 10);
+        cb(null, `sibuyan-evidence-${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`);
+    },
+});
+
+/**
+ * Reads a multer file's bytes regardless of storage backend.
+ * Memory-storage files carry `buffer`; disk-storage files carry `path`.
+ */
+export const readUploadBuffer = async (file) => {
+    if (file?.buffer?.length) return file.buffer;
+    if (file?.path) return fs.readFile(file.path);
+    throw new Error('Upload has no readable content');
+};
+
+/**
+ * Best-effort removal of temp files left by disk-backed multer storage.
+ * Memory-storage files (no `path`) are ignored.
+ */
+export const cleanupTempUploadFiles = async (files) => {
+    const list = Array.isArray(files) ? files : [];
+    await Promise.allSettled(
+        list
+            .filter((file) => file?.path && !file?.buffer)
+            .map((file) => fs.unlink(file.path).catch(() => {}))
+    );
+};
+
+const hasExpectedSignature = (buffer, mimetype) => {
     if (!buffer?.length) return false;
 
-    if (file.mimetype === 'image/jpeg') {
+    if (mimetype === 'image/jpeg') {
         return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
     }
-    if (file.mimetype === 'image/png') {
+    if (mimetype === 'image/png') {
         return buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
     }
-    if (file.mimetype === 'image/webp') {
+    if (mimetype === 'image/webp') {
         return buffer.length >= 12
             && buffer.subarray(0, 4).toString('ascii') === 'RIFF'
             && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
@@ -87,15 +128,17 @@ const readJpegDimensions = (buffer) => {
     return null;
 };
 
-export const readImageDimensions = (file) => {
-    const buffer = file?.buffer;
+export const readImageDimensions = (file) =>
+    readImageDimensionsFromBuffer(file?.buffer, file?.mimetype);
+
+const readImageDimensionsFromBuffer = (buffer, mimetype) => {
     if (!buffer?.length) return null;
 
-    if (file.mimetype === 'image/png' && buffer.length >= 24) {
+    if (mimetype === 'image/png' && buffer.length >= 24) {
         return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
     }
-    if (file.mimetype === 'image/jpeg') return readJpegDimensions(buffer);
-    if (file.mimetype !== 'image/webp' || buffer.length < 30) return null;
+    if (mimetype === 'image/jpeg') return readJpegDimensions(buffer);
+    if (mimetype !== 'image/webp' || buffer.length < 30) return null;
 
     const format = buffer.subarray(12, 16).toString('ascii');
     if (format === 'VP8X') {
@@ -120,8 +163,8 @@ export const readImageDimensions = (file) => {
     return null;
 };
 
-const hasSafeIdentityDimensions = (file) => {
-    const dimensions = readImageDimensions(file);
+const hasSafeIdentityDimensions = (buffer, mimetype) => {
+    const dimensions = readImageDimensionsFromBuffer(buffer, mimetype);
     if (!dimensions?.width || !dimensions?.height) return false;
     const shortEdge = Math.min(dimensions.width, dimensions.height);
     const longEdge = Math.max(dimensions.width, dimensions.height);
@@ -130,31 +173,35 @@ const hasSafeIdentityDimensions = (file) => {
         && dimensions.width * dimensions.height <= MAX_IDENTITY_PIXELS;
 };
 
-export const validateUploadContent = (req, res, next) => {
-    const nestedFiles = req.files && !Array.isArray(req.files)
-        ? Object.values(req.files).flat()
-        : req.files || [];
-    const files = [req.file, ...nestedFiles].filter(Boolean);
-    const invalidFile = files.find((file) => !hasExpectedSignature(file));
+export const validateUploadContent = async (req, res, next) => {
+    try {
+        const nestedFiles = req.files && !Array.isArray(req.files)
+            ? Object.values(req.files).flat()
+            : req.files || [];
+        const files = [req.file, ...nestedFiles].filter(Boolean);
 
-    if (invalidFile) {
-        return res.status(400).json({
-            success: false,
-            message: `${invalidFile.originalname || 'Uploaded file'} does not match its declared file type`,
-        });
+        for (const file of files) {
+            // Disk-backed uploads are read transiently, one file at a time —
+            // never held for the whole request.
+            const buffer = await readUploadBuffer(file);
+            if (!hasExpectedSignature(buffer, file.mimetype)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `${file.originalname || 'Uploaded file'} does not match its declared file type`,
+                });
+            }
+            if (IDENTITY_IMAGE_FIELDS.has(file.fieldname) && !hasSafeIdentityDimensions(buffer, file.mimetype)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID and selfie photos must be readable images of at least 480 × 300 pixels',
+                });
+            }
+        }
+
+        return next();
+    } catch (error) {
+        return next(error);
     }
-
-    const invalidIdentityImage = files.find((file) =>
-        IDENTITY_IMAGE_FIELDS.has(file.fieldname) && !hasSafeIdentityDimensions(file)
-    );
-    if (invalidIdentityImage) {
-        return res.status(400).json({
-            success: false,
-            message: 'ID and selfie photos must be readable images of at least 480 × 300 pixels',
-        });
-    }
-
-    return next();
 };
 
 export const requireRegistrationVerificationImages = (req, res, next) => {
@@ -180,7 +227,7 @@ export const uploadIdDocument = multer({
 ]);
 
 export const uploadReportImages = multer({
-    storage: memoryStorage,
+    storage: evidenceDiskStorage,
     limits: { fileSize: 5 * 1024 * 1024, files: 5, fields: 30, parts: 40, fieldSize: 2 * 1024 * 1024 },
     fileFilter: createFileFilter(
         IMAGE_MIME_TYPES,
@@ -235,4 +282,6 @@ export default {
     handleMulterError,
     validateUploadContent,
     requireRegistrationVerificationImages,
+    readUploadBuffer,
+    cleanupTempUploadFiles,
 };
