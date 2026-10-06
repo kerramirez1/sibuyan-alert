@@ -670,7 +670,7 @@ const AdminUsersPage = () => {
                                 <th scope="col" className="w-[14%] px-3 py-2.5">Verification</th>
                                 <th scope="col" className="w-[14%] px-3 py-2.5">Documents</th>
                                 <th scope="col" className="w-[12%] px-3 py-2.5">Joined</th>
-                                <th scope="col" className="w-[10%] px-3 py-2.5">Last Login</th>
+                                <th scope="col" className="w-[10%] whitespace-nowrap px-3 py-2.5">Last Login</th>
                                 <th scope="col" className="w-[8%] py-2.5 pl-3 pr-4 sm:pr-5 text-right">Actions</th>
                             </tr>
                         </thead>
