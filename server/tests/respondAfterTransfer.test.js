@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, test, vi as jest } from 'vitest';
 
 jest.mock('../models/Report.js', () => ({
-    default: { findById: jest.fn() },
+    default: {
+        findById: jest.fn(),
+        findOneAndUpdate: jest.fn(),
+        updateOne: jest.fn(),
+    },
 }));
 
 jest.mock('../models/User.js', () => ({
@@ -27,6 +31,8 @@ jest.mock('../services/socketService.js', () => ({
 
 const { respondToReport } = await import('../controllers/adminController.js');
 const { default: Report } = await import('../models/Report.js');
+const { default: Notification } = await import('../models/Notification.js');
+const { broadcastMultiUnitResponse } = await import('../services/socketService.js');
 
 const createRes = () => {
     const res = {};
@@ -85,8 +91,35 @@ const magdiwangResponder = {
 };
 
 const createReq = (report, user, body = {}) => {
-    // findById().populate() chain like the real Mongoose query
-    Report.findById.mockReturnValue({ populate: jest.fn().mockResolvedValue(report) });
+    // findById().populate() chain like the real Mongoose query; the
+    // select().lean() chain serves the controller's race-loser re-read.
+    Report.findById.mockReturnValue({
+        populate: jest.fn().mockResolvedValue(report),
+        select: jest.fn(() => ({ lean: jest.fn().mockResolvedValue({ status: report.status }) })),
+    });
+    // Emulates the atomic respond: the duplicate-guard filter and the
+    // $push/$set update are applied to the in-memory mock report, like
+    // MongoDB would apply them to the stored document.
+    Report.findOneAndUpdate.mockImplementation((filter, update) => {
+        const statusOk = Array.isArray(filter?.status?.$in)
+            ? filter.status.$in.includes(report.status)
+            : true;
+        const idOk = filter?._id === undefined || String(filter._id) === String(report._id);
+        const dupGuard = filter?.responders?.$not?.$elemMatch;
+        const isDuplicate = dupGuard
+            ? (report.responders || []).some(
+                (r) => String(r?.user) === String(dupGuard.user) && r?.unitName === dupGuard.unitName
+            )
+            : false;
+        const matched = statusOk && idOk && !isDuplicate;
+        if (matched) {
+            const pushed = update?.$push?.responders;
+            if (pushed) report.responders = [...(report.responders || []), { ...pushed }];
+            Object.assign(report, update?.$set || {});
+        }
+        return { populate: jest.fn().mockResolvedValue(matched ? report : null) };
+    });
+    Report.updateOne.mockResolvedValue({ modifiedCount: 1 });
     return {
         params: { id: 'report-1' },
         body,
@@ -108,7 +141,9 @@ describe('respond after transfer with a prior responder on scene', () => {
 
         await respondToReport(req, res);
 
-        expect(report.save).toHaveBeenCalledTimes(1);
+        // The atomic write replaced the read-check-save: one contested
+        // findOneAndUpdate instead of a mutated doc + save().
+        expect(Report.findOneAndUpdate).toHaveBeenCalledTimes(1);
         expect(report.responders).toHaveLength(2);
         expect(report.responders[1]).toMatchObject({
             user: 'magdiwang-user-id',
@@ -144,6 +179,89 @@ describe('respond after transfer with a prior responder on scene', () => {
         await respondToReport(req, res);
 
         expect(res.status).toHaveBeenCalledWith(409);
-        expect(report.save).not.toHaveBeenCalled();
+        expect(Report.findOneAndUpdate).toHaveBeenCalledTimes(1);
+        expect(report.responders).toHaveLength(1);
+    });
+
+    test('concurrent double-respond by the same unit yields one entry and one notification set', async () => {
+        // Shared "database" row; both pre-reads take a stale snapshot (no
+        // responders yet) so both pass the gates before either writes — the
+        // double-click race.
+        const dbReport = {
+            _id: 'report-1',
+            address: 'Boundary Road',
+            status: 'verified',
+            municipalityName: 'Magdiwang',
+            responders: [],
+            reporter: { _id: 'reporter-1' },
+            toObject() {
+                const { toObject: _self, ...rest } = this;
+                return { ...rest };
+            },
+        };
+        const snapshot = () => ({
+            ...dbReport,
+            reporter: { ...dbReport.reporter },
+            responders: dbReport.responders.map((r) => ({ ...r })),
+        });
+        Report.findById.mockReturnValue({
+            populate: jest.fn().mockImplementation(async () => snapshot()),
+            select: jest.fn(() => ({ lean: jest.fn().mockResolvedValue({ status: dbReport.status }) })),
+        });
+        Report.findOneAndUpdate.mockImplementation((filter, update) => {
+            const statusOk = Array.isArray(filter?.status?.$in)
+                ? filter.status.$in.includes(dbReport.status)
+                : true;
+            const idOk = filter?._id === undefined || String(filter._id) === String(dbReport._id);
+            const dupGuard = filter?.responders?.$not?.$elemMatch;
+            const isDuplicate = dupGuard
+                ? dbReport.responders.some(
+                    (r) => String(r?.user) === String(dupGuard.user) && r?.unitName === dupGuard.unitName
+                )
+                : false;
+            const matched = statusOk && idOk && !isDuplicate;
+            if (matched) {
+                const pushed = update?.$push?.responders;
+                if (pushed) dbReport.responders = [...dbReport.responders, { ...pushed }];
+                Object.assign(dbReport, update?.$set || {});
+            }
+            return { populate: jest.fn().mockResolvedValue(matched ? snapshot() : null) };
+        });
+        Report.updateOne.mockResolvedValue({ modifiedCount: 1 });
+
+        const createDoubleClickReq = () => ({
+            params: { id: 'report-1' },
+            body: {},
+            user: magdiwangResponder,
+            app: {
+                get: jest.fn(() => ({
+                    emit: jest.fn(),
+                    to: jest.fn(() => ({ emit: jest.fn() })),
+                })),
+            },
+        });
+        const res1 = createRes();
+        const res2 = createRes();
+        await Promise.all([
+            respondToReport(createDoubleClickReq(), res1),
+            respondToReport(createDoubleClickReq(), res2),
+        ]);
+
+        const succeeded = [res1, res2].filter((r) =>
+            r.json.mock.calls.some(([payload]) => payload?.success === true));
+        const conflicted = [res1, res2].filter((r) =>
+            r.status.mock.calls.some(([code]) => code === 409));
+        expect(succeeded).toHaveLength(1);
+        expect(conflicted).toHaveLength(1);
+        // Exactly one responder entry on the winning write...
+        expect(dbReport.responders).toHaveLength(1);
+        expect(dbReport.responders[0]).toMatchObject({
+            user: 'magdiwang-user-id',
+            unitName: 'MDRRMO - Magdiwang',
+        });
+        // ...and exactly one notification set: one reporter notification and
+        // one broadcast from the winner; the loser emits nothing.
+        expect(Notification.createAndSend).toHaveBeenCalledTimes(1);
+        expect(broadcastMultiUnitResponse).toHaveBeenCalledTimes(1);
     });
 });

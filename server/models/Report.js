@@ -7,6 +7,7 @@ import {
     createHotspotClusterer,
     resolveAccidentHotspotRule,
 } from '../utils/accidentHotspots.js';
+import { calculateReportPriority } from '../utils/reportPriority.js';
 
 /**
  * Incident Report Model
@@ -474,20 +475,10 @@ reportSchema.pre('save', async function (next) {
     }
 
     // Auto-calculate priority based on severity and casualties
+    // (shared helper: the atomic verify path bypasses this hook via
+    // findOneAndUpdate and must apply the identical derivation)
     if (this.isNew || this.isModified('severity') || this.isModified('casualties')) {
-        const totalCasualties = (this.casualties?.injured || 0) +
-            (this.casualties?.fatalities || 0) * 3 +
-            (this.casualties?.missing || 0) * 2;
-
-        if (this.severity === 'critical' || this.casualties?.fatalities > 0) {
-            this.priority = 'urgent';
-        } else if (this.severity === 'severe' || totalCasualties >= 5) {
-            this.priority = 'high';
-        } else if (this.severity === 'moderate' || totalCasualties >= 1) {
-            this.priority = 'normal';
-        } else {
-            this.priority = 'low';
-        }
+        this.priority = calculateReportPriority(this.severity, this.casualties);
     }
 
     // Sibuyan Island bounds validation (warning only)

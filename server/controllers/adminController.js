@@ -21,6 +21,7 @@ import {
 } from '../utils/reportAccess.js';
 import { toOperationalReport, toOperationalReportSummary } from '../utils/operationalReport.js';
 import { normalizeCasualtyCounts } from '../utils/casualtyCounts.js';
+import { calculateReportPriority } from '../utils/reportPriority.js';
 import { resolveQueryPolicy } from '../config/queryPolicy.js';
 import { invalidate } from '../utils/apiCache.js';
 import {
@@ -29,7 +30,7 @@ import {
     normalizeUnitType,
     getUnitTypeLabel,
 } from '../config/responderUnits.js';
-import { armDispatchAcknowledgement, acknowledgeDispatch } from '../services/dispatchEscalationService.js';
+import { armDispatchAcknowledgement } from '../services/dispatchEscalationService.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
 import { buildUserVerificationPayload } from '../utils/userPayload.js';
 import {
@@ -805,7 +806,9 @@ export const verifyReport = async (req, res) => {
             });
         }
 
-        const report = await Report.findById(req.params.id).populate('reporter', 'name email pushSubscription notificationPreferences');
+        // `let`: the pre-read below serves the authorization/validation gates;
+        // the atomic claim further down reassigns it to the winning write.
+        let report = await Report.findById(req.params.id).populate('reporter', 'name email pushSubscription notificationPreferences');
 
         if (!report) {
             return res.status(404).json({
@@ -843,6 +846,7 @@ export const verifyReport = async (req, res) => {
         // casualty counts before publication. Accepted on verify only —
         // casualties are immutable once the incident leaves pending.
         const { casualties: casualtyCorrection } = req.body;
+        let casualtyUpdate;
         if (casualtyCorrection !== undefined) {
             if (status !== 'verified') {
                 return res.status(400).json({
@@ -857,24 +861,57 @@ export const verifyReport = async (req, res) => {
                     message: 'Casualty counts must be non-negative whole numbers',
                 });
             }
-            report.casualties = correction;
+            casualtyUpdate = correction;
         }
 
-        // Update report status
-        report.status = status;
-        report.verifiedBy = admin._id;
-        report.verifiedAt = new Date();
-        if (rejectionReason) report.rejectionReason = rejectionReason;
+        // Atomic claim: exactly one concurrent verify/reject wins the
+        // pending -> verified/rejected transition. The filter carries the
+        // status guard, so a loser finds no document and gets the 409 below
+        // instead of emitting a duplicate broadcast/notification set.
+        const now = new Date();
+        const atomicUpdate = {
+            status,
+            verifiedBy: admin._id,
+            verifiedAt: now,
+        };
+        if (rejectionReason) atomicUpdate.rejectionReason = rejectionReason;
+        if (casualtyUpdate) {
+            atomicUpdate.casualties = casualtyUpdate;
+            // findOneAndUpdate bypasses the pre-save hook, so the priority
+            // recalculation the hook would have run is applied here with the
+            // identical derivation (shared helper).
+            atomicUpdate.priority = calculateReportPriority(report.severity, casualtyUpdate);
+        }
 
         // Verification is the moment the incident is handed to responders, so
-        // it is also the moment the acknowledgement clock starts. Armed before
-        // save() so the deadline lands in the same document write as the status
-        // change — there is no window where a verified report has no deadline.
+        // it is also the moment the acknowledgement clock starts. Armed as
+        // part of the same atomic write — there is no window where a verified
+        // report has no deadline.
         if (status === 'verified') {
-            armDispatchAcknowledgement(report);
+            atomicUpdate.dispatch = armDispatchAcknowledgement({}, undefined, now).dispatch;
         }
 
-        await report.save();
+        const updatedReport = await Report.findOneAndUpdate(
+            { _id: report._id, status: 'pending' },
+            { $set: atomicUpdate },
+            { new: true },
+        ).populate('reporter', 'name email pushSubscription notificationPreferences');
+
+        if (!updatedReport) {
+            // Lost the race: another admin transitioned the report between
+            // our read and this write. Re-read the status for an accurate
+            // message; the 409 shape itself is unchanged.
+            const current = await Report.findById(report._id).select('status').lean();
+            const currentStatus = current?.status || report.status;
+            return res.status(409).json({
+                success: false,
+                message: `Cannot ${status === 'verified' ? 'verify' : 'reject'} a report with status "${currentStatus}"`,
+            });
+        }
+
+        // From here on, `report` is the winning write; every broadcast
+        // and notification below fires exactly once, for the winner only.
+        report = updatedReport;
 
         // Get Socket.io instance
         const io = req.app.get('io');
@@ -1725,8 +1762,9 @@ export const respondToReport = async (req, res) => {
             });
         }
 
-        // Find the report
-        const report = await Report.findById(req.params.id)
+        // Find the report. `let`: the pre-read serves the validation gates;
+        // the atomic claim below reassigns it to the winning write.
+        let report = await Report.findById(req.params.id)
             .populate('reporter', 'name email pushSubscription notificationPreferences');
 
         if (!report) {
@@ -1745,18 +1783,6 @@ export const respondToReport = async (req, res) => {
             });
         }
 
-        // Check if this user/unit combination has already responded
-        const alreadyResponded = report.responders?.some(
-            r => r.user?.toString() === responder._id.toString() && r.unitName === unitName
-        );
-
-        if (alreadyResponded) {
-            return res.status(409).json({
-                success: false,
-                message: `${unitName} has already responded to this report`,
-            });
-        }
-
         // Validate municipality access (responders can only respond to their municipality)
         if (!responder.assignedMunicipality || report.municipalityName !== responder.assignedMunicipality) {
             return res.status(403).json({
@@ -1765,37 +1791,86 @@ export const respondToReport = async (req, res) => {
             });
         }
 
-        // Add responder to the responders array
-        if (!report.responders) {
-            report.responders = [];
+        // Atomic claim: the duplicate guard (same user + unitName) lives in
+        // the filter, so two concurrent responds for one unit produce exactly
+        // one responders entry and one notification set. A null result means
+        // we lost the race (duplicate) or the status moved underneath us —
+        // disambiguated below so each case keeps its existing error shape.
+        const respondedAt = new Date();
+        const updatedReport = await Report.findOneAndUpdate(
+            {
+                _id: report._id,
+                status: { $in: ['verified', 'transferred', 'responding'] },
+                responders: { $not: { $elemMatch: { user: responder._id, unitName } } },
+            },
+            {
+                $push: {
+                    responders: {
+                        user: responder._id,
+                        unitName,
+                        unitType,
+                        respondedAt,
+                        notes: null,
+                    },
+                },
+                // A transferred report may retain earlier mutual-aid responders,
+                // so always move it back into the active response state.
+                $set: { status: 'responding' },
+            },
+            { new: true },
+        ).populate('reporter', 'name email pushSubscription notificationPreferences');
+
+        if (!updatedReport) {
+            const current = await Report.findById(report._id).select('status').lean();
+            if (!current || !['verified', 'transferred', 'responding'].includes(current.status)) {
+                return res.status(current ? 400 : 404).json({
+                    success: false,
+                    message: current
+                        ? `Cannot respond to a report with status "${current.status}".`
+                        : 'Report not found',
+                });
+            }
+            return res.status(409).json({
+                success: false,
+                message: `${unitName} has already responded to this report`,
+            });
         }
 
-        report.responders.push({
-            user: responder._id,
-            unitName,
-            unitType,
-            respondedAt: new Date(),
-            notes: null,
-        });
+        // From here on, `report` is the winning write; the broadcast and every
+        // notification below fire exactly once, for the winner only.
+        report = updatedReport;
 
-        // A transferred report may retain earlier mutual-aid responders, so
-        // always move it back into the active response state.
-        report.status = 'responding';
+        // Exactly one writer can observe a single-entry responders array, so
+        // the legacy first-responder fields and the escalation-clock stop are
+        // applied exactly once, by the genuine first responder. Both updates
+        // carry their own idempotency guards.
+        const isFirstResponder = updatedReport.responders.length === 1;
+        if (isFirstResponder) {
+            // Update legacy fields for backward compatibility (first responder)
+            await Report.updateOne(
+                { _id: updatedReport._id, respondedBy: { $exists: false } },
+                { $set: { respondedBy: responder._id, respondedAt, responderAgency: unitType } },
+            );
 
-        // Responding IS the acknowledgement. The first unit to declare itself
-        // en route stops the escalation clock; a later unit joining must not
-        // overwrite the original ack time, which is the audit record of how
-        // long the incident waited for a response.
-        acknowledgeDispatch(report, responder._id);
-
-        // Update legacy fields for backward compatibility (first responder)
-        if (report.responders.length === 1) {
-            report.respondedBy = responder._id;
-            report.respondedAt = new Date();
-            report.responderAgency = unitType;
+            // Responding IS the acknowledgement. The first unit to declare
+            // itself en route stops the escalation clock; a later unit joining
+            // must not overwrite the original ack time, which is the audit
+            // record of how long the incident waited for a response.
+            await Report.updateOne(
+                {
+                    _id: updatedReport._id,
+                    dispatch: { $exists: true },
+                    'dispatch.acknowledgedAt': null,
+                },
+                {
+                    $set: {
+                        'dispatch.acknowledgedAt': respondedAt,
+                        'dispatch.acknowledgedBy': responder._id,
+                        'dispatch.nextEscalationAt': null,
+                    },
+                },
+            );
         }
-
-        await report.save();
 
         // Get Socket.io instance
         const io = req.app.get('io');
@@ -1807,7 +1882,7 @@ export const respondToReport = async (req, res) => {
         }
 
         // Create notification for the reporter (best-effort)
-        const isFirstResponder = report.responders.length === 1;
+        // (`isFirstResponder` was computed from the winning write above.)
         if (!report.reporter?._id) {
             console.warn('Skipping reporter notification because reporter account is unavailable');
         } else {

@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, test, vi as jest } from 'vitest';
 jest.mock('../models/Report.js', () => ({
     default: {
         findById: jest.fn(),
+        findOneAndUpdate: jest.fn(),
+        updateOne: jest.fn(),
     },
 }));
 
@@ -262,8 +264,30 @@ describe('transferReport controller', () => {
         };
         Report.findById.mockReturnValue({
             populate: jest.fn().mockReturnThis(),
+            select: jest.fn(() => ({ lean: jest.fn().mockResolvedValue({ status: mockReport.status }) })),
         });
         Report.findById().populate.mockResolvedValue(mockReport);
+        // Emulates the atomic respond: duplicate-guard filter + $push/$set
+        // applied to the in-memory mock report.
+        Report.findOneAndUpdate.mockImplementation((filter, update) => {
+            const statusOk = Array.isArray(filter?.status?.$in)
+                ? filter.status.$in.includes(mockReport.status)
+                : true;
+            const dupGuard = filter?.responders?.$not?.$elemMatch;
+            const isDuplicate = dupGuard
+                ? (mockReport.responders || []).some(
+                    (r) => String(r?.user) === String(dupGuard.user) && r?.unitName === dupGuard.unitName
+                )
+                : false;
+            const matched = statusOk && !isDuplicate;
+            if (matched) {
+                const pushed = update?.$push?.responders;
+                if (pushed) mockReport.responders = [...(mockReport.responders || []), { ...pushed }];
+                Object.assign(mockReport, update?.$set || {});
+            }
+            return { populate: jest.fn().mockResolvedValue(matched ? mockReport : null) };
+        });
+        Report.updateOne.mockResolvedValue({ modifiedCount: 1 });
         User.find.mockReturnValue({
             select: jest.fn().mockResolvedValue([]),
         });
@@ -287,7 +311,8 @@ describe('transferReport controller', () => {
                 unitType: 'BFP',
             })
         );
-        expect(mockReport.save).toHaveBeenCalled();
+        expect(mockReport.save).not.toHaveBeenCalled();
+        expect(Report.findOneAndUpdate).toHaveBeenCalledTimes(1);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
 });
