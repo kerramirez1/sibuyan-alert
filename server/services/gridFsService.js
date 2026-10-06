@@ -56,9 +56,18 @@ export const parseGridFsFileId = (value) => {
 export const uploadFileToGridFS = async (file, metadata = {}) => {
     // P2-11: report-evidence uploads are disk-backed (multer diskStorage), so
     // bytes are read transiently here instead of arriving in file.buffer.
-    const buffer = file?.buffer?.length
-        ? file.buffer
-        : (file?.path ? await fs.readFile(file.path) : null);
+    // P1-2: the temp file may already be gone (idempotent retry after cleanup,
+    // tmp reaper) — treat a missing file as "no file" so the no-file
+    // validation answers 400 instead of 500ing on ENOENT.
+    let buffer = file?.buffer?.length ? file.buffer : null;
+    if (!buffer && file?.path) {
+        try {
+            buffer = await fs.readFile(file.path);
+        } catch (readErr) {
+            if (readErr?.code !== 'ENOENT') throw readErr;
+            buffer = null;
+        }
+    }
     if (!buffer?.length) {
         throw new Error('Cannot store an empty upload');
     }

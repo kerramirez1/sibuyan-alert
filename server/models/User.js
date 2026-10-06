@@ -236,7 +236,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 
-userSchema.methods.recordVerificationEvent = function ({ action, actor = null, feedback = null }) {
+userSchema.methods.recordVerificationEvent = function ({ action, actor = null, feedback = null } = {}) {
     if (!Array.isArray(this.verificationHistory)) this.verificationHistory = [];
     this.verificationHistory.push({ action, actor, feedback, at: new Date() });
     if (this.verificationHistory.length > 50) {
@@ -251,7 +251,7 @@ userSchema.methods.recordVerificationEvent = function ({ action, actor = null, f
  * a municipal administrator may only ever create accounts for their own
  * municipality, so the line has to say which one was written.
  */
-userSchema.methods.recordProvisioningEvent = function ({ action, actor = null, municipality = null }) {
+userSchema.methods.recordProvisioningEvent = function ({ action, actor = null, municipality = null } = {}) {
     if (!Array.isArray(this.provisioningHistory)) this.provisioningHistory = [];
     this.provisioningHistory.push({ action, actor, municipality, at: new Date() });
     if (this.provisioningHistory.length > 50) {

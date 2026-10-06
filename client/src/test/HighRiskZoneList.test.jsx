@@ -57,4 +57,32 @@ describe('HighRiskZoneList CSS expand', () => {
         expect(zoneButton).toHaveClass('hover:translate-x-1', 'active:scale-[0.98]');
         expect(zoneButton.className).toContain('transition-[color,background-color,transform]');
     });
+
+    test('clicking a zone row with null coordinates does not throw (P2-8)', async () => {
+        const onZoneSelect = vi.fn();
+        highRiskZonesAPI.getAll.mockResolvedValue({
+            data: {
+                data: [
+                    {
+                        _id: 'zone-no-coords',
+                        name: 'Unmapped Zone',
+                        type: 'flood_prone',
+                        severity: 'medium',
+                        municipality: 'Magdiwang',
+                        coordinates: null,
+                    },
+                ],
+            },
+        });
+
+        render(<HighRiskZoneList isExpanded onZoneSelect={onZoneSelect} />);
+
+        const zoneButton = await screen.findByRole('button', { name: /Unmapped Zone/ });
+        expect(() => fireEvent.click(zoneButton)).not.toThrow();
+        expect(onZoneSelect).toHaveBeenCalledTimes(1);
+        const payload = onZoneSelect.mock.calls[0][0];
+        expect(payload.zone._id).toBe('zone-no-coords');
+        expect(payload).not.toHaveProperty('lat');
+        expect(payload).not.toHaveProperty('lng');
+    });
 });

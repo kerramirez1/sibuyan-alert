@@ -57,10 +57,12 @@ const HighRiskZoneList = ({ onZoneSelect, isExpanded = true }) => {
 
     const handleZoneClick = (zone) => {
         if (onZoneSelect) {
+            // P2-8: coordinate-less rows must not throw in the click handler —
+            // skip the focus and still pass the zone through.
+            const coordinates = zone?.coordinates;
             focusRequestSequenceRef.current += 1;
             onZoneSelect({
-                lat: zone.coordinates.lat,
-                lng: zone.coordinates.lng,
+                ...(coordinates ? { lat: coordinates.lat, lng: coordinates.lng } : {}),
                 ...MAP_FOCUS_PRESETS.list,
                 requestId: `${Date.now()}-${focusRequestSequenceRef.current}`,
                 zone,

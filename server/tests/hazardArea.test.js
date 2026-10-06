@@ -230,6 +230,30 @@ describe('hazard layer payloads', () => {
         expect(catalog.byteLength).toBeGreaterThan(0);
     });
 
+    test('a corrupt dataset file degrades to missing instead of 500ing the catalog', async () => {
+        const fsModule = await import('node:fs');
+        const originalReadFileSync = fsModule.default.readFileSync.bind(fsModule.default);
+        const readSpy = vi
+            .spyOn(fsModule.default, 'readFileSync')
+            .mockImplementation((filePath, ...rest) => {
+                if (String(filePath).includes('noah-sibuyan-landslide-hazards.geojson')) {
+                    return 'THIS IS NOT JSON{{{';
+                }
+                return originalReadFileSync(filePath, ...rest);
+            });
+        resetHazardAreaCaches();
+        try {
+            const catalog = getHazardLayerCatalog();
+
+            expect(catalog.missing).toContain('landslide');
+            expect(catalog.payloads).toHaveLength(HAZARD_DATASET_IDS.length - 1);
+            expect(catalog.payloads.map((payload) => payload.datasetId)).not.toContain('landslide');
+        } finally {
+            readSpy.mockRestore();
+            resetHazardAreaCaches();
+        }
+    });
+
     test('every shipped layer carries only the classes it declares', () => {
         for (const datasetId of HAZARD_DATASET_IDS) {
             const layer = getHazardLayer(datasetId);

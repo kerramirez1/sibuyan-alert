@@ -20,7 +20,14 @@ const readCookie = (name) => {
         .split(';')
         .map((entry) => entry.trim())
         .find((entry) => entry.startsWith(prefix));
-    return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+    if (!cookie) return null;
+    // P2-6: a malformed cookie value must not break every POST/PUT/DELETE for
+    // the user until the cookie is cleared — treat as absent instead.
+    try {
+        return decodeURIComponent(cookie.slice(prefix.length));
+    } catch {
+        return null;
+    }
 };
 
 // Axios handles this automatically for same-origin requests. Setting the

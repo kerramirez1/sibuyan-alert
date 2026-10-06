@@ -87,6 +87,33 @@ beforeEach(() => {
     vi.spyOn(faces, 'detectFaces').mockResolvedValue({ status: 'faces_detected', faces: [{ x: 10, y: 10, width: 100, height: 100 }] });
 });
 
+describe('P2-4: audit-trail event recorders tolerate missing options', () => {
+    test('recordVerificationEvent() with no args does not throw', () => {
+        const doc = new User({
+            email: 'noargs@example.com',
+            name: 'No Args',
+            role: 'reporter',
+            assignedMunicipality: 'Cajidiocan',
+        });
+
+        expect(() => doc.recordVerificationEvent()).not.toThrow();
+        expect(doc.verificationHistory).toHaveLength(1);
+        expect(doc.verificationHistory[0].action).toBeUndefined();
+    });
+
+    test('recordProvisioningEvent() with no args does not throw', () => {
+        const doc = new User({
+            email: 'noargs@example.com',
+            name: 'No Args',
+            role: 'reporter',
+            assignedMunicipality: 'Cajidiocan',
+        });
+
+        expect(() => doc.recordProvisioningEvent()).not.toThrow();
+        expect(doc.provisioningHistory).toHaveLength(1);
+    });
+});
+
 describe('self-account verification payloads', () => {
     test.each(['pending', 'approved', 'rejected'])('GET /auth/me retains complete %s verification state', async (status) => {
         setVerification(status);

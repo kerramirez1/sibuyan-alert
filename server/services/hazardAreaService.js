@@ -247,8 +247,13 @@ export const getHazardLayerCatalog = () => {
             etags.push(layer.etag);
             byteLength += layer.byteLength;
         } catch (error) {
-            if (error.code !== 'ENOENT') throw error;
-            console.warn(`Hazard dataset not built, skipping: ${datasetId} (${error.path})`);
+            // P2-3: a corrupt dataset file (JSON.parse SyntaxError) must not
+            // 500 the whole catalog — mark that layer missing and return the
+            // remaining layers, preserving the per-layer graceful degradation
+            // the `missing` mechanism was built for. Unknown failures still
+            // propagate.
+            if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error;
+            console.warn(`Hazard dataset unreadable, skipping: ${datasetId} (${error?.message || error})`);
             missing.push(datasetId);
         }
     }

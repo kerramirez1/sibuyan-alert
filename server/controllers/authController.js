@@ -429,7 +429,14 @@ export const updateProfile = async (req, res) => {
         });
     } catch (error) {
         if (uploadedAvatarUrl && !profileSaved) {
-            await deleteGridFsFileByUrl(uploadedAvatarUrl);
+            // P2-5: if the rollback itself rejects, the rejection must not
+            // escape — Express 4 ignores it and the unhandledRejection handler
+            // would exit the process. Log and continue to the 500 response.
+            try {
+                await deleteGridFsFileByUrl(uploadedAvatarUrl);
+            } catch (rollbackError) {
+                console.warn('Avatar rollback delete failed:', rollbackError?.message || rollbackError);
+            }
         }
         console.error('Update profile error:', error);
         res.status(500).json({

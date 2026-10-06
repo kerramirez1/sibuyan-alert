@@ -101,7 +101,12 @@ export const SocketProvider = ({ children }) => {
             }
         };
 
-        connectSocket();
+        // P2-7: a rejected lazy socket.io-client chunk import must not become an
+        // unhandled rejection with a silently dead socket — log and leave the
+        // socket disconnected; the existing guards handle the rest.
+        connectSocket().catch((socketError) => {
+            console.warn('Socket connection failed:', socketError?.message || socketError);
+        });
 
         return () => {
             cancelled = true;

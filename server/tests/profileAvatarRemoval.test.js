@@ -167,4 +167,20 @@ describe('updateProfile — avatar removal', () => {
         expect(res.status).not.toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledTimes(1);
     });
+
+    test('a rejecting rollback delete still returns the 500 JSON shape (P2-5)', async () => {
+        const user = primeUser();
+        user.save.mockRejectedValueOnce(new Error('db down'));
+        mocks.deleteGridFsFileByUrl.mockRejectedValueOnce(new Error('gridfs down'));
+        const res = createRes();
+
+        await updateProfile(createReq({}, { originalname: 'a.png', mimetype: 'image/png' }), res);
+
+        expect(mocks.deleteGridFsFileByUrl).toHaveBeenCalledWith('/api/files/new-avatar-id');
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+            success: false,
+            message: 'Failed to update profile',
+        });
+    });
 });

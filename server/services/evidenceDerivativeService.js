@@ -136,12 +136,37 @@ const generatePublicSoftBlurResult = async (originalBuffer, options, sourceHash,
         skipCache = false,
     } = options;
 
-    const derivativeBuffer = await createPublicSoftBlurDerivative(
-        originalBuffer,
-        maxPreviewWidth,
-        maxPreviewHeight,
-        quality,
-    );
+    // P1-1: a corrupt/truncated source must not reject — the module's
+    // fail-closed contract demands the privacy-safe blurred-SVG fallback
+    // (never the original image), matching the decode-error path below.
+    let derivativeBuffer;
+    try {
+        derivativeBuffer = await createPublicSoftBlurDerivative(
+            originalBuffer,
+            maxPreviewWidth,
+            maxPreviewHeight,
+            quality,
+        );
+    } catch (blurErr) {
+        console.warn('Public soft-blur failed, generating SVG fallback:', blurErr?.message || blurErr);
+        const svgFallback = generateBlurredEvidenceSvg(originalBuffer);
+        const fallbackResult = finalizeDerivativeResult({
+            buffer: svgFallback,
+            contentType: 'image/svg+xml',
+            metadata: {
+                redactionVersion: DERIVATIVE_VERSION,
+                detectorVersion: DETECTOR_VERSION,
+                facesDetected: 0,
+                redactedRegions: 0,
+                detectionStatus: 'invalid_image',
+                redactionType: 'svg_fallback',
+                privacyStatus: 'fallback_svg',
+                fallbackApplied: true,
+            },
+        }, sourceHash);
+        if (!skipCache) setCache(cacheKey, fallbackResult);
+        return fallbackResult;
+    }
     const result = finalizeDerivativeResult({
         buffer: derivativeBuffer,
         contentType: 'image/jpeg',

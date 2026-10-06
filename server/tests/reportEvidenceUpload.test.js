@@ -562,3 +562,50 @@ describe('requireEvidenceContributor middleware', () => {
         }
     });
 });
+
+/**
+ * P1-1/P1-2: fail-closed evidence pipeline (real modules).
+ *
+ * The top of this file mocks gridFsService and evidenceDerivativeService for
+ * the controller tests, so these cases load the real modules with
+ * vi.importActual instead.
+ */
+describe('P1-1/P1-2 fail-closed evidence pipeline', () => {
+    test('corrupt bytes on the publicSoftBlur path return the blurred-SVG fallback without rejecting', async () => {
+        const { generateRedactedEvidenceDerivative } = await vi.importActual(
+            '../services/evidenceDerivativeService.js'
+        );
+
+        const result = await generateRedactedEvidenceDerivative(
+            Buffer.from('this is not an image at all, just corrupt bytes'),
+            { publicSoftBlur: true }
+        );
+
+        expect(result.contentType).toBe('image/svg+xml');
+        expect(result.metadata.fallbackApplied).toBe(true);
+        expect(result.metadata.privacyStatus).toBe('fallback_svg');
+        expect(result.metadata.redactionType).toBe('svg_fallback');
+        // Never the original image on failure.
+        expect(result.buffer.equals(Buffer.from('this is not an image at all, just corrupt bytes'))).toBe(false);
+    });
+
+    test('a missing multer temp file rejects with the controlled no-file error, not ENOENT', async () => {
+        const { uploadFileToGridFS } = await vi.importActual('../services/gridFsService.js');
+
+        const error = await uploadFileToGridFS(
+            {
+                path: '/tmp/sibuyan-alert-definitely-missing-upload.jpg',
+                originalname: 'photo.jpg',
+                mimetype: 'image/jpeg',
+            },
+            {}
+        ).then(
+            () => null,
+            (err) => err
+        );
+
+        expect(error).not.toBeNull();
+        expect(error.code).not.toBe('ENOENT');
+        expect(error.message).toBe('Cannot store an empty upload');
+    });
+});
