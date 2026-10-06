@@ -150,10 +150,11 @@ const MainLayout = ({ children, fitWindow = false }) => {
         }) === DASHBOARD_ANALYTICS_VIEW;
     const isMapView = location.pathname === '/dashboard' && !isAnalyticsDashboard;
 
-    // The application-wide search belongs to the Dashboard and nowhere else. Every
-    // other page answers questions about itself with its own controls, so the
-    // header there is brand, notifications, and nothing competing with them. The
-    // rule itself lives in utils/globalSearch so this and any other caller agree.
+    // The application-wide search belongs to the map dashboard (/dashboard) and
+    // nowhere else. Every other page answers questions about itself with its
+    // own controls, so the header there is brand, notifications, and nothing
+    // competing with them. The rule itself lives in utils/globalSearch so this
+    // and any other caller agree.
     const showGlobalSearch = hasGlobalHeaderSearch(location.pathname);
     const isOperationalNavVisible = isAuthenticated
         && (user?.role === 'municipal_admin' || user?.role === 'responder');
@@ -463,10 +464,10 @@ const MainLayout = ({ children, fitWindow = false }) => {
                         </div>
 
                         {/* Laptop/desktop: inline search bar in the top row, next to
-                            the notification button. Dashboard only — elsewhere the
-                            brand takes the width and the header stays a two-part
-                            composition rather than a three-part one with a hole in
-                            the middle. */}
+                            the notification button. Map dashboard only —
+                            elsewhere the brand takes the width and the header
+                            stays a two-part composition rather than a three-part
+                            one with a hole in the middle. */}
                         {isAuthenticated && showGlobalSearch && (
                             <div className="hidden min-w-0 flex-1 justify-center px-2 md:flex">
                                 <ReportSearch className="w-full max-w-md" />

@@ -512,6 +512,12 @@ describe('MainLayout responsive navigation', () => {
  * The Dashboard is `/admin` for municipal admins and responders and `/reporter`
  * for reporters — the sidebar's own "Dashboard" target. `/dashboard` is the Map.
  */
+/**
+ * The map dashboard (`/dashboard`, the sidebar's "Map" item) is the single home
+ * of the application-wide header search for every role, because search results
+ * land on the map. The admin and reporter dashboards rely on their own scoped
+ * page controls instead.
+ */
 describe('MainLayout global header search placement', () => {
     beforeEach(() => {
         mocks.isAuthenticated = true;
@@ -524,25 +530,33 @@ describe('MainLayout global header search placement', () => {
         };
     });
 
-    test('the admin dashboard carries it', () => {
+    test('the admin dashboard no longer carries it', () => {
         renderLayout('/admin');
 
-        expect(screen.getByRole('combobox')).toBeInTheDocument();
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     });
 
-    test('the reporter dashboard carries it', () => {
+    test('the reporter dashboard no longer carries it', () => {
         mocks.user = { ...mocks.user, role: 'reporter' };
         renderLayout('/reporter');
 
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    });
+
+    test('the map dashboard carries it', () => {
+        renderLayout('/dashboard');
+
         expect(screen.getByRole('combobox')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Search incident reports' })).toBeInTheDocument();
     });
 
     test.each([
+        ['admin dashboard', '/admin'],
+        ['reporter dashboard', '/reporter'],
         ['incident reports', '/admin/reports'],
         ['users', '/admin/users'],
         ['risk zones', '/admin/zones'],
         ['accident history', '/accident-history'],
-        ['the map', '/dashboard'],
         ['the profile page', '/profile'],
     ])('%s does not carry it', (_label, path) => {
         renderLayout(path);
@@ -557,8 +571,8 @@ describe('MainLayout global header search placement', () => {
         expect(screen.queryByRole('button', { name: 'Search incident reports' })).not.toBeInTheDocument();
     });
 
-    test('the mobile search toggle is still there on the dashboard', () => {
-        renderLayout('/admin');
+    test('the mobile search toggle is still there on the map dashboard', () => {
+        renderLayout('/dashboard');
 
         expect(screen.getByRole('button', { name: 'Search incident reports' })).toBeInTheDocument();
     });
@@ -622,7 +636,7 @@ describe('MainLayout header brand responsive visibility', () => {
     });
 
     test('keeps desktop utilities alongside the restored brand', () => {
-        renderLayout('/admin');
+        renderLayout('/dashboard');
 
         // Brand, search, and notifications share one header row.
         const header = screen.getByText('Sibuyan Island Operations').closest('header');

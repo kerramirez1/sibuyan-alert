@@ -6,27 +6,36 @@ import { GLOBAL_SEARCH_ROUTES, hasGlobalHeaderSearch } from '../utils/globalSear
  *
  * The two easy mistakes this pins down:
  *
- *  - `/dashboard` is NOT the Dashboard. It is the Map — its own sidebar item,
- *    the default for every role. The Dashboard is `/admin` for municipal admins
- *    and responders and `/reporter` for reporters.
- *  - Analytics is `?view=analytics` on the map's route, but it is its own
- *    workspace and its own sidebar entry, so it does not inherit the search.
+ *  - The map dashboard is `/dashboard` — the sidebar's "Map" item, the incident
+ *    map for every role. The sidebar's "Dashboard" item points at `/admin` or
+ *    `/reporter`, and neither of those carries the global search anymore.
+ *  - Query strings are stripped by design, so `/dashboard?view=analytics`
+ *    carries the search even though Analytics is its own workspace — picking a
+ *    result navigates to the map view anyway.
  */
 describe('global header search routes', () => {
-    test('the Dashboard routes carry it', () => {
-        expect(hasGlobalHeaderSearch('/admin')).toBe(true);
-        expect(hasGlobalHeaderSearch('/reporter')).toBe(true);
+    test('the map dashboard carries it', () => {
+        expect(hasGlobalHeaderSearch('/dashboard')).toBe(true);
+        expect(hasGlobalHeaderSearch('/dashboard?view=map')).toBe(true);
+        // Accepted consequence of query-stripping: Analytics is a view of the
+        // same route, so the search shows there too.
+        expect(hasGlobalHeaderSearch('/dashboard?view=analytics')).toBe(true);
+        expect(hasGlobalHeaderSearch('/dashboard/')).toBe(true);
     });
 
-    test('the map does not, despite the route being called /dashboard', () => {
-        expect(hasGlobalHeaderSearch('/dashboard')).toBe(false);
-        // Analytics is a view of the same route, but its own workspace.
-        expect(hasGlobalHeaderSearch('/dashboard?view=analytics')).toBe(false);
-        expect(hasGlobalHeaderSearch('/dashboard?view=map')).toBe(false);
+    test('the admin and reporter dashboards do not', () => {
+        expect(hasGlobalHeaderSearch('/admin')).toBe(false);
+        expect(hasGlobalHeaderSearch('/reporter')).toBe(false);
+        expect(hasGlobalHeaderSearch('/admin/')).toBe(false);
+        expect(hasGlobalHeaderSearch('/reporter/')).toBe(false);
+        expect(hasGlobalHeaderSearch('/admin?tab=overview')).toBe(false);
+        expect(hasGlobalHeaderSearch('/reporter?report=abc')).toBe(false);
     });
 
     test('the focused pages do not', () => {
         for (const path of [
+            '/admin',
+            '/reporter',
             '/admin/reports',
             '/admin/users',
             '/admin/zones',
@@ -43,21 +52,22 @@ describe('global header search routes', () => {
     test('a query string does not change the answer', () => {
         // The router keeps the query on the pathname it hands over in some
         // callers; the rule has to see through it either way.
-        expect(hasGlobalHeaderSearch('/admin?tab=overview')).toBe(true);
+        expect(hasGlobalHeaderSearch('/dashboard?view=map')).toBe(true);
         expect(hasGlobalHeaderSearch('/admin/reports?view=dispatch-queue')).toBe(false);
-        expect(hasGlobalHeaderSearch('/reporter?report=abc')).toBe(true);
+        expect(hasGlobalHeaderSearch('/reporter?report=abc')).toBe(false);
     });
 
     test('a trailing slash does not change the answer', () => {
-        expect(hasGlobalHeaderSearch('/admin/')).toBe(true);
-        expect(hasGlobalHeaderSearch('/reporter/')).toBe(true);
-        expect(hasGlobalHeaderSearch('/dashboard/')).toBe(false);
+        expect(hasGlobalHeaderSearch('/dashboard/')).toBe(true);
+        expect(hasGlobalHeaderSearch('/admin/')).toBe(false);
+        expect(hasGlobalHeaderSearch('/reporter/')).toBe(false);
     });
 
     test('a prefix is not a match', () => {
-        // `/administrator` must not inherit the admin dashboard's search.
+        // A route that merely starts with a listed route must not match it.
         expect(hasGlobalHeaderSearch('/administrator')).toBe(false);
         expect(hasGlobalHeaderSearch('/reporters')).toBe(false);
+        expect(hasGlobalHeaderSearch('/dashboard-admin')).toBe(false);
     });
 
     test('the root is not a match', () => {
@@ -71,7 +81,7 @@ describe('global header search routes', () => {
         expect(hasGlobalHeaderSearch(42)).toBe(false);
     });
 
-    test('the exported list is exactly the two dashboard routes', () => {
-        expect([...GLOBAL_SEARCH_ROUTES]).toEqual(['/admin', '/reporter']);
+    test('the exported list is exactly the map dashboard route', () => {
+        expect([...GLOBAL_SEARCH_ROUTES]).toEqual(['/dashboard']);
     });
 });
