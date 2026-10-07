@@ -235,8 +235,9 @@ const IncidentDetailsContent = ({
             )}
 
             {/* 4b. Resolution Photos — the responder's proof of resolution, a
-                separate identity from the reporter's evidence. */}
-            {visibility.showEvidence && (
+                separate identity from the reporter's evidence. Only resolved
+                incidents can have them (stored atomically with the resolve). */}
+            {visibility.showEvidence && report?.status === 'resolved' && (
                 <IncidentDetailsEvidenceSection
                     images={visibility.isOperational || visibility.isOwner ? (report.resolutionImages || []) : []}
                     evidenceCount={(report.resolutionImages || []).length}

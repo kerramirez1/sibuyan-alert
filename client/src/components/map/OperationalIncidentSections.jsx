@@ -152,21 +152,23 @@ const OperationalIncidentSections = ({ report = {}, onRetryEvidence }) => {
                 )}
             </DisclosureSection>
 
-            <DisclosureSection
-                id="resolution-photos-heading"
-                icon={HiOutlinePhotograph}
-                title={`Resolution photos (${resolutionImages.length})`}
-                summary="Proof of resolution uploaded by the responder"
-                defaultOpen={resolutionImages.length > 0}
-            >
-                <ProtectedEvidenceGallery
-                    images={resolutionImages}
-                    accessLevel="original"
-                    isOperational={true}
-                    variant="stacked"
-                    labelVariant="resolution"
-                />
-            </DisclosureSection>
+            {safeReport.status === 'resolved' && (
+                <DisclosureSection
+                    id="resolution-photos-heading"
+                    icon={HiOutlinePhotograph}
+                    title={`Resolution photos (${resolutionImages.length})`}
+                    summary="Proof of resolution uploaded by the responder"
+                    defaultOpen={resolutionImages.length > 0}
+                >
+                    <ProtectedEvidenceGallery
+                        images={resolutionImages}
+                        accessLevel="original"
+                        isOperational={true}
+                        variant="stacked"
+                        labelVariant="resolution"
+                    />
+                </DisclosureSection>
+            )}
 
             <DisclosureSection
                 id="reporter-contact-heading"

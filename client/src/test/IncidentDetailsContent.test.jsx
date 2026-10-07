@@ -237,3 +237,52 @@ describe('IncidentDetailsContent', () => {
         expect(screen.queryByText(/No affected-area impacts recorded/i)).not.toBeInTheDocument();
     });
 });
+
+describe('IncidentDetailsContent — resolution photos section gating', () => {
+    const operatorReport = {
+        _id: 'report-999',
+        address: 'Crossing Poblacion, Cajidiocan',
+        barangay: 'Poblacion',
+        municipalityName: 'Cajidiocan',
+        incidentType: 'vehicular',
+        severity: 'severe',
+        incidentTime: '2026-08-16T12:00:00.000Z',
+        description: 'Two motorcycles collided at the intersection.',
+        coordinates: { lat: 12.4044, lng: 122.6897 },
+        reporter: { name: 'Juan Dela Cruz', email: 'juan@example.com', isVerified: true },
+        images: ['/image1.jpg'],
+        evidenceCount: 1,
+    };
+
+    const renderAsOperator = (report) => render(
+        <IncidentDetailsContent
+            report={report}
+            viewerRole="municipal_admin"
+            user={{ role: 'municipal_admin' }}
+        />
+    );
+
+    test('hides the resolution photos section for a responding incident', () => {
+        renderAsOperator({ ...operatorReport, status: 'responding' });
+
+        // The evidence section still renders; the resolution one does not.
+        expect(screen.queryByText(/Resolution photos/)).not.toBeInTheDocument();
+    });
+
+    test('shows the resolution photos section with the empty note for a resolved incident without photos', () => {
+        renderAsOperator({ ...operatorReport, status: 'resolved', resolutionImages: [] });
+
+        expect(screen.getByText('Resolution photos (0)')).toBeInTheDocument();
+        expect(screen.getByText('No resolution photos attached.')).toBeInTheDocument();
+    });
+
+    test('shows the resolution photos section with photos for a resolved incident', () => {
+        renderAsOperator({
+            ...operatorReport,
+            status: 'resolved',
+            resolutionImages: ['/res1.jpg', '/res2.jpg'],
+        });
+
+        expect(screen.getByText('Resolution photos (2)')).toBeInTheDocument();
+    });
+});
