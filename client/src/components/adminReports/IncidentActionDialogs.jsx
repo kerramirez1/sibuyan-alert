@@ -1,8 +1,12 @@
+import { useEffect, useRef } from 'react';
 import {
     HiOutlineBadgeCheck,
+    HiOutlineX,
 } from 'react-icons/hi';
 import Modal from '../ui/Modal';
 import ResponderUnitModal from '../ResponderUnitModal';
+import toast from '../../utils/appToast';
+import { validateEvidenceImageFile } from '../../utils/evidenceImage';
 
 const DialogButton = ({ children, onClick, tone = 'neutral', disabled = false, loading = false }) => {
     const tones = {
@@ -32,6 +36,117 @@ const ReportPreview = ({ report }) => (
     </div>
 );
 
+// Optional resolution photos for the Resolve dialog. Photos ride the
+// existing evidence endpoint BEFORE the resolve call (the endpoint rejects
+// attachments once the status is `resolved`), so selection stays capped at
+// the report's remaining evidence slots: 5 - existing images.
+const MAX_EVIDENCE_PHOTOS = 5;
+
+const ResolutionPhotoPicker = ({ actions }) => {
+    const { resolveDialog } = actions;
+    const fileInputRef = useRef(null);
+    const photos = Array.isArray(resolveDialog.resolutionPhotos) ? resolveDialog.resolutionPhotos : [];
+    const existingCount = resolveDialog.report?.images?.length || 0;
+    const totalRemaining = Math.max(0, MAX_EVIDENCE_PHOTOS - existingCount);
+    const addableSlots = Math.max(0, totalRemaining - photos.length);
+
+    // Previews are object URLs created at selection time; revoke them when a
+    // photo leaves the selection (removed, or the dialog closed and reset)
+    // so they never leak.
+    const previousPhotosRef = useRef([]);
+    useEffect(() => {
+        const currentIds = new Set(photos.map((photo) => photo.id));
+        for (const photo of previousPhotosRef.current) {
+            if (!currentIds.has(photo.id) && photo.preview) URL.revokeObjectURL(photo.preview);
+        }
+        previousPhotosRef.current = photos;
+    }, [photos]);
+
+    const handlePhotoChange = (event) => {
+        const files = Array.from(event.target.files || []);
+        event.target.value = '';
+        if (!files.length || addableSlots <= 0) return;
+        const reportId = resolveDialog.report?._id || 'report';
+        const valid = [];
+        for (const file of files.slice(0, addableSlots)) {
+            const validationError = validateEvidenceImageFile(file);
+            if (validationError) {
+                toast.error(`${file.name || 'File'} ${validationError}`);
+            } else {
+                // The photoId is minted once per selection and never
+                // regenerated, so a retry after a failed resolve dedups
+                // server-side instead of duplicating.
+                valid.push({
+                    id: `resolution-${reportId}-${Date.now()}-${valid.length}-${Math.random().toString(36).slice(2, 8)}`,
+                    file,
+                    preview: URL.createObjectURL(file),
+                });
+            }
+        }
+        if (!valid.length) return;
+        actions.setResolveDialog((current) => ({
+            ...current,
+            resolutionPhotos: [...(Array.isArray(current.resolutionPhotos) ? current.resolutionPhotos : []), ...valid],
+        }));
+    };
+
+    const removePhoto = (id) => {
+        actions.setResolveDialog((current) => ({
+            ...current,
+            resolutionPhotos: (Array.isArray(current.resolutionPhotos) ? current.resolutionPhotos : []).filter((photo) => photo.id !== id),
+        }));
+    };
+
+    return (
+        <div className="mt-4">
+            <span className="text-sm font-semibold text-gray-800">Resolution photos <span className="font-normal text-gray-500">(optional)</span></span>
+            {totalRemaining > 0 ? (
+                <>
+                    <p className="mt-1 text-xs text-gray-500">
+                        Attach up to {totalRemaining} photo{totalRemaining === 1 ? '' : 's'} proving the incident is resolved. They upload before the incident is closed.
+                    </p>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        aria-label="Add resolution photos"
+                        onChange={handlePhotoChange}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={addableSlots <= 0 || actions.resolveLoading}
+                        className="mt-2 inline-flex min-h-9 items-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        Add photos
+                    </button>
+                    {photos.length > 0 && (
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                            {photos.map((photo) => (
+                                <div key={photo.id} className="relative">
+                                    <img src={photo.preview} alt="Resolution photo preview" className="h-20 w-full rounded-lg border border-gray-200 object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => removePhoto(photo.id)}
+                                        aria-label="Remove resolution photo"
+                                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+                                    >
+                                        <HiOutlineX className="h-3.5 w-3.5" aria-hidden="true" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            ) : (
+                <p className="mt-1 text-xs text-gray-500">This report already has the maximum of 5 evidence photos.</p>
+            )}
+        </div>
+    );
+};
+
 const IncidentActionDialogs = ({ actions, municipality }) => {
     const { resolveDialog } = actions;
 
@@ -57,6 +172,7 @@ const IncidentActionDialogs = ({ actions, municipality }) => {
                         placeholder="Describe the response outcome"
                     />
                 </label>
+                <ResolutionPhotoPicker actions={actions} />
                 <div className="mt-5 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                     <DialogButton onClick={actions.closeResolve}>Cancel</DialogButton>
                     <DialogButton onClick={actions.confirmResolve} tone="success" loading={actions.resolveLoading}>

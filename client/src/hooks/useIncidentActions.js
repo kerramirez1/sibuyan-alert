@@ -4,7 +4,7 @@ import { adminAPI, reportsAPI } from '../services/api';
 import { getIncidentCapabilities } from '../components/adminReports/incidentReportConfig';
 
 const closedReview = { open: false, report: null, status: '', rejectionReason: '' };
-const closedResolve = { open: false, report: null, resolutionNotes: '' };
+const closedResolve = { open: false, report: null, resolutionNotes: '', resolutionPhotos: [] };
 const closedTransfer = { open: false, report: null, targetMunicipalityId: '', reason: '' };
 
 const getApiError = (error, fallback) => error?.response?.data?.message || fallback;
@@ -118,26 +118,56 @@ const useIncidentActions = ({
             toast.error('Only an assigned responder can resolve this incident.');
             return;
         }
-        setResolveDialog({ open: true, report, resolutionNotes: '' });
+        setResolveDialog({ open: true, report, resolutionNotes: '', resolutionPhotos: [] });
     }, [user]);
 
     const confirmResolve = useCallback(async () => {
-        const { report, resolutionNotes } = resolveDialog;
+        const { report, resolutionNotes, resolutionPhotos } = resolveDialog;
         if (!report || !report?._id || !getIncidentCapabilities(user, report).canResolve) return;
 
         setResolveLoading(true);
         try {
+            // Resolution photos must land BEFORE the report closes: the
+            // evidence endpoint rejects attachments once the status is
+            // `resolved`. Each photo rides its own FormData with the stable
+            // photoId assigned at selection, so a retry after a failed
+            // resolve dedups server-side instead of duplicating.
+            let uploadedImages = null;
+            const photos = Array.isArray(resolutionPhotos) ? resolutionPhotos : [];
+            for (const photo of photos) {
+                const formData = new FormData();
+                formData.append('images', photo.file, photo.file?.name || 'resolution-photo.jpg');
+                formData.append('photoId', photo.id);
+                try {
+                    const uploadResponse = await reportsAPI.uploadEvidence(report._id, formData);
+                    const responseImages = uploadResponse?.data?.data?.images;
+                    if (Array.isArray(responseImages)) uploadedImages = responseImages;
+                } catch (uploadError) {
+                    // Do NOT proceed to resolve: the dialog stays open with
+                    // the photos still selected, so the responder can retry
+                    // or remove them and confirm without photos. The
+                    // server's own message (e.g. EXCEEDS_IMAGE_LIMIT) is shown.
+                    toast.error(getApiError(uploadError, 'Failed to upload resolution photos'));
+                    return;
+                }
+            }
+
             const response = await adminAPI.resolveReport(report?._id, { resolutionNotes });
             const serverData = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) ? response.data.data : {};
+            // The upload response carries the updated images array, so the
+            // galleries update without a refetch; when absent the key is
+            // omitted and the refreshReports fallback below covers it.
+            const imagesPatch = uploadedImages ? { images: uploadedImages } : {};
             patchReport(report?._id, {
                 ...serverData,
                 status: 'resolved',
                 resolutionNotes,
+                ...imagesPatch,
             });
             toast.success(response.data?.message || 'Incident resolved');
             setResolveDialog(closedResolve);
             if (onIncidentResolved) {
-                onIncidentResolved({ ...report, ...serverData, status: 'resolved', resolutionNotes });
+                onIncidentResolved({ ...report, ...serverData, status: 'resolved', resolutionNotes, ...imagesPatch });
             } else {
                 await refreshReports({ silent: true });
             }
