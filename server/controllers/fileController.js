@@ -10,7 +10,7 @@ export const canReadFile = async (file, user, { findReportById = Report.findById
     const userId = getEntityId(user);
     if (ownerId && userId && ownerId === userId) return true;
 
-    if (file.metadata?.category === 'report_evidence') {
+    if (file.metadata?.category === 'report_evidence' || file.metadata?.category === 'resolution') {
         const reportId = getEntityId(file.metadata?.resourceId);
         if (!reportId) return false;
 

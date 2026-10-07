@@ -1065,7 +1065,7 @@ export const deleteReport = async (req, res) => {
         // cleanup failure must not report the whole operation as failed.
         await deleteViewEventsForTarget({ targetType: 'report', targetId: report._id });
 
-        await deleteGridFsFilesByUrls(report.images);
+        await deleteGridFsFilesByUrls([...(report.images || []), ...(report.resolutionImages || [])]);
 
         // Emit real-time update
         const io = req.app.get('io');
@@ -1220,12 +1220,12 @@ export const deleteUser = async (req, res) => {
             });
         }
 
-        const reportsToDelete = await Report.find({ reporter: user._id }).select('images');
+        const reportsToDelete = await Report.find({ reporter: user._id }).select('images resolutionImages');
         const associatedFileUrls = [
             user.avatar,
             user.idDocument,
             user.selfiePhoto,
-            ...reportsToDelete.flatMap((report) => report.images || []),
+            ...reportsToDelete.flatMap((report) => [...(report.images || []), ...(report.resolutionImages || [])]),
         ].filter(Boolean);
 
         // 1. Delete notifications
@@ -2060,11 +2060,11 @@ export const resolveReport = async (req, res) => {
         // Resolution photos ride the same multipart request so they are stored
         // atomically with the resolve. They land in `resolutionImages` — never
         // in the reporter's `images[]` — with the same URL shape as evidence.
+        const storedResolutionUrls = [];
         if (req.files?.length) {
             const rawPhotoIds = Array.isArray(req.body.photoIds)
                 ? req.body.photoIds
                 : (typeof req.body.photoIds === 'string' ? [req.body.photoIds] : []);
-            const storedResolutionUrls = [];
             try {
                 for (let index = 0; index < req.files.length; index += 1) {
                     const file = req.files[index];
@@ -2111,7 +2111,16 @@ export const resolveReport = async (req, res) => {
         report.resolvedBy = responder._id;
         report.resolvedAt = new Date();
         report.resolutionNotes = resolutionNotes || '';
-        await report.save();
+        try {
+            await report.save();
+        } catch (saveError) {
+            // The photos are already in GridFS but the report never recorded
+            // them: best-effort delete so they cannot become orphans. Only the
+            // save is wrapped — post-save failures (e.g. broadcast) must never
+            // delete files the report references.
+            await deleteGridFsFilesByUrls(storedResolutionUrls).catch(() => {});
+            throw saveError;
+        }
 
         // Populate for response
         await report.populate('respondedBy', 'name email agency assignedMunicipality');

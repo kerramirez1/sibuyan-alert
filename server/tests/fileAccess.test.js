@@ -223,3 +223,83 @@ describe('P2-11 disk-backed evidence uploads', () => {
         await expect(readUploadBuffer({ originalname: 'empty.jpg' })).rejects.toThrow('no readable content');
     });
 });
+
+describe('resolution photo file authorization', () => {
+    const resolutionFile = {
+        metadata: {
+            visibility: 'private',
+            category: 'resolution',
+            resourceId: 'report-1',
+            ownerId: 'uploader-responder',
+            municipalityName: 'Cajidiocan',
+        },
+    };
+    const findReportById = () => jest.fn().mockResolvedValue({
+        _id: 'report-1',
+        reporter: 'reporter-1',
+        municipalityName: 'Cajidiocan',
+        status: 'resolved',
+        respondedBy: 'uploader-responder',
+        responders: [{ user: 'assigned-responder-2' }],
+    });
+
+    test("the report's reporter can read resolution photos", async () => {
+        const find = findReportById();
+        await expect(canReadFile(resolutionFile, {
+            _id: 'reporter-1',
+            role: 'reporter',
+        }, { findReportById: find })).resolves.toBe(true);
+        expect(find).toHaveBeenCalledWith('report-1');
+    });
+
+    test('an assigned responder who did not upload can read resolution photos', async () => {
+        await expect(canReadFile(resolutionFile, {
+            _id: 'assigned-responder-2',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        }, { findReportById: findReportById() })).resolves.toBe(true);
+    });
+
+    test('a same-municipality municipal admin can read resolution photos', async () => {
+        await expect(canReadFile(resolutionFile, {
+            _id: 'municipal-admin-1',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Cajidiocan',
+        }, { findReportById: findReportById() })).resolves.toBe(true);
+    });
+
+    test('the uploading responder can read their own resolution photos', async () => {
+        await expect(canReadFile(resolutionFile, {
+            _id: 'uploader-responder',
+            role: 'responder',
+            assignedMunicipality: 'Cajidiocan',
+        }, { findReportById: findReportById() })).resolves.toBe(true);
+    });
+
+    test('a cross-municipality municipal admin cannot read resolution photos', async () => {
+        await expect(canReadFile(resolutionFile, {
+            _id: 'municipal-admin-2',
+            role: 'municipal_admin',
+            assignedMunicipality: 'Magdiwang',
+        }, { findReportById: findReportById() })).resolves.toBe(false);
+    });
+
+    test('another reporter cannot read resolution photos', async () => {
+        await expect(canReadFile(resolutionFile, {
+            _id: 'reporter-2',
+            role: 'reporter',
+        }, { findReportById: findReportById() })).resolves.toBe(false);
+    });
+
+    test('anonymous requests cannot read resolution photos', async () => {
+        await expect(canReadFile(resolutionFile, null, { findReportById: findReportById() })).resolves.toBe(false);
+    });
+
+    test('a missing report denies access (fail-closed)', async () => {
+        const find = jest.fn().mockResolvedValue(null);
+        await expect(canReadFile(resolutionFile, {
+            _id: 'reporter-1',
+            role: 'reporter',
+        }, { findReportById: find })).resolves.toBe(false);
+    });
+});
