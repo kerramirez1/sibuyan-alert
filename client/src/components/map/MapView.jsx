@@ -822,6 +822,10 @@ const MapView = ({
     // A live map refresh can remove or replace the report that opened the
     // inspector. Close only after a non-empty dataset is available so a
     // transient loading reset does not interrupt an active detail request.
+    // P2-f: while the panel stays open, its snapshot (mapModal.data) is
+    // refreshed from the live reports array by id — status and action buttons
+    // track socket updates without reopening. The close-when-the-report
+    // disappears behavior is unchanged.
     useEffect(() => {
         if (!mapModal || !Array.isArray(reports) || reports.length === 0) return;
 
@@ -832,12 +836,53 @@ const MapView = ({
                 : [];
         if (selectedReports.length === 0) return;
 
-        const reportIds = new Set((Array.isArray(reports) ? reports : []).map((report) => String(report?._id || report?.id || '')).filter(Boolean));
+        const liveById = new Map(
+            reports.map((report) => [String(report?._id || report?.id || ''), report])
+        );
+        const idOf = (report) => String(report?._id || report?.id || '');
+        const reportIds = new Set([...liveById.keys()].filter(Boolean));
         const hasCurrentSelection = selectedReports.some((report) => (
-            reportIds.has(String(report?._id || report?.id || ''))
+            reportIds.has(idOf(report))
         ));
-        if (!hasCurrentSelection) closeMapSelection();
-    }, [closeMapSelection, mapModal, reports]);
+        if (!hasCurrentSelection) {
+            closeMapSelection();
+            return;
+        }
+
+        const changed = (oldReport, liveReport) => (
+            Boolean(liveReport)
+            && (liveReport.status !== oldReport?.status || liveReport.updatedAt !== oldReport?.updatedAt)
+        );
+        if (mapModal.type === 'report') {
+            const live = liveById.get(idOf(mapModal.data));
+            if (changed(mapModal.data, live)) {
+                setMapModal((current) => {
+                    if (!current || current.type !== 'report' || idOf(current.data) !== idOf(live)) return current;
+                    return {
+                        ...current,
+                        data: live,
+                        canRespond: canRespond && ['verified', 'transferred'].includes(live.status),
+                        canResolve: canResolve && live.status === 'responding'
+                            && (!canResolveReport || canResolveReport(live)),
+                        canVerify: canVerify && live.status === 'pending'
+                            && (!canVerifyReport || canVerifyReport(live)),
+                        canReject: canVerify && live.status === 'pending'
+                            && (!canVerifyReport || canVerifyReport(live)),
+                        canAcknowledgeTransfer: canAcknowledgeTransfer
+                            && (!canAcknowledgeTransferReport || canAcknowledgeTransferReport(live)),
+                    };
+                });
+            }
+        } else if (mapModal.type === 'reportGroup' && Array.isArray(mapModal.data)) {
+            const liveGroup = mapModal.data.map((item) => liveById.get(idOf(item))).filter(Boolean);
+            if (liveGroup.length === mapModal.data.length
+                && liveGroup.some((live, index) => changed(mapModal.data[index], live))) {
+                setMapModal((current) => (
+                    current && current.type === 'reportGroup' ? { ...current, data: liveGroup } : current
+                ));
+            }
+        }
+    }, [closeMapSelection, mapModal, reports, canRespond, canResolve, canVerify, canAcknowledgeTransfer, canResolveReport, canVerifyReport, canAcknowledgeTransferReport]);
 
     useEffect(() => {
         let active = true;

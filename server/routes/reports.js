@@ -22,7 +22,7 @@ import { protect, optionalAuth } from '../middleware/auth.js';
 import { requireVerifiedReporter, blockOrdinaryUsers, requireEvidenceContributor } from '../middleware/roleCheck.js';
 import { uploadReportImages, handleMulterError, validateUploadContent } from '../middleware/upload.js';
 import { validateCreateReport, validateMongoIdParam } from '../middleware/validate.js';
-import { locationLookupLimiter, reportCreationLimiter, viewLimiter, searchLimiter } from '../middleware/rateLimiter.js';
+import { locationLookupLimiter, reportCreationLimiter, reportEvidenceLimiter, viewLimiter, searchLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -60,7 +60,7 @@ router.post(
     protect,
     requireEvidenceContributor,
     validateMongoIdParam,
-    reportCreationLimiter,
+    reportEvidenceLimiter,
     uploadReportImages,
     handleMulterError,
     validateUploadContent,

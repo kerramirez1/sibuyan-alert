@@ -625,7 +625,46 @@ describe('MapView opening framing', () => {
         });
     });
 
-    test('closes a hazard zone\u2019s details when the layer stops being drawn', async () => {
+    test('refreshes an open incident panel when a live update changes the report', async () => {
+        const report = {
+            _id: 'report-live-1',
+            coordinates: { lat: 12.4, lng: 122.6 },
+            status: 'verified',
+            incidentCategory: 'road_accident',
+            title: 'Sibuyan Circumferential Road',
+            address: 'Poblacion, Cajidiocan',
+            detailCompleteness: 'full',
+        };
+        const view = await renderReady({ reports: [report] });
+
+        await waitFor(() => {
+            expect(maplibregl.Marker).toHaveBeenCalled();
+        });
+
+        // Open the incident's details the way a reader does: click its marker.
+        const reportElement = maplibregl.Marker.mock.calls
+            .map(([options]) => options?.element)
+            .find((element) => element?.className?.includes('report-marker'));
+        expect(reportElement).toBeTruthy();
+        fireEvent.click(reportElement);
+
+        await waitFor(() => {
+            expect(screen.getAllByText('verified').length).toBeGreaterThan(0);
+        });
+
+        // A live socket update changes the report's status. The open panel
+        // must reflect it without being reopened — and stay open.
+        const updated = { ...report, status: 'responding', updatedAt: new Date().toISOString() };
+        view.rerender(<MapView reports={[updated]} />);
+
+        await waitFor(() => {
+            expect(screen.getAllByText('responding').length).toBeGreaterThan(0);
+        });
+        expect(screen.queryByText('verified')).not.toBeInTheDocument();
+        expect(screen.getByText('Incident details')).toBeInTheDocument();
+    });
+
+    test('closes a hazard zone’s details when the layer stops being drawn', async () => {
         const onEntityInspectorChange = vi.fn();
         const view = await renderReady({
             highRiskZones: mappedZones,

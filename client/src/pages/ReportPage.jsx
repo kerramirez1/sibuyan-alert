@@ -21,6 +21,7 @@ import {
 import { useConnectivity } from '../hooks/useConnectivity';
 import { useAuth } from '../context/AuthContext';
 import { REPORT_SUBMIT_TIMEOUT_MS } from '../config/reportSubmission';
+import { isWithinSibuyanInteractionBounds } from '../utils/mapNavigation';
 import { clearReportDraft, loadReportDraft, saveReportDraft } from '../utils/reportDraft';
 import { OPERATIONAL_MAX_ZOOM } from '../config/mapProvider';
 import Modal from '../components/ui/Modal';
@@ -571,12 +572,16 @@ const ReportPage = () => {
                 if (!coords) return;
                 const { latitude, longitude } = coords;
                 if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+                const location = { lat: latitude, lng: longitude };
+                // P2-b: the same Sibuyan bounds check the map path enforces —
+                // an out-of-bounds fix must not become submittable client-side
+                // (the server 400 stays as the backstop).
+                if (!isWithinSibuyanInteractionBounds(location)) return;
                 const accuracy = Number.isFinite(coords?.accuracy) ? coords.accuracy : null;
                 if (bestLocation !== null && accuracy !== null && accuracy >= bestAccuracy) return;
                 {
                     if (accuracy !== null) bestAccuracy = accuracy;
                     setGpsAccuracy(accuracy);
-                    const location = { lat: latitude, lng: longitude };
                     bestLocation = location;
                     setUserLocation(location);
                     setSelectedLocation(location);
@@ -962,8 +967,18 @@ const ReportPage = () => {
             if (done < total) toast.success(`Report sent! Uploading photos (${done}/${total})…`);
         };
 
+        // P2-c: resolves once the enqueue loop below has persisted every photo
+        // to the IndexedDB queue (or recorded it as unqueueable). The submit
+        // flow awaits this before dropping the staged on-disk copy, so closing
+        // the app in between can no longer lose photos with nothing to retry
+        // them. PhotoIds are deterministic, so a crash here cannot duplicate
+        // photos on the server either.
+        let resolvePersisted;
+        const persisted = new Promise((resolve) => { resolvePersisted = resolve; });
+
         const run = async () => {
             let failed = 0;
+            let queued = 0;
             const unqueued = [];
             for (const [index, photo] of photos.entries()) {
                 const photoName = photo?.name || `evidence-${index + 1}.jpg`;
@@ -974,8 +989,10 @@ const ReportPage = () => {
                     photoId: `${clientReportId}:photo-${index}`,
                     reporterId,
                 });
-                if (!entry) unqueued.push({ photo, photoName });
+                if (entry) queued += 1;
+                else unqueued.push({ photo, photoName });
             }
+            resolvePersisted();
             for (const { photo, photoName } of unqueued) {
                 try {
                     await sendPhoto({ photo, photoName });
@@ -995,21 +1012,26 @@ const ReportPage = () => {
                 },
             });
             failed += photoResult?.failed ?? 0;
-            return failed;
+            return { failed, queued };
         };
 
         toast.success(`Report sent! Uploading photos (0/${total})…`);
-        run().then((failed) => {
+        run().then(({ failed, queued }) => {
             if (failed === 0) {
                 toast.success('Report sent! All photos uploaded.');
-            } else {
+            } else if (queued > 0) {
+                // P2-d: the auto-upload promise is only truthful when photos
+                // are actually queued — otherwise the photo is gone for good.
                 toast.success('Report sent! Remaining photos will upload automatically.');
+            } else {
+                toast.error('Report sent, but the photos could not be saved. Please re-attach them.');
             }
         }).catch(() => {
             // The report is already filed and every photo is queued: there is
             // nothing for the reporter to do, and the background retry owns
             // the rest. Staying silent beats a false alarm.
         });
+        return persisted;
     };
 
     const submitReport = async (options = {}) => {
@@ -1046,8 +1068,15 @@ const ReportPage = () => {
             // Known-offline: there is no route to the server. Sending anyway only
             // spins the button until the OS gives the request up.
             if (isOffline || !serverUp) {
-                if (staged) reportQueued(staged, 'offline');
-                else toast.error(DEVICE_STORAGE_ERROR);
+                if (staged) {
+                    // P2-a: release the in-flight lease the same way the
+                    // transient-failure path does, so the queue may retry as
+                    // soon as a route returns — otherwise the entry sits
+                    // deferred up to QUEUED_REPORT_SENDING_STALE_MS even if
+                    // signal returns (mobile-data-on-but-no-load).
+                    await clearQueuedReportSending(staged.entry.clientReportId);
+                    reportQueued(staged, 'offline');
+                } else toast.error(DEVICE_STORAGE_ERROR);
                 return;
             }
 
@@ -1161,11 +1190,15 @@ const ReportPage = () => {
                 // block or roll back the report, and the reporter may navigate
                 // away while the queue finishes.
                 pendingReportIdRef.current = null;
+                // P2-c: persist the photos to the IndexedDB queue before
+                // dropping the staged on-disk copy — closing the app in
+                // between must not lose photos with nothing to retry them.
+                const phase2Persisted = startPhase2PhotoUpload(createdReportId, images, queuedClientReportId);
+                await phase2Persisted;
                 if (staged) await removeQueuedReport(staged.entry.clientReportId);
                 clearReportDraft();
                 setDraftRestored(false);
                 setUploadProgress({ percent: 100, loaded: 0, total: 0 });
-                startPhase2PhotoUpload(createdReportId, images, queuedClientReportId);
                 navigate('/my-reports');
                 return;
             }

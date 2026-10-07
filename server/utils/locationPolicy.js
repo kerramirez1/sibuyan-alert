@@ -59,7 +59,7 @@ export const parseLocationCapture = ({ locationSource, locationAccuracy, locatio
     if (capturedAt && Number.isNaN(capturedAt.getTime())) {
         return { valid: false, message: 'Location capture time is invalid.' };
     }
-    if (source === 'gps' && (accuracyMeters === null || accuracyMeters > MAX_GPS_ACCURACY_METERS)) {
+    if (source === 'gps' && accuracyMeters !== null && accuracyMeters > MAX_GPS_ACCURACY_METERS) {
         return { valid: false, message: `GPS accuracy must be ${MAX_GPS_ACCURACY_METERS} meters or better. Please retry GPS or pin the incident on the map.` };
     }
 

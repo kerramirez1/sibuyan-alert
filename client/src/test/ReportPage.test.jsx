@@ -394,6 +394,27 @@ describe('ReportPage workflow', () => {
         expect(screen.getByRole('button', { name: /confirm location/i })).toBeInTheDocument();
     });
 
+    test('ignores a GPS fix that falls outside Sibuyan Island', async () => {
+        renderPage();
+
+        act(() => {
+            watchPositionSuccess({
+                coords: {
+                    latitude: 13.02,
+                    longitude: 121.48,
+                    accuracy: 18,
+                },
+            });
+        });
+
+        // The fix is dropped before selection, exactly like the map path: no
+        // address resolution, no confirm-location affordance, and step 1
+        // still waits for a usable location.
+        expect(geocodeLocationMock).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: /confirm location/i })).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/address or landmark/i)).toHaveValue('');
+    });
+
     test('clears a prior barangay when the current pin has no verified boundary', async () => {
         geocodeLocationMock.mockResolvedValueOnce({
             data: { data: { address: 'Sibuyan Circumferential Road, Cajidiocan', barangay: null, barangayAssignment: 'unmatched' } },
@@ -702,6 +723,45 @@ describe('ReportPage workflow', () => {
             expect(await screen.findByText('My reports destination')).toBeInTheDocument();
         });
 
+        test('tells the truth when photos could not be queued and the direct upload failed', async () => {
+            // No IndexedDB stand-in: the private-mode state, so nothing can
+            // be queued and enqueuePhotoUpload returns null.
+            renderPage();
+
+            // Steps 1–3: location via address, incident time, no casualties.
+            fireEvent.change(screen.getByLabelText(/address or landmark/i), { target: { value: 'Poblacion, Cajidiocan' } });
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 2 of 4');
+            fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 3 of 4');
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 4 of 4');
+
+            const cameraInput = screen.getByLabelText(/take evidence photo/i);
+            const photo = new File(['captured-image'], 'camera-evidence.jpg', { type: 'image/jpeg' });
+            fireEvent.change(cameraInput, { target: { files: [photo] } });
+            await waitFor(() => {
+                expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
+            });
+
+            uploadEvidenceMock.mockRejectedValueOnce(new Error('Network Error'));
+
+            await awaitSubmitArmed();
+            fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
+
+            // The photo is gone with nothing to retry it: the toast says so
+            // instead of promising an automatic upload.
+            await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(
+                'Report sent, but the photos could not be saved. Please re-attach them.',
+                expect.anything()
+            ));
+            expect(toastMock.success).not.toHaveBeenCalledWith(
+                'Report sent! Remaining photos will upload automatically.',
+                expect.anything()
+            );
+        });
+
         test('falls back to the all-in-one POST when phase 1 returns no report id', async () => {
             // A response with no report id: the legacy single-POST fallback.
             createReportMock.mockResolvedValue({ data: { success: true } });
@@ -928,8 +988,12 @@ describe('ReportPage workflow', () => {
             expect(screen.queryByText('My reports destination')).not.toBeInTheDocument();
         });
 
-        test('skips a doomed request while offline and stores the report instead', async () => {
-            setOnline(false);
+        test('releases the sending lease on the dead-link branch so the queue can retry at once', async () => {
+            // Mobile data on but no load: the OS reports online, yet the
+            // server probe fails — the staged copy must not keep its lease
+            // and sit deferred up to the stale window if signal returns.
+            connectivityMock.isOffline = false;
+            connectivityMock.probeResult = false;
             deviceStorage = installIndexedDbMock();
 
             renderPage();
@@ -941,11 +1005,52 @@ describe('ReportPage workflow', () => {
                 expect.anything()
             ));
 
-            // No route to the server: the request is not even attempted.
+            // No live POST was attempted...
             expect(createReportMock).not.toHaveBeenCalled();
-            // Nothing is sending it, so no lease is held and the queue may deliver
-            // it as soon as there is a connection.
+            // ...the report stayed queued, and the lease is released so the
+            // retry timer may pick it up immediately.
+            expect(deviceStorage.storeData.size).toBe(1);
             expect(Array.from(deviceStorage.storeData.values())[0].sendingSince).toBeNull();
+            expect(await screen.findByText('My reports destination')).toBeInTheDocument();
+        });
+
+        test('persists phase-2 photos to the queue before dropping the staged copy', async () => {
+            deviceStorage = installIndexedDbMock();
+            const operations = [];
+            const originalSet = deviceStorage.storeData.set.bind(deviceStorage.storeData);
+            const originalDelete = deviceStorage.storeData.delete.bind(deviceStorage.storeData);
+            deviceStorage.storeData.set = (key, value) => {
+                operations.push(['put', key]);
+                return originalSet(key, value);
+            };
+            deviceStorage.storeData.delete = (key) => {
+                operations.push(['delete', key]);
+                return originalDelete(key);
+            };
+
+            renderPage();
+            await fillRequiredFields();
+
+            const cameraInput = screen.getByLabelText(/take evidence photo/i);
+            const photo = new File(['captured-image'], 'camera-evidence.jpg', { type: 'image/jpeg' });
+            fireEvent.change(cameraInput, { target: { files: [photo] } });
+            await waitFor(() => {
+                expect(screen.getByText(/attached photos \(1\/5\)/i)).toBeInTheDocument();
+            });
+
+            await submitForm();
+
+            await waitFor(() => expect(createReportMock).toHaveBeenCalledTimes(1));
+            const clientReportId = createReportMock.mock.calls[0][0].get('clientReportId');
+            await waitFor(() => expect(uploadEvidenceMock).toHaveBeenCalledTimes(1));
+
+            const photoPutIndex = operations.findIndex(([op, key]) => op === 'put' && key === `${clientReportId}:photo-0`);
+            const stagedDeleteIndex = operations.findIndex(([op, key]) => op === 'delete' && key === clientReportId);
+            // The photo reached the IndexedDB queue before the staged on-disk
+            // copy was dropped — closing the app in between cannot lose it.
+            expect(photoPutIndex).toBeGreaterThanOrEqual(0);
+            expect(stagedDeleteIndex).toBeGreaterThanOrEqual(0);
+            expect(photoPutIndex).toBeLessThan(stagedDeleteIndex);
             expect(await screen.findByText('My reports destination')).toBeInTheDocument();
         });
 

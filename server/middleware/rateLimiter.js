@@ -77,6 +77,29 @@ export const reportCreationLimiter = rateLimit(withStore({
     },
 }));
 
+/**
+ * Evidence-upload limiter (POST /:id/evidence). Two-phase submit sends each
+ * photo as its own request, so a 5-photo report costs 6 hits against a shared
+ * budget — two such reports in 10 minutes would 429 the tail. Photos get
+ * their own, roomier budget (same per-user keying, same message shape);
+ * report creates keep the stricter 10/10min.
+ */
+export const reportEvidenceLimiter = rateLimit(withStore({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 30, // 30 evidence uploads per 10 minutes
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+        const userId = req.user?._id || req.user?.id;
+        if (userId) return `evidence-user:${userId}`;
+        return `evidence-ip:${req.ip}`;
+    },
+    message: {
+        success: false,
+        message: 'Too many reports submitted. Please try again shortly.',
+    },
+}));
+
 /** Public geocoding proxy limiter; protects the upstream Nominatim service. */
 export const locationLookupLimiter = rateLimit(withStore({
     windowMs: 60 * 1000,

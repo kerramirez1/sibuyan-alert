@@ -26,4 +26,13 @@ describe('location policy', () => {
         expect(parseLocationCapture({ locationSource: 'gps', locationAccuracy: 25 }).value.source).toBe('gps');
         expect(parseLocationCapture({}).value.source).toBe('legacy');
     });
+
+    test('accepts a GPS fix with null accuracy as unknown (P1)', () => {
+        const result = parseLocationCapture({ locationSource: 'gps' });
+        expect(result.valid).toBe(true);
+        expect(result.value.source).toBe('gps');
+        expect(result.value.accuracyMeters).toBeNull();
+        // A numeric accuracy worse than the max is still rejected.
+        expect(parseLocationCapture({ locationSource: 'gps', locationAccuracy: 101 }).valid).toBe(false);
+    });
 });
