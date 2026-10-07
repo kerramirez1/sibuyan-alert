@@ -45,6 +45,10 @@ const ImageViewer = ({
     alt = '',
     viewerAccess = null,
     entityLabel = 'Evidence photo',
+    // Noun used in the original-access footer badge ("X · Operational
+    // access"). Callers showing non-evidence originals (e.g. resolution
+    // photos) pass their own noun; the payload item may also carry it.
+    originalNoun = 'Original evidence',
 }) => {
     const itemsList = useMemo(() => {
         if (Array.isArray(items) && items.length > 0) return items;
@@ -457,11 +461,12 @@ const ImageViewer = ({
         }
 
         // Original view
+        const resolvedOriginalNoun = currentItem?.originalNoun || originalNoun || 'Original evidence';
         if (currentItem?.isOwner) {
             return (
                 <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400/90 font-medium">
                     <HiOutlineShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
-                    <span>Owner access · Original evidence</span>
+                    <span>Owner access · {resolvedOriginalNoun}</span>
                 </div>
             );
         }
@@ -469,7 +474,7 @@ const ImageViewer = ({
         return (
             <div className="inline-flex items-center gap-1.5 text-xs text-gray-300">
                 <HiOutlineShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
-                <span>Original evidence · Operational access</span>
+                <span>{resolvedOriginalNoun} · Operational access</span>
             </div>
         );
     };

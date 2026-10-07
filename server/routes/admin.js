@@ -18,6 +18,11 @@ import {
     transferReport,
     acknowledgeTransfer,
 } from '../controllers/adminController.js';
+import {
+    uploadResolutionPhotos,
+    handleMulterError,
+    validateUploadContent,
+} from '../middleware/upload.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import {
@@ -25,7 +30,7 @@ import {
     validateVerifyReporter,
     validateVerifyReport,
     validateRespondToReport,
-    validateResolveReport,
+    validateResolveReportWithFiles,
     validateTransferReport,
     validateAcknowledgeTransfer,
     validateMongoIdParam,
@@ -61,7 +66,15 @@ router.get('/reports', getAllReports);
 router.get('/reports/:id', getOperationalReportById);
 router.put('/reports/:id/verify', requireRole('municipal_admin'), validateVerifyReport, verifyReport);
 router.put('/reports/:id/respond', requireRole('responder'), validateRespondToReport, respondToReport);
-router.put('/reports/:id/resolve', requireRole('responder'), validateResolveReport, resolveReport);
+router.put(
+    '/reports/:id/resolve',
+    requireRole('responder'),
+    uploadResolutionPhotos,
+    handleMulterError,
+    validateUploadContent,
+    validateResolveReportWithFiles,
+    resolveReport
+);
 router.put('/reports/:id/transfer', requireRole('municipal_admin'), validateTransferReport, transferReport);
 router.put('/reports/:id/acknowledge-transfer', requireRole('municipal_admin'), validateAcknowledgeTransfer, acknowledgeTransfer);
 router.delete('/reports/:id', requireRole('municipal_admin'), validateMongoIdParam, deleteReport);

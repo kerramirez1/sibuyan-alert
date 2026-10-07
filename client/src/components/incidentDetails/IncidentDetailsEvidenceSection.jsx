@@ -12,11 +12,17 @@ const IncidentDetailsEvidenceSection = ({
     collapsible = true,
     defaultOpen = true,
     className = '',
+    // Optional overrides for the resolution-photos variant: a separate
+    // identity from the reporter's evidence, with its own labeling.
+    heading = null,
+    labelVariant = 'evidence',
 }) => {
     const rawImagesCount = Array.isArray(images) ? images.length : 0;
     const evidenceItemsCount = Array.isArray(evidence?.items) ? evidence.items.length : 0;
     const declaredCount = Number(evidenceCount ?? evidence?.evidenceCount ?? evidence?.count) || 0;
     const totalCount = Math.max(rawImagesCount, evidenceItemsCount, declaredCount);
+    const sectionTitle = heading || `Evidence photos (${totalCount})`;
+    const emptyNote = labelVariant === 'resolution' ? 'No resolution photos attached.' : 'No evidence attached.';
 
     // Nothing attached is stated, not implied by an absent section.
     //
@@ -34,11 +40,11 @@ const IncidentDetailsEvidenceSection = ({
                     id="incident-evidence-heading"
                     className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white"
                 >
-                    Evidence photos (0)
+                    {labelVariant === 'resolution' ? 'Resolution photos (0)' : 'Evidence photos (0)'}
                 </h3>
                 <p className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                     <HiOutlinePhotograph className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                    No evidence attached.
+                    {emptyNote}
                 </p>
             </section>
         );
@@ -53,6 +59,7 @@ const IncidentDetailsEvidenceSection = ({
                 isOwner={isOwner}
                 isOperational={isOperational}
                 variant="stacked"
+                labelVariant={labelVariant}
                 onViewImage={onViewImage}
             />
         </div>
@@ -62,7 +69,7 @@ const IncidentDetailsEvidenceSection = ({
         return (
             <section className={className} aria-labelledby="incident-evidence-heading">
                 <h3 id="incident-evidence-heading" className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                    Evidence photos ({totalCount})
+                    {sectionTitle}
                 </h3>
                 {content}
             </section>
@@ -76,7 +83,7 @@ const IncidentDetailsEvidenceSection = ({
                     <span className="flex items-center gap-2">
                         <HiOutlinePhotograph className="h-4 w-4 text-gray-400 dark:text-gray-500" aria-hidden="true" />
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-950 dark:text-white">
-                            Evidence photos ({totalCount})
+                            {sectionTitle}
                         </span>
                     </span>
                     <HiOutlineChevronDown className="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180 dark:text-gray-500" aria-hidden="true" />

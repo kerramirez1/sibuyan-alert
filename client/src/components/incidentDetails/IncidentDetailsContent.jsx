@@ -234,6 +234,23 @@ const IncidentDetailsContent = ({
                 />
             )}
 
+            {/* 4b. Resolution Photos — the responder's proof of resolution, a
+                separate identity from the reporter's evidence. */}
+            {visibility.showEvidence && (
+                <IncidentDetailsEvidenceSection
+                    images={visibility.isOperational || visibility.isOwner ? (report.resolutionImages || []) : []}
+                    evidenceCount={(report.resolutionImages || []).length}
+                    accessLevel={visibility.isOperational || visibility.isOwner ? 'original' : 'redacted'}
+                    isOwner={visibility.isOwner}
+                    isOperational={visibility.isOperational}
+                    onViewImage={onViewImage}
+                    collapsible
+                    defaultOpen={Boolean(report.resolutionImages?.length)}
+                    heading={`Resolution photos (${(report.resolutionImages || []).length})`}
+                    labelVariant="resolution"
+                />
+            )}
+
             {/* 5. Response Coordination (when permitted) */}
             {visibility.showResponseCoordination && (
                 <IncidentDetailsCoordinationSection

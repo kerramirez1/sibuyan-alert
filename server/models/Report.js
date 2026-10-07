@@ -351,6 +351,7 @@ const reportSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        resolutionImages: [{ type: String }], // GridFS delivery URLs for responder-uploaded resolution photos (separate from reporter evidence)
 
         // Reporter-side progress updates (e.g., victim already transported)
         reportUpdates: [{

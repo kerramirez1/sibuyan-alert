@@ -298,14 +298,34 @@ export const validateRespondToReport = [
     handleValidationErrors,
 ];
 
-export const validateResolveReport = [
+/**
+ * 400 handler for the resolve chain. Resolution photos sit on disk by the
+ * time validation runs (uploadResolutionPhotos precedes it in the route
+ * chain), so a rejected request must delete its temp files. Response shape
+ * is identical to handleValidationErrors — this just adds cleanup first.
+ */
+const handleResolveValidationErrors = async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        // F5: disk temp files must not survive a rejected request.
+        await cleanupTempUploadFiles(collectRequestFiles(req));
+    }
+    return handleValidationErrors(req, res, next);
+};
+
+const resolveReportRules = [
     param('id')
         .isMongoId().withMessage('Invalid report ID'),
     body('resolutionNotes')
         .optional()
         .isLength({ max: 1000 }).withMessage('Resolution notes cannot exceed 1000 characters'),
-    handleValidationErrors,
 ];
+
+export const validateResolveReport = [...resolveReportRules, handleValidationErrors];
+
+// Multipart variant for PUT /api/admin/reports/:id/resolve: same rules,
+// but a 400 also deletes the temp files multer already wrote.
+export const validateResolveReportWithFiles = [...resolveReportRules, handleResolveValidationErrors];
 
 export const validateTransferReport = [
     param('id')

@@ -571,6 +571,29 @@ const MapIncidentDetails = ({
                     )}
                 </section>
 
+                {/* 5b. Resolution Photos — the responder's proof of resolution,
+                    a separate identity from the reporter's evidence. */}
+                {(displayedReport?.resolutionImages?.length || 0) > 0 && (
+                    <section aria-labelledby="map-incident-resolution-heading">
+                        <h4 id="map-incident-resolution-heading" className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <span>
+                                Resolution photos · {displayedReport.resolutionImages.length}
+                            </span>
+                        </h4>
+                        <div>
+                            <ProtectedEvidenceGallery
+                                images={isOriginalAllowed ? (displayedReport?.resolutionImages || []) : []}
+                                accessLevel={effectiveViewerAccess}
+                                isOwner={ownsReport && isOriginalAllowed}
+                                isOperational={isOperational}
+                                variant="stacked"
+                                labelVariant="resolution"
+                                onViewImage={onViewImage || ((item) => setViewerItem(item))}
+                            />
+                        </div>
+                    </section>
+                )}
+
                 {/* 6. Static Privacy & Security Notice */}
                 {/* System information, set as system information: a lock and the
                     sentence. It used to open with a rule, which made the

@@ -19,6 +19,7 @@ describe('public report representation', () => {
         severity: 'moderate',
         casualties: { injured: 2, fatalities: 0, missing: 0 },
         images: ['/api/files/private-image'],
+        resolutionImages: ['/api/files/private-resolution-image'],
         reportUpdates: [{ message: 'Private situation update' }],
         transferHistory: [{ reason: 'Private transfer reason' }],
         rejectionReason: 'Private rejection reason',
@@ -41,6 +42,7 @@ describe('public report representation', () => {
         expect(result.physicalMunicipalityName).toBe('Cajidiocan');
         expect(result).not.toHaveProperty('reporter');
         expect(result).not.toHaveProperty('images');
+        expect(result).not.toHaveProperty('resolutionImages');
         expect(result).not.toHaveProperty('reportUpdates');
         expect(result).not.toHaveProperty('transferHistory');
         expect(result).not.toHaveProperty('rejectionReason');
@@ -79,5 +81,26 @@ describe('public report representation', () => {
         });
 
         expect(result.evidence.items[0].redactedPreviewUrl).toBe('/api/reports/report-1/evidence/0/preview?rv=3.4');
+    });
+
+    test('exposes resolutionImages to the owner under the same gating as evidence', () => {
+        const result = toPublicReport(report, { viewerId: 'reporter-1' });
+
+        expect(result.resolutionImages).toEqual(['/api/files/private-resolution-image']);
+        expect(result.images).toEqual(['/api/files/private-image']);
+    });
+
+    test('exposes resolutionImages to operational viewers under the same gating as evidence', () => {
+        const result = toPublicReport(report, { isOperational: true });
+
+        expect(result.resolutionImages).toEqual(['/api/files/private-resolution-image']);
+        expect(result.images).toEqual(['/api/files/private-image']);
+    });
+
+    test('withholds resolutionImages from the cross-municipality public projection', () => {
+        const result = toPublicReport(report);
+
+        expect(result).not.toHaveProperty('resolutionImages');
+        expect(result).not.toHaveProperty('images');
     });
 });

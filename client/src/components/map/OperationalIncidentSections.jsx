@@ -62,6 +62,7 @@ const OperationalIncidentSections = ({ report = {}, onRetryEvidence }) => {
     const responders = Array.isArray(safeReport.responders) ? safeReport.responders : [];
     const transfers = Array.isArray(safeReport.transferHistory) ? [...safeReport.transferHistory].reverse() : [];
     const images = Array.isArray(safeReport.images) ? safeReport.images : [];
+    const resolutionImages = Array.isArray(safeReport.resolutionImages) ? safeReport.resolutionImages : [];
     const declaredEvidenceCount = Number(safeReport.evidenceCount);
     const evidenceCount = Math.max(
         Number.isFinite(declaredEvidenceCount) && declaredEvidenceCount > 0 ? Math.floor(declaredEvidenceCount) : 0,
@@ -149,6 +150,22 @@ const OperationalIncidentSections = ({ report = {}, onRetryEvidence }) => {
                         variant="stacked"
                     />
                 )}
+            </DisclosureSection>
+
+            <DisclosureSection
+                id="resolution-photos-heading"
+                icon={HiOutlinePhotograph}
+                title={`Resolution photos (${resolutionImages.length})`}
+                summary="Proof of resolution uploaded by the responder"
+                defaultOpen={resolutionImages.length > 0}
+            >
+                <ProtectedEvidenceGallery
+                    images={resolutionImages}
+                    accessLevel="original"
+                    isOperational={true}
+                    variant="stacked"
+                    labelVariant="resolution"
+                />
             </DisclosureSection>
 
             <DisclosureSection

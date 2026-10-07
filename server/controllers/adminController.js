@@ -13,7 +13,8 @@ import {
     broadcastReportVerified,
     broadcastVerifiedReportToResponders,
 } from '../services/socketService.js';
-import { deleteGridFsFilesByUrls } from '../services/gridFsService.js';
+import { deleteGridFsFilesByUrls, getGridFsBucket, uploadFilesToGridFS } from '../services/gridFsService.js';
+import { cleanupTempUploadFiles } from '../middleware/upload.js';
 import {
     canViewOperationalReport,
     canViewReporterContact,
@@ -2007,6 +2008,8 @@ export const resolveReport = async (req, res) => {
         const responder = req.user;
 
         if (!responder || responder.role !== 'responder') {
+            // F5: no temp file survives a rejected request.
+            await cleanupTempUploadFiles(req.files);
             return res.status(403).json({
                 success: false,
                 message: 'Access denied - Only responders can resolve incident reports.',
@@ -2017,6 +2020,7 @@ export const resolveReport = async (req, res) => {
             .populate('reporter', 'name email pushSubscription notificationPreferences');
 
         if (!report) {
+            await cleanupTempUploadFiles(req.files);
             return res.status(404).json({
                 success: false,
                 message: 'Report not found',
@@ -2025,6 +2029,7 @@ export const resolveReport = async (req, res) => {
 
         // Only allow resolving reports that are in "responding" status
         if (report.status !== 'responding') {
+            await cleanupTempUploadFiles(req.files);
             return res.status(400).json({
                 success: false,
                 message: `Cannot resolve a report with status "${report.status}". Only reports being responded to can be resolved.`,
@@ -2033,6 +2038,7 @@ export const resolveReport = async (req, res) => {
 
         // Responders may only close incidents handled by their jurisdiction.
         if (!ensureReportScopeAccess(responder, report)) {
+            await cleanupTempUploadFiles(req.files);
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to resolve reports outside your jurisdiction',
@@ -2044,10 +2050,60 @@ export const resolveReport = async (req, res) => {
         const isJoinedResponder = report.responders?.some(r => r.user?.toString() === responder._id.toString());
 
         if (!isFirstResponder && !isJoinedResponder) {
+            await cleanupTempUploadFiles(req.files);
             return res.status(403).json({
                 success: false,
                 message: 'Access denied - Only assigned responders can resolve this report.',
             });
+        }
+
+        // Resolution photos ride the same multipart request so they are stored
+        // atomically with the resolve. They land in `resolutionImages` — never
+        // in the reporter's `images[]` — with the same URL shape as evidence.
+        if (req.files?.length) {
+            const rawPhotoIds = Array.isArray(req.body.photoIds)
+                ? req.body.photoIds
+                : (typeof req.body.photoIds === 'string' ? [req.body.photoIds] : []);
+            const storedResolutionUrls = [];
+            try {
+                for (let index = 0; index < req.files.length; index += 1) {
+                    const file = req.files[index];
+                    const photoId = typeof rawPhotoIds[index] === 'string' && rawPhotoIds[index].trim()
+                        ? rawPhotoIds[index].trim()
+                        : null;
+                    if (photoId) {
+                        // Idempotency: a retried resolve carries the photoIds
+                        // assigned at selection time; a photoId already attached
+                        // to this report is skipped, never duplicated.
+                        const alreadyAttached = await getGridFsBucket()
+                            .find({ 'metadata.photoId': photoId, 'metadata.resourceId': report._id })
+                            .limit(1)
+                            .toArray();
+                        if (alreadyAttached.length > 0) continue;
+                    }
+                    const [stored] = await uploadFilesToGridFS([file], {
+                        category: 'resolution',
+                        visibility: 'private',
+                        ownerId: responder._id,
+                        resourceId: report._id,
+                        municipalityName: report.municipalityName,
+                        photoId,
+                    });
+                    storedResolutionUrls.push(stored.url);
+                }
+            } catch (storageError) {
+                console.error('Resolution photo storage error:', storageError);
+                // A partial store must not leave orphaned resolution photos.
+                await deleteGridFsFilesByUrls(storedResolutionUrls).catch(() => {});
+                await cleanupTempUploadFiles(req.files);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to store resolution photos',
+                });
+            }
+            report.resolutionImages = [...(report.resolutionImages || []), ...storedResolutionUrls];
+            // The bytes are in GridFS now; the disk copies must not linger.
+            await cleanupTempUploadFiles(req.files);
         }
 
         // Update report
@@ -2108,6 +2164,8 @@ export const resolveReport = async (req, res) => {
         });
     } catch (error) {
         console.error('Resolve report error:', error);
+        // F5: no temp file survives a rejected request.
+        await cleanupTempUploadFiles(req.files);
         res.status(500).json({
             success: false,
             message: 'Failed to resolve report',

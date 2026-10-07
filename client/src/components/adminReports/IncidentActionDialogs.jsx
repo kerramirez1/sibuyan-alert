@@ -36,18 +36,18 @@ const ReportPreview = ({ report }) => (
     </div>
 );
 
-// Optional resolution photos for the Resolve dialog. Photos ride the
-// existing evidence endpoint BEFORE the resolve call (the endpoint rejects
-// attachments once the status is `resolved`), so selection stays capped at
-// the report's remaining evidence slots: 5 - existing images.
-const MAX_EVIDENCE_PHOTOS = 5;
+// Optional resolution photos for the Resolve dialog. Photos ride the same
+// multipart resolve request and land in the report's `resolutionImages`
+// field — separate from the reporter's evidence. Selection stays capped at
+// the field's own 5-photo maximum.
+const MAX_RESOLUTION_PHOTOS = 5;
 
 const ResolutionPhotoPicker = ({ actions }) => {
     const { resolveDialog } = actions;
     const fileInputRef = useRef(null);
     const photos = Array.isArray(resolveDialog.resolutionPhotos) ? resolveDialog.resolutionPhotos : [];
-    const existingCount = resolveDialog.report?.images?.length || 0;
-    const totalRemaining = Math.max(0, MAX_EVIDENCE_PHOTOS - existingCount);
+    const existingCount = resolveDialog.report?.resolutionImages?.length || 0;
+    const totalRemaining = Math.max(0, MAX_RESOLUTION_PHOTOS - existingCount);
     const addableSlots = Math.max(0, totalRemaining - photos.length);
 
     // Previews are object URLs created at selection time; revoke them when a
@@ -141,7 +141,7 @@ const ResolutionPhotoPicker = ({ actions }) => {
                     )}
                 </>
             ) : (
-                <p className="mt-1 text-xs text-gray-500">This report already has the maximum of 5 evidence photos.</p>
+                <p className="mt-1 text-xs text-gray-500">This report already has the maximum of 5 resolution photos.</p>
             )}
         </div>
     );

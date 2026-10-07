@@ -127,37 +127,33 @@ const useIncidentActions = ({
 
         setResolveLoading(true);
         try {
-            // Resolution photos must land BEFORE the report closes: the
-            // evidence endpoint rejects attachments once the status is
-            // `resolved`. Each photo rides its own FormData with the stable
-            // photoId assigned at selection, so a retry after a failed
-            // resolve dedups server-side instead of duplicating.
-            let uploadedImages = null;
+            // Resolution photos ride the same multipart PUT as the resolve, so
+            // they are stored atomically with it: the evidence endpoint
+            // rejects attachments once the status is `resolved`, and a
+            // separate call could never be atomic. Each photo carries the
+            // stable photoId assigned at selection, so a retried resolve
+            // dedups server-side instead of duplicating.
             const photos = Array.isArray(resolutionPhotos) ? resolutionPhotos : [];
-            for (const photo of photos) {
+            let payload;
+            if (photos.length > 0) {
                 const formData = new FormData();
-                formData.append('images', photo.file, photo.file?.name || 'resolution-photo.jpg');
-                formData.append('photoId', photo.id);
-                try {
-                    const uploadResponse = await reportsAPI.uploadEvidence(report._id, formData);
-                    const responseImages = uploadResponse?.data?.data?.images;
-                    if (Array.isArray(responseImages)) uploadedImages = responseImages;
-                } catch (uploadError) {
-                    // Do NOT proceed to resolve: the dialog stays open with
-                    // the photos still selected, so the responder can retry
-                    // or remove them and confirm without photos. The
-                    // server's own message (e.g. EXCEEDS_IMAGE_LIMIT) is shown.
-                    toast.error(getApiError(uploadError, 'Failed to upload resolution photos'));
-                    return;
+                formData.append('resolutionNotes', resolutionNotes || '');
+                for (const photo of photos) {
+                    formData.append('resolutionPhotos', photo.file, photo.file?.name || 'resolution-photo.jpg');
+                    formData.append('photoIds', photo.id);
                 }
+                payload = formData;
+            } else {
+                payload = { resolutionNotes };
             }
 
-            const response = await adminAPI.resolveReport(report?._id, { resolutionNotes });
+            const response = await adminAPI.resolveReport(report?._id, payload);
             const serverData = response.data?.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data) ? response.data.data : {};
-            // The upload response carries the updated images array, so the
+            // The resolve response carries the stored resolutionImages, so the
             // galleries update without a refetch; when absent the key is
             // omitted and the refreshReports fallback below covers it.
-            const imagesPatch = uploadedImages ? { images: uploadedImages } : {};
+            const resolutionImages = Array.isArray(serverData.resolutionImages) ? serverData.resolutionImages : null;
+            const imagesPatch = resolutionImages ? { resolutionImages } : {};
             patchReport(report?._id, {
                 ...serverData,
                 status: 'resolved',

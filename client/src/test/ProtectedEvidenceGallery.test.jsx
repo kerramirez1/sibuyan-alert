@@ -317,3 +317,59 @@ describe('ProtectedEvidenceGallery Component', () => {
     });
 });
 
+describe('ProtectedEvidenceGallery resolution labelVariant', () => {
+    beforeEach(() => {
+        clearBlobCache();
+        mocks.getProtected.mockReset();
+        mocks.getProtected.mockResolvedValue({
+            data: new Blob(['fake image data'], { type: 'image/jpeg' }),
+        });
+        globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/fake-image');
+        globalThis.URL.revokeObjectURL = vi.fn();
+    });
+
+    const resolutionProps = {
+        images: ['/api/files/aaa/resolution-1.jpg', '/api/files/bbb/resolution-2.jpg'],
+        accessLevel: 'original',
+        isOperational: true,
+        labelVariant: 'resolution',
+    };
+
+    test('labels thumbnails as resolution photos, not evidence', async () => {
+        render(<ProtectedEvidenceGallery {...resolutionProps} />);
+
+        // Item alt text carries the resolution identity.
+        const thumbnails = await screen.findAllByAltText('Resolution photo 1');
+        expect(thumbnails).toHaveLength(1);
+        expect(screen.getByAltText('Resolution photo 2')).toBeInTheDocument();
+        expect(screen.queryByAltText(/Incident evidence photo/)).not.toBeInTheDocument();
+    });
+
+    test('the viewer reads "Resolution photo N of M" with the resolution access badge', async () => {
+        render(<ProtectedEvidenceGallery {...resolutionProps} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: /View resolution photo 1/i }));
+
+        // ImageViewer renders in a portal: header + footer badge use the
+        // resolution labeling instead of the "Original evidence" wording.
+        expect(await screen.findByText('Resolution photo 1 of 2')).toBeInTheDocument();
+        expect(screen.getByText('Resolution photo · Operational access')).toBeInTheDocument();
+        expect(screen.queryByText(/Original evidence/)).not.toBeInTheDocument();
+    });
+
+    test('renders the resolution empty state instead of the evidence one', () => {
+        render(<ProtectedEvidenceGallery images={[]} labelVariant="resolution" />);
+
+        expect(screen.getByText('No resolution photos attached.')).toBeInTheDocument();
+        expect(screen.queryByText('No evidence attached.')).not.toBeInTheDocument();
+    });
+
+    test('the default variant keeps the evidence labeling untouched (fail-closed without a descriptor)', () => {
+        render(<ProtectedEvidenceGallery {...resolutionProps} labelVariant="evidence" />);
+
+        // Without a server evidence descriptor the fail-closed model shows
+        // the evidence empty state — and never the resolution labeling.
+        expect(screen.getByText('No evidence attached.')).toBeInTheDocument();
+        expect(screen.queryByText(/resolution/i)).not.toBeInTheDocument();
+    });
+});

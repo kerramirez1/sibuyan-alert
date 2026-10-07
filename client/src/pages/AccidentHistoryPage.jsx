@@ -1136,17 +1136,36 @@ const AccidentHistoryPage = () => {
                                                     ) : <div />}
 
                                                     {showFullDetails(report) ? (
-                                                        (report.images?.length || report.evidence?.items?.length) ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <ProtectedEvidenceGallery
-                                                                    images={report.images}
-                                                                    evidence={report.evidence}
-                                                                    accessLevel="original"
-                                                                    isOperational={true}
-                                                                    variant="stacked"
-                                                                />
-                                                            </div>
-                                                        ) : null
+                                                        <>
+                                                            {(report.images?.length || report.evidence?.items?.length) ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <ProtectedEvidenceGallery
+                                                                        images={report.images}
+                                                                        evidence={report.evidence}
+                                                                        accessLevel="original"
+                                                                        isOperational={true}
+                                                                        variant="stacked"
+                                                                    />
+                                                                </div>
+                                                            ) : null}
+                                                            {/* Resolution photos: the responder's proof of
+                                                                resolution — a separate identity from the
+                                                                reporter's evidence, same sovereignty gating. */}
+                                                            {(report.resolutionImages?.length || 0) > 0 && (
+                                                                <div className="mt-2">
+                                                                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                                        Resolution photos · {report.resolutionImages.length}
+                                                                    </p>
+                                                                    <ProtectedEvidenceGallery
+                                                                        images={report.resolutionImages}
+                                                                        accessLevel="original"
+                                                                        isOperational={true}
+                                                                        variant="stacked"
+                                                                        labelVariant="resolution"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </>
                                                     ) : (
                                                         <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                                                             <HiOutlineLockClosed className="h-3.5 w-3.5 shrink-0 text-gray-400" />

@@ -19,6 +19,8 @@ const EvidenceThumbnail = ({
     isOwner = false,
     compact = false,
     thumbnailSize = 'sm',
+    photoNoun = 'Incident evidence photo',
+    photoNounLower = 'evidence photo',
     onView,
 }) => {
     const [state, setState] = useState({ url: '', loading: true, error: '' });
@@ -106,7 +108,7 @@ const EvidenceThumbnail = ({
         return (
             <SkeletonThumbnail
                 sizeClasses={sizeClasses}
-                label={`Loading evidence photo ${index + 1}`}
+                label={`Loading ${photoNounLower} ${index + 1}`}
                 className="border border-gray-200 dark:border-white/10"
             />
         );
@@ -161,11 +163,11 @@ const EvidenceThumbnail = ({
                 }, index)}
                 className={`group relative ${sizeClasses} overflow-hidden rounded-xl border border-gray-200/90 bg-gray-900 shadow-2xs transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 cursor-zoom-in`}
                 title={`${badgeLabel} · Click to view larger. Original evidence is available only to the report owner and authorized municipal personnel.`}
-                aria-label={`Incident evidence photo ${index + 1}, faces blurred for privacy`}
+                aria-label={`${photoNoun} ${index + 1}, faces blurred for privacy`}
             >
                 <img
                     src={state.url}
-                    alt={item.alt || `Incident evidence photo ${index + 1}, faces blurred for privacy`}
+                    alt={item.alt || `${photoNoun} ${index + 1}, faces blurred for privacy`}
                     className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                     loading="lazy"
                     decoding="async"
@@ -189,11 +191,11 @@ const EvidenceThumbnail = ({
                 sourceKind: 'authorized-original',
             }, index)}
             className={`group relative ${sizeClasses} overflow-hidden rounded-xl border border-gray-200/90 bg-gray-100 shadow-2xs transition-all hover:border-brand-500 hover:shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-white/10 dark:bg-[#07130e] cursor-pointer`}
-            aria-label={`View evidence photo ${index + 1}`}
+            aria-label={`View ${photoNounLower} ${index + 1}`}
         >
             <img
                 src={state.url || item.src}
-                alt={item.alt || `Incident evidence photo ${index + 1}`}
+                alt={item.alt || `${photoNoun} ${index + 1}`}
                 className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                 loading="lazy"
                 decoding="async"
@@ -213,6 +215,8 @@ const StackedEvidenceDeck = ({
     items = [],
     viewerAccess = 'redacted',
     isOwner = false,
+    photoNoun = 'Incident evidence photo',
+    photoNounLower = 'evidence photo',
     onView,
 }) => {
     const firstItem = items[0];
@@ -294,7 +298,7 @@ const StackedEvidenceDeck = ({
         return (
             <div
                 className="relative w-28 h-24 sm:w-32 sm:h-26 animate-pulse rounded-xl border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/5"
-                aria-label="Loading evidence photo 1"
+                aria-label={`Loading ${photoNounLower} 1`}
             />
         );
     }
@@ -336,8 +340,8 @@ const StackedEvidenceDeck = ({
             : 'Faces blurred for privacy';
 
     const buttonAriaLabel = isBlurred
-        ? 'Incident evidence photo 1, faces blurred for privacy'
-        : `View evidence photo 1: ${firstItem?.alt || firstItem?.filename || 'Incident scene'}`;
+        ? `${photoNoun} 1, faces blurred for privacy`
+        : `View ${photoNounLower} 1: ${firstItem?.alt || firstItem?.filename || 'Incident scene'}`;
 
     return (
         <div className="relative inline-block pt-1 pb-1 pr-3">
@@ -371,7 +375,7 @@ const StackedEvidenceDeck = ({
                     {/* Primary Thumbnail Image */}
                     <img
                         src={state.url || firstItem?.src}
-                        alt={firstItem?.alt || 'Incident evidence photo 1'}
+                        alt={firstItem?.alt || `${photoNoun} 1`}
                         className="w-full h-full object-cover"
                         loading="lazy"
                         decoding="async"
@@ -400,18 +404,56 @@ const ProtectedEvidenceGallery = ({
     thumbnailSize = 'sm',
     size = null,
     onViewImage,
+    // 'evidence' (default) or 'resolution': resolution photos are the
+    // responder's proof of resolution — a separate identity from the
+    // reporter's evidence, so the viewer labels say so.
+    labelVariant = 'evidence',
 }) => {
     const [viewer, setViewer] = useState(null);
+    const isResolution = labelVariant === 'resolution';
+    const photoNoun = isResolution ? 'Resolution photo' : 'Incident evidence photo';
+    const photoNounLower = isResolution ? 'resolution photo' : 'evidence photo';
+    const viewerNoun = isResolution ? 'Resolution photo' : 'Evidence photo';
+    const originalNoun = isResolution ? 'Resolution photo' : 'Original evidence';
 
-    // 1. Authoritative normalization from server evidence descriptor ONLY
+    // 1. Authoritative normalization from server evidence descriptor ONLY.
+    // Resolution photos are the exception: the server ships them as plain
+    // URLs (no redaction pipeline runs on them) and gates them to
+    // owner/operational viewers at the projection layer. When the caller
+    // asserts that same original access, the URLs are rendered as originals
+    // directly — there is no redacted derivative to fall back to.
     const normalizedDescriptor = useMemo(() => {
         const isOperationalEffective = accessLevel === 'original' || isOperational;
+        const list = Array.isArray(images) ? images : [];
+        if (isResolution && (isOperationalEffective || isOwner) && list.length > 0) {
+            return {
+                evidenceCount: list.length,
+                count: list.length,
+                viewerAccess: 'original',
+                items: list.map((src, idx) => ({
+                    id: String(idx),
+                    index: idx,
+                    viewerAccess: 'original',
+                    sourceKind: 'authorized-original',
+                    src,
+                    originalUrl: src,
+                    redactedPreviewUrl: undefined,
+                    isForbiddenOriginal: false,
+                    isUnavailable: !src,
+                    detectionStatus: 'no_faces_detected',
+                    redactionType: 'none',
+                    alt: `Resolution photo ${idx + 1}`,
+                    isOwner: Boolean(isOwner),
+                    isOperational: Boolean(isOperationalEffective),
+                })),
+            };
+        }
         return normalizeEvidenceDescriptor(evidence, {
             isOwner,
             isOperational: isOperationalEffective,
             rawImages: (isOperationalEffective || isOwner) ? images : [],
         });
-    }, [evidence, accessLevel, isOwner, isOperational, images]);
+    }, [evidence, accessLevel, isOwner, isOperational, images, isResolution]);
 
     const isOriginalAuthorized = normalizedDescriptor.viewerAccess === 'original';
     const viewerAccess = isOriginalAuthorized ? 'original' : 'redacted';
@@ -424,7 +466,7 @@ const ProtectedEvidenceGallery = ({
         return (
             <div className="flex items-center gap-2 rounded-lg border border-gray-200/90 bg-gray-50/60 p-3 text-xs text-gray-500 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-400">
                 <HiOutlinePhotograph className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
-                <span>No evidence attached.</span>
+                <span>{isResolution ? 'No resolution photos attached.' : 'No evidence attached.'}</span>
             </div>
         );
     }
@@ -436,6 +478,9 @@ const ProtectedEvidenceGallery = ({
             index,
             items: rawList,
             total: rawList.length,
+            // Carries the resolution labeling into viewers rendered by the
+            // caller (e.g. MapIncidentDetails' own ImageViewer).
+            ...(isResolution ? { entityLabel: viewerNoun, originalNoun } : {}),
         };
         if (onViewImage) {
             onViewImage(payload, index, rawList);
@@ -451,6 +496,8 @@ const ProtectedEvidenceGallery = ({
                     items={rawList}
                     viewerAccess={viewerAccess}
                     isOwner={isOriginalAuthorized && isOwner}
+                    photoNoun={photoNoun}
+                    photoNounLower={photoNounLower}
                     onView={viewImage}
                 />
 
@@ -466,7 +513,8 @@ const ProtectedEvidenceGallery = ({
                         isOpen={Boolean(viewer)}
                         item={viewer}
                         onClose={() => setViewer(null)}
-                        entityLabel="Evidence photo"
+                        entityLabel={viewerNoun}
+                        originalNoun={originalNoun}
                     />
                 )}
             </div>
@@ -489,6 +537,8 @@ const ProtectedEvidenceGallery = ({
                         isOwner={isOriginalAuthorized && isOwner}
                         compact={isCompact}
                         thumbnailSize={effectiveThumbnailSize}
+                        photoNoun={photoNoun}
+                        photoNounLower={photoNounLower}
                         onView={viewImage}
                     />
                 ))}
@@ -506,7 +556,8 @@ const ProtectedEvidenceGallery = ({
                     isOpen={Boolean(viewer)}
                     item={viewer}
                     onClose={() => setViewer(null)}
-                    entityLabel="Evidence photo"
+                    entityLabel={viewerNoun}
+                    originalNoun={originalNoun}
                 />
             )}
         </div>
