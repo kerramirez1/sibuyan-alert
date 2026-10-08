@@ -181,3 +181,28 @@ describe('operational report DTOs', () => {
         expect(adminView.transferHistory[0].reason).toBe('Boundary correction');
     });
 });
+
+describe('operational report DTOs — resolution images', () => {
+    test('both serializers carry resolutionImages when present', () => {
+        const resolved = {
+            ...verifiedReport,
+            status: 'resolved',
+            resolutionImages: ['/api/files/res-1/photo.jpg', '/api/files/res-2/photo.jpg'],
+        };
+
+        const summary = toOperationalReportSummary(resolved);
+        expect(summary.resolutionImages).toEqual(['/api/files/res-1/photo.jpg', '/api/files/res-2/photo.jpg']);
+
+        const detail = toOperationalReport(resolved);
+        expect(detail.resolutionImages).toEqual(['/api/files/res-1/photo.jpg', '/api/files/res-2/photo.jpg']);
+        // The reporter's evidence array is untouched by the new field.
+        expect(detail.images).toEqual(['/api/files/evidence-1/photo.jpg']);
+    });
+
+    test('both serializers default resolutionImages to [] when absent (no undefined, no crash)', () => {
+        const { resolutionImages: _dropped, ...withoutField } = verifiedReport;
+
+        expect(toOperationalReportSummary(withoutField).resolutionImages).toEqual([]);
+        expect(toOperationalReport(withoutField).resolutionImages).toEqual([]);
+    });
+});

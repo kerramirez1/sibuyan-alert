@@ -148,6 +148,7 @@ export const toOperationalReportSummary = (report) => {
         responders: (source.responders || []).map(pickResponder),
         evidence,
         evidenceCount: evidence.evidenceCount,
+        resolutionImages: Array.isArray(source.resolutionImages) ? source.resolutionImages : [],
         updateCount: Array.isArray(source.reportUpdates) ? source.reportUpdates.length : 0,
         transferCount: Array.isArray(source.transferHistory) ? source.transferHistory.length : 0,
         // Names-only transfer trail (no reasons, actors, or transfer timestamps)
@@ -181,6 +182,7 @@ export const toOperationalReport = (
         ...buildCore(source),
         reporter: pickPerson(source.reporter, { includeEmail: includeReporterContact }),
         images: Array.isArray(source.images) ? source.images : [],
+        resolutionImages: Array.isArray(source.resolutionImages) ? source.resolutionImages : [],
         evidence,
         evidenceCount: evidence.evidenceCount,
         verifiedBy: pickPerson(source.verifiedBy),
