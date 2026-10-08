@@ -452,3 +452,44 @@ describe('reporter situation update flow', () => {
         };
     });
 });
+
+describe('resolution photos section in the reporter detail view', () => {
+    beforeEach(() => {
+        mocks.callbacks = {};
+        mocks.getMyReports.mockReset();
+    });
+
+    const renderDetailWithReport = async (report) => {
+        mocks.getMyReports.mockResolvedValue({ data: { data: [report] } });
+        renderPage();
+        fireEvent.click(await screen.findByText(report.address));
+        // The expanded detail view always renders the Evidence section.
+        await screen.findByText(/Evidence photos/);
+    };
+
+    test('shows the Resolution photos section for a resolved report with photos', async () => {
+        await renderDetailWithReport({
+            ...initialReport,
+            status: 'resolved',
+            resolutionImages: ['/api/files/1/res1.jpg', '/api/files/2/res2.jpg'],
+        });
+
+        expect(screen.getByText('Resolution photos (2)')).toBeInTheDocument();
+    });
+
+    test('hides the section for a resolved report without photos', async () => {
+        await renderDetailWithReport({
+            ...initialReport,
+            status: 'resolved',
+            resolutionImages: [],
+        });
+
+        expect(screen.queryByText(/Resolution photos/)).not.toBeInTheDocument();
+    });
+
+    test('hides the section for a non-resolved report', async () => {
+        await renderDetailWithReport({ ...initialReport, status: 'responding' });
+
+        expect(screen.queryByText(/Resolution photos/)).not.toBeInTheDocument();
+    });
+});
