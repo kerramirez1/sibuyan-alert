@@ -373,3 +373,68 @@ describe('ProtectedEvidenceGallery resolution labelVariant', () => {
         expect(screen.queryByText(/resolution/i)).not.toBeInTheDocument();
     });
 });
+
+describe('ProtectedEvidenceGallery viewImage payload labeling', () => {
+    beforeEach(() => {
+        clearBlobCache();
+        mocks.getProtected.mockReset();
+        mocks.getProtected.mockResolvedValue({
+            data: new Blob(['fake image data'], { type: 'image/jpeg' }),
+        });
+        globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/fake-image');
+        globalThis.URL.revokeObjectURL = vi.fn();
+    });
+
+    test('resolution variant: onViewImage payload items carry the resolution labels', async () => {
+        const onViewImage = vi.fn();
+        render(
+            <ProtectedEvidenceGallery
+                images={['/api/files/aaa/resolution-1.jpg', '/api/files/bbb/resolution-2.jpg']}
+                accessLevel="original"
+                isOperational={true}
+                labelVariant="resolution"
+                onViewImage={onViewImage}
+            />
+        );
+
+        fireEvent.click(await screen.findByRole('button', { name: /View resolution photo 1/i }));
+
+        expect(onViewImage).toHaveBeenCalledTimes(1);
+        const [payload, index, items] = onViewImage.mock.calls[0];
+        expect(index).toBe(0);
+        expect(payload.total).toBe(2);
+        // Every entry in the payload's items array carries the labels, so a
+        // caller-rendered ImageViewer (which reads item.items[activeIndex])
+        // shows the resolution wording instead of the evidence defaults.
+        expect(payload.items).toHaveLength(2);
+        for (const entry of payload.items) {
+            expect(entry.entityLabel).toBe('Resolution photo');
+            expect(entry.originalNoun).toBe('Resolution photo');
+        }
+        expect(items).toHaveLength(2);
+        expect(items[0].entityLabel).toBe('Resolution photo');
+        expect(items[0].originalNoun).toBe('Resolution photo');
+    });
+
+    test('default variant: onViewImage payload items carry no resolution labels', async () => {
+        const onViewImage = vi.fn();
+        const evidence = {
+            count: 2,
+            viewerAccess: 'original',
+            items: [
+                { id: '0', index: 0, originalUrl: '/api/files/aaa/e1.jpg', accessLevel: 'original' },
+                { id: '1', index: 1, originalUrl: '/api/files/bbb/e2.jpg', accessLevel: 'original' },
+            ],
+        };
+        render(<ProtectedEvidenceGallery evidence={evidence} onViewImage={onViewImage} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: /View evidence photo 1/i }));
+
+        expect(onViewImage).toHaveBeenCalledTimes(1);
+        const [payload] = onViewImage.mock.calls[0];
+        for (const entry of payload.items) {
+            expect(entry.entityLabel).toBeUndefined();
+            expect(entry.originalNoun).toBeUndefined();
+        }
+    });
+});

@@ -473,17 +473,23 @@ const ProtectedEvidenceGallery = ({
 
     const viewImage = (item, index) => {
         if (!item) return;
+        // ImageViewer resolves the active item from item.items[activeIndex]
+        // (the raw list), whose entries don't carry the labels — so for the
+        // resolution variant every entry gets them, otherwise the viewer
+        // falls back to the "Evidence photo"/"Original evidence" defaults.
+        const labeledItems = isResolution
+            ? rawList.map((entry) => ({ ...entry, entityLabel: viewerNoun, originalNoun }))
+            : rawList;
         const payload = {
             ...item,
             index,
-            items: rawList,
-            total: rawList.length,
-            // Carries the resolution labeling into viewers rendered by the
-            // caller (e.g. MapIncidentDetails' own ImageViewer).
+            items: labeledItems,
+            total: labeledItems.length,
+            // Kept for viewers that read the container item directly.
             ...(isResolution ? { entityLabel: viewerNoun, originalNoun } : {}),
         };
         if (onViewImage) {
-            onViewImage(payload, index, rawList);
+            onViewImage(payload, index, labeledItems);
         } else {
             setViewer(payload);
         }
