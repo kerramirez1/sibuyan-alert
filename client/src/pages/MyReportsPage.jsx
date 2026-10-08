@@ -928,6 +928,36 @@ function MyReportsPage() {
                                     const severityLabel = report?.severity ? (SEVERITY_CONFIG[report.severity]?.label || 'Minor') : 'Unknown';
                                     const isClosed = ['resolved', 'rejected'].includes(report?.status);
 
+                                    // Shopee-style proof-of-resolution: the reporter opens the
+                                    // resolution photos from the activity timeline, not from a
+                                    // thumbnail grid. The payload is built directly so the
+                                    // labels are correct without going through the gallery.
+                                    const openResolutionPhotos = () => {
+                                        const sources = (report?.resolutionImages || []).filter(Boolean);
+                                        if (sources.length === 0) return;
+                                        const items = sources.map((src, idx) => ({
+                                            id: `resolution-${idx}`,
+                                            index: idx,
+                                            src,
+                                            originalUrl: src,
+                                            viewerAccess: 'original',
+                                            sourceKind: 'authorized-original',
+                                            isOwner: true,
+                                            isForbiddenOriginal: false,
+                                            isUnavailable: false,
+                                            entityLabel: 'Resolution photo',
+                                            originalNoun: 'Resolution photo',
+                                            alt: `Resolution photo ${idx + 1}`,
+                                        }));
+                                        setViewerItem({
+                                            index: 0,
+                                            items,
+                                            total: items.length,
+                                            entityLabel: 'Resolution photo',
+                                            originalNoun: 'Resolution photo',
+                                        });
+                                    };
+
                                     return (
                                         <li
                                             key={String(reportId ?? Math.random())}
@@ -1098,22 +1128,6 @@ function MyReportsPage() {
                                                         />
                                                     </div>
 
-                                                    {/* 4b. Resolution Photos — the responder's proof of resolution. */}
-                                                    {(report?.resolutionImages?.length || 0) > 0 && (
-                                                        <div>
-                                                            <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                                                Resolution photos ({report.resolutionImages.length})
-                                                            </h4>
-                                                            <ProtectedEvidenceGallery
-                                                                images={report.resolutionImages.filter(Boolean)}
-                                                                accessLevel="original"
-                                                                variant="stacked"
-                                                                labelVariant="resolution"
-                                                                onViewImage={(item) => setViewerItem(item)}
-                                                            />
-                                                        </div>
-                                                    )}
-
                                                     {/* 5. Incident Activity Log */}
                                                     <div aria-labelledby={`activity-heading-${reportId}`}>
                                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1141,6 +1155,7 @@ function MyReportsPage() {
                                                             <ReportActivityTimeline
                                                                 report={report}
                                                                 highlightedUpdateId={highlightedUpdates[reportId]}
+                                                                onViewResolutionPhotos={(report?.resolutionImages?.length || 0) > 0 ? openResolutionPhotos : undefined}
                                                             />
                                                         </div>
                                                     </div>

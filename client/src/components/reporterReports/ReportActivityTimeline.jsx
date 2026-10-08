@@ -1,4 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
+import { HiOutlinePhotograph } from 'react-icons/hi';
 import { getMapStatusDot } from '../../config/mapVisuals';
 
 
@@ -97,7 +98,7 @@ const buildActivity = (report) => {
     return items.sort((a, b) => b.date - a.date);
 };
 
-const ReportActivityTimeline = ({ report, highlightedUpdateId }) => {
+const ReportActivityTimeline = ({ report, highlightedUpdateId, onViewResolutionPhotos }) => {
     const activity = buildActivity(report && typeof report === 'object' ? report : null);
 
     return (
@@ -119,6 +120,16 @@ const ReportActivityTimeline = ({ report, highlightedUpdateId }) => {
                                 </time>
                             </div>
                             {item.detail && <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-gray-600">{item.detail}</p>}
+                            {item.type === 'resolved' && onViewResolutionPhotos && (
+                                <button
+                                    type="button"
+                                    onClick={onViewResolutionPhotos}
+                                    className="mt-1.5 inline-flex items-center gap-1.5 rounded text-xs font-medium text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-brand-400 dark:hover:text-brand-300"
+                                >
+                                    <HiOutlinePhotograph className="h-3.5 w-3.5" aria-hidden="true" />
+                                    View resolution photo
+                                </button>
+                            )}
                             {highlighted && <p className="mt-1 text-xs font-semibold text-gray-700">Sent successfully</p>}
                         </div>
                     </li>

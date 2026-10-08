@@ -53,7 +53,10 @@ vi.mock('../services/api', () => ({
 vi.mock('react-hot-toast', () => ({ default: mocks.toast }));
 
 vi.mock('../components/ui/ImageViewer', () => ({
-    default: () => null,
+    default: (props) => {
+        mocks.viewerProps = props;
+        return null;
+    },
 }));
 
 import MyReportsPage from '../pages/MyReportsPage';
@@ -453,10 +456,11 @@ describe('reporter situation update flow', () => {
     });
 });
 
-describe('resolution photos section in the reporter detail view', () => {
+describe('resolution photo viewer button in the resolved timeline row', () => {
     beforeEach(() => {
         mocks.callbacks = {};
         mocks.getMyReports.mockReset();
+        mocks.viewerProps = null;
     });
 
     const renderDetailWithReport = async (report) => {
@@ -467,29 +471,54 @@ describe('resolution photos section in the reporter detail view', () => {
         await screen.findByText(/Evidence photos/);
     };
 
-    test('shows the Resolution photos section for a resolved report with photos', async () => {
-        await renderDetailWithReport({
-            ...initialReport,
-            status: 'resolved',
-            resolutionImages: ['/api/files/1/res1.jpg', '/api/files/2/res2.jpg'],
-        });
-
-        expect(screen.getByText('Resolution photos (2)')).toBeInTheDocument();
+    const resolvedReport = (overrides = {}) => ({
+        ...initialReport,
+        status: 'resolved',
+        resolvedAt: '2026-07-17T09:00:00.000Z',
+        resolutionNotes: 'Debris cleared and road reopened.',
+        ...overrides,
     });
 
-    test('hides the section for a resolved report without photos', async () => {
-        await renderDetailWithReport({
-            ...initialReport,
-            status: 'resolved',
-            resolutionImages: [],
-        });
+    test('resolved report with photos: shows the button, no thumbnail section', async () => {
+        await renderDetailWithReport(
+            resolvedReport({ resolutionImages: ['/api/files/1/res1.jpg', '/api/files/2/res2.jpg'] })
+        );
 
-        expect(screen.queryByText(/Resolution photos/)).not.toBeInTheDocument();
+        // The button lives in the "Incident resolved" timeline row.
+        const timeline = screen.getByLabelText('Report activity timeline');
+        expect(within(timeline).getByRole('button', { name: 'View resolution photo' })).toBeInTheDocument();
+        // No thumbnail section is rendered for the reporter.
+        expect(screen.queryByText(/Resolution photos \(\d+\)/)).not.toBeInTheDocument();
     });
 
-    test('hides the section for a non-resolved report', async () => {
-        await renderDetailWithReport({ ...initialReport, status: 'responding' });
+    test('clicking the button opens the viewer with labeled resolution items', async () => {
+        await renderDetailWithReport(
+            resolvedReport({ resolutionImages: ['/api/files/1/res1.jpg', '/api/files/2/res2.jpg'] })
+        );
 
-        expect(screen.queryByText(/Resolution photos/)).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'View resolution photo' }));
+
+        await waitFor(() => {
+            expect(mocks.viewerProps?.item).not.toBeNull();
+        });
+        const item = mocks.viewerProps.item;
+        expect(item.index).toBe(0);
+        expect(item.total).toBe(2);
+        expect(item.entityLabel).toBe('Resolution photo');
+        expect(item.originalNoun).toBe('Resolution photo');
+        expect(item.items).toHaveLength(2);
+        for (const [idx, entry] of item.items.entries()) {
+            expect(entry.entityLabel).toBe('Resolution photo');
+            expect(entry.originalNoun).toBe('Resolution photo');
+            expect(entry.alt).toBe(`Resolution photo ${idx + 1}`);
+        }
+    });
+
+    test('resolved report without photos: neither button nor thumbnail section', async () => {
+        await renderDetailWithReport(resolvedReport({ resolutionImages: [] }));
+
+        expect(screen.getByText('Incident resolved')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'View resolution photo' })).not.toBeInTheDocument();
+        expect(screen.queryByText(/Resolution photos \(\d+\)/)).not.toBeInTheDocument();
     });
 });
