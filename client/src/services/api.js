@@ -202,7 +202,13 @@ export const adminAPI = {
     getReportById: (id, config = {}) => api.get(`/admin/reports/${id}`, config),
     verifyReport: (id, data) => api.put(`/admin/reports/${id}/verify`, data),
     respondToReport: (id, data) => api.put(`/admin/reports/${id}/respond`, data),
-    resolveReport: (id, data) => api.put(`/admin/reports/${id}/resolve`, data),
+    resolveReport: (id, data, config = {}) => api.put(
+        `/admin/reports/${id}/resolve`,
+        data,
+        data instanceof FormData
+            ? { ...config, headers: { 'Content-Type': 'multipart/form-data', ...config.headers } }
+            : config
+    ),
     transferReport: (id, data) => api.put(`/admin/reports/${id}/transfer`, data),
     acknowledgeTransfer: (id) => api.put(`/admin/reports/${id}/acknowledge-transfer`),
     deleteReport: (id) => api.delete(`/admin/reports/${id}`),
