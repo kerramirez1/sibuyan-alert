@@ -172,8 +172,10 @@ export const toPublicReport = (report, { viewerId, isOperational = false } = {})
 
     if (isOwner || isOperational) {
         publicReport.images = Array.isArray(report?.images) ? report.images : [];
-        publicReport.resolutionImages = Array.isArray(report?.resolutionImages) ? report.resolutionImages : [];
     }
+    // Resolution photos are public proof of resolution: visible to every
+    // viewer, including guests, unblurred.
+    publicReport.resolutionImages = Array.isArray(report?.resolutionImages) ? report.resolutionImages : [];
 
     if (municipality) publicReport.municipality = municipality;
     return publicReport;

@@ -940,3 +940,58 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 });
 
 
+
+describe('MapIncidentDetails — public resolution photo button', () => {
+    const resolutionReport = {
+        ...sampleReport,
+        status: 'resolved',
+        resolutionImages: ['/api/files/1/res.jpg', '/api/files/2/res.jpg'],
+    };
+
+    beforeEach(() => {
+        clearBlobCache();
+        mocks.getReportById.mockReset();
+        mocks.getPublicReportById.mockReset();
+        mocks.getProtected.mockReset();
+        mocks.recordViewEvent.mockClear();
+        mocks.getPublicReportById.mockResolvedValue({
+            data: {
+                data: {
+                    ...sampleReport,
+                    detailCompleteness: 'full',
+                    status: 'resolved',
+                    resolutionImages: ['/api/files/1/res.jpg', '/api/files/2/res.jpg'],
+                },
+            },
+        });
+    });
+
+    test('renders the viewer button and no thumbnail grid when resolution photos exist', async () => {
+        renderDetails({ report: resolutionReport, viewerRole: 'guest' });
+
+        expect(await screen.findByRole('button', { name: /View resolution photos/i })).toBeInTheDocument();
+        // The old thumbnail section (with its heading) is gone.
+        expect(document.getElementById('map-incident-resolution-heading')).toBeNull();
+    });
+
+    test('clicking the button opens the viewer with labeled resolution items', async () => {
+        renderDetails({ report: resolutionReport, viewerRole: 'guest' });
+
+        fireEvent.click(await screen.findByRole('button', { name: /View resolution photos/i }));
+
+        // The real ImageViewer opens with the resolution labeling from the payload.
+        expect(await screen.findByRole('dialog', { name: /Enlarged evidence image viewer/i })).toBeInTheDocument();
+        expect(screen.getByText('Resolution photo 1 of 2')).toBeInTheDocument();
+    });
+
+    test('renders no button or section when there are no resolution photos', async () => {
+        mocks.getPublicReportById.mockResolvedValue({
+            data: { data: { ...sampleReport, detailCompleteness: 'full' } },
+        });
+        renderDetails({ report: sampleReport, viewerRole: 'guest' });
+
+        expect(await screen.findByText('Accident at J. Rizal Street')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /View resolution photo/i })).not.toBeInTheDocument();
+        expect(document.getElementById('map-incident-resolution-heading')).toBeNull();
+    });
+});

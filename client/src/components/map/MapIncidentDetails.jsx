@@ -237,6 +237,38 @@ const MapIncidentDetails = ({
     const effectiveViewerAccess = visibility.viewerAccess;
     const isOriginalAllowed = effectiveViewerAccess === 'original';
 
+    // Shopee-style proof-of-resolution on the public map: no thumbnail
+    // grid, just a button that opens the viewer with labeled items built
+    // directly (resolution photos are public for every viewer, guests
+    // included).
+    const openResolutionPhotos = () => {
+        const sources = (displayedReport?.resolutionImages || []).filter(Boolean);
+        if (sources.length === 0) return;
+        const items = sources.map((src, idx) => ({
+            id: `resolution-${idx}`,
+            index: idx,
+            src,
+            originalUrl: src,
+            viewerAccess: 'original',
+            sourceKind: 'authorized-original',
+            isOwner: ownsReport,
+            isForbiddenOriginal: false,
+            isUnavailable: false,
+            entityLabel: 'Resolution photo',
+            originalNoun: 'Resolution photo',
+            alt: `Resolution photo ${idx + 1}`,
+        }));
+        const payload = {
+            index: 0,
+            items,
+            total: items.length,
+            entityLabel: 'Resolution photo',
+            originalNoun: 'Resolution photo',
+        };
+        if (onViewImage) onViewImage(payload, 0, items);
+        else setViewerItem(payload);
+    };
+
     const rawEvidenceItems = Array.isArray(evidenceDescriptor?.items)
         ? evidenceDescriptor.items
         : Array.isArray(evidenceDescriptor) && evidenceDescriptor.length > 0
@@ -571,26 +603,18 @@ const MapIncidentDetails = ({
                     )}
                 </section>
 
-                {/* 5b. Resolution Photos — the responder's proof of resolution,
-                    a separate identity from the reporter's evidence. */}
+                {/* 5b. Resolution Photos — public proof of resolution: a minimal
+                    button that opens the viewer, not a thumbnail grid. */}
                 {(displayedReport?.resolutionImages?.length || 0) > 0 && (
-                    <section aria-labelledby="map-incident-resolution-heading">
-                        <h4 id="map-incident-resolution-heading" className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            <span>
-                                Resolution photos · {displayedReport.resolutionImages.length}
-                            </span>
-                        </h4>
-                        <div>
-                            <ProtectedEvidenceGallery
-                                images={isOriginalAllowed ? (displayedReport?.resolutionImages || []) : []}
-                                accessLevel={effectiveViewerAccess}
-                                isOwner={ownsReport && isOriginalAllowed}
-                                isOperational={isOperational}
-                                variant="stacked"
-                                labelVariant="resolution"
-                                onViewImage={onViewImage || ((item) => setViewerItem(item))}
-                            />
-                        </div>
+                    <section aria-label="Resolution photos">
+                        <button
+                            type="button"
+                            onClick={openResolutionPhotos}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-brand-400 dark:hover:text-brand-300"
+                        >
+                            <HiOutlinePhotograph className="h-4 w-4" aria-hidden="true" />
+                            View resolution photo{displayedReport.resolutionImages.length > 1 ? 's' : ''}
+                        </button>
                     </section>
                 )}
 

@@ -5,12 +5,18 @@ import { canViewReportEvidence, getEntityId } from '../utils/reportAccess.js';
 
 export const canReadFile = async (file, user, { findReportById = Report.findById.bind(Report) } = {}) => {
     if (file.metadata?.visibility !== 'private') return true;
+
+    // Public proof of resolution — readable by everyone, including
+    // unauthenticated guests. Placed before the user check because the
+    // result does not depend on who is asking.
+    if (file.metadata?.category === 'resolution') return true;
+
     if (!user) return false;
     const ownerId = getEntityId(file.metadata?.ownerId);
     const userId = getEntityId(user);
     if (ownerId && userId && ownerId === userId) return true;
 
-    if (file.metadata?.category === 'report_evidence' || file.metadata?.category === 'resolution') {
+    if (file.metadata?.category === 'report_evidence') {
         const reportId = getEntityId(file.metadata?.resourceId);
         if (!reportId) return false;
 

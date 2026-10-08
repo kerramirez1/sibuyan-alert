@@ -42,7 +42,9 @@ describe('public report representation', () => {
         expect(result.physicalMunicipalityName).toBe('Cajidiocan');
         expect(result).not.toHaveProperty('reporter');
         expect(result).not.toHaveProperty('images');
-        expect(result).not.toHaveProperty('resolutionImages');
+        // Resolution photos are public proof of resolution: every viewer,
+        // including guests, sees them unblurred.
+        expect(result.resolutionImages).toEqual(['/api/files/private-resolution-image']);
         expect(result).not.toHaveProperty('reportUpdates');
         expect(result).not.toHaveProperty('transferHistory');
         expect(result).not.toHaveProperty('rejectionReason');
@@ -83,24 +85,24 @@ describe('public report representation', () => {
         expect(result.evidence.items[0].redactedPreviewUrl).toBe('/api/reports/report-1/evidence/0/preview?rv=3.4');
     });
 
-    test('exposes resolutionImages to the owner under the same gating as evidence', () => {
+    test('exposes resolutionImages to the owner alongside evidence', () => {
         const result = toPublicReport(report, { viewerId: 'reporter-1' });
 
         expect(result.resolutionImages).toEqual(['/api/files/private-resolution-image']);
         expect(result.images).toEqual(['/api/files/private-image']);
     });
 
-    test('exposes resolutionImages to operational viewers under the same gating as evidence', () => {
+    test('exposes resolutionImages to operational viewers alongside evidence', () => {
         const result = toPublicReport(report, { isOperational: true });
 
         expect(result.resolutionImages).toEqual(['/api/files/private-resolution-image']);
         expect(result.images).toEqual(['/api/files/private-image']);
     });
 
-    test('withholds resolutionImages from the cross-municipality public projection', () => {
+    test('exposes resolutionImages to guests as public proof of resolution', () => {
         const result = toPublicReport(report);
 
-        expect(result).not.toHaveProperty('resolutionImages');
+        expect(result.resolutionImages).toEqual(['/api/files/private-resolution-image']);
         expect(result).not.toHaveProperty('images');
     });
 });
