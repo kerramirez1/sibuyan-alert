@@ -21,6 +21,7 @@ const EvidenceThumbnail = ({
     thumbnailSize = 'sm',
     photoNoun = 'Incident evidence photo',
     photoNounLower = 'evidence photo',
+    isResolution = false,
     onView,
 }) => {
     const [state, setState] = useState({ url: '', loading: true, error: '' });
@@ -203,7 +204,7 @@ const EvidenceThumbnail = ({
             {isOwner && (
                 <span className="absolute top-1.5 left-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[9px] font-semibold text-white whitespace-nowrap leading-none pointer-events-none shadow-2xs">
                     <HiOutlineShieldCheck className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
-                    <span>Your upload</span>
+                    <span>{isResolution ? 'Responder upload' : 'Your upload'}</span>
                 </span>
             )}
             <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -217,6 +218,7 @@ const StackedEvidenceDeck = ({
     isOwner = false,
     photoNoun = 'Incident evidence photo',
     photoNounLower = 'evidence photo',
+    isResolution = false,
     onView,
 }) => {
     const firstItem = items[0];
@@ -363,7 +365,7 @@ const StackedEvidenceDeck = ({
                     {isOwner ? (
                         <span className="absolute top-1.5 left-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[9px] font-semibold text-white whitespace-nowrap leading-none pointer-events-none shadow-2xs">
                             <HiOutlineShieldCheck className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
-                            <span>Your upload</span>
+                            <span>{isResolution ? 'Responder upload' : 'Your upload'}</span>
                         </span>
                     ) : isBlurred ? (
                         <span className="absolute top-1.5 left-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[9px] font-semibold text-gray-200 whitespace-nowrap leading-none pointer-events-none shadow-2xs">
@@ -504,6 +506,7 @@ const ProtectedEvidenceGallery = ({
                     isOwner={isOriginalAuthorized && isOwner}
                     photoNoun={photoNoun}
                     photoNounLower={photoNounLower}
+                    isResolution={isResolution}
                     onView={viewImage}
                 />
 
@@ -545,6 +548,7 @@ const ProtectedEvidenceGallery = ({
                         thumbnailSize={effectiveThumbnailSize}
                         photoNoun={photoNoun}
                         photoNounLower={photoNounLower}
+                        isResolution={isResolution}
                         onView={viewImage}
                     />
                 ))}

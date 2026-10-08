@@ -438,3 +438,95 @@ describe('ProtectedEvidenceGallery viewImage payload labeling', () => {
         }
     });
 });
+
+describe('ProtectedEvidenceGallery ownership badge variant', () => {
+    beforeEach(() => {
+        clearBlobCache();
+        mocks.getProtected.mockReset();
+        mocks.getProtected.mockResolvedValue({
+            data: new Blob(['fake image data'], { type: 'image/jpeg' }),
+        });
+        globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/fake-image');
+        globalThis.URL.revokeObjectURL = vi.fn();
+    });
+
+    test('resolution variant + isOwner: grid thumbnails show "Responder upload"', async () => {
+        render(
+            <ProtectedEvidenceGallery
+                evidence={{
+                    count: 1,
+                    viewerAccess: 'original',
+                    items: [{ id: '0', index: 0, originalUrl: '/api/files/aaa/r1.jpg', accessLevel: 'original' }],
+                }}
+                isOwner={true}
+                labelVariant="resolution"
+            />
+        );
+
+        await screen.findByRole('button', { name: /View resolution photo 1/i });
+        expect(screen.getByText('Responder upload')).toBeInTheDocument();
+        expect(screen.queryByText('Your upload')).not.toBeInTheDocument();
+    });
+
+    test('default variant + isOwner: grid thumbnails still show "Your upload"', async () => {
+        render(
+            <ProtectedEvidenceGallery
+                evidence={{
+                    count: 1,
+                    viewerAccess: 'original',
+                    items: [{ id: '0', index: 0, originalUrl: '/api/files/aaa/e1.jpg', accessLevel: 'original' }],
+                }}
+                isOwner={true}
+            />
+        );
+
+        await screen.findByRole('button', { name: /View evidence photo 1/i });
+        expect(screen.getByText('Your upload')).toBeInTheDocument();
+        expect(screen.queryByText('Responder upload')).not.toBeInTheDocument();
+    });
+
+    test('resolution variant + isOwner: stacked deck shows "Responder upload"', async () => {
+        render(
+            <ProtectedEvidenceGallery
+                images={['/api/files/aaa/r1.jpg']}
+                accessLevel="original"
+                isOwner={true}
+                variant="stacked"
+                labelVariant="resolution"
+            />
+        );
+
+        await screen.findByRole('button', { name: /View resolution photo 1/i });
+        expect(screen.getByText('Responder upload')).toBeInTheDocument();
+        expect(screen.queryByText('Your upload')).not.toBeInTheDocument();
+    });
+
+    test('isOwner false: no ownership badge in either variant', async () => {
+        const { unmount } = render(
+            <ProtectedEvidenceGallery
+                images={['/api/files/aaa/r1.jpg']}
+                accessLevel="original"
+                variant="stacked"
+                labelVariant="resolution"
+            />
+        );
+        await screen.findByRole('button', { name: /View resolution photo 1/i });
+        expect(screen.queryByText('Responder upload')).not.toBeInTheDocument();
+        expect(screen.queryByText('Your upload')).not.toBeInTheDocument();
+
+        unmount();
+        render(
+            <ProtectedEvidenceGallery
+                evidence={{
+                    count: 1,
+                    viewerAccess: 'original',
+                    items: [{ id: '0', index: 0, originalUrl: '/api/files/aaa/e1.jpg', accessLevel: 'original' }],
+                }}
+                variant="stacked"
+            />
+        );
+        await screen.findByRole('button', { name: /View evidence photo 1/i });
+        expect(screen.queryByText('Responder upload')).not.toBeInTheDocument();
+        expect(screen.queryByText('Your upload')).not.toBeInTheDocument();
+    });
+});
