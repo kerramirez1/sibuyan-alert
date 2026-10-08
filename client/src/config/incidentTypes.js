@@ -22,9 +22,34 @@ export const INCIDENT_TYPE_LABELS = Object.freeze({
     self_accident: 'Self accident',
     mechanical: 'Mechanical failure',
     other: 'Other road incident',
+    structural: 'Structural fire',
+    vegetation: 'Forest/grass fire',
+    vehicular_fire: 'Vehicle fire',
+    other_fire: 'Other fire incident',
+    theft: 'Theft',
+    assault: 'Assault',
+    vandalism: 'Vandalism',
+    other_crime: 'Other crime incident',
 });
 
-/** Ordered `{ value, label }` options for form selects. */
+/**
+ * Canonical per-category type lists. Mirrors the server's
+ * `INCIDENT_CATEGORIES` in `server/config/incidentCategories.js` — a test
+ * asserts the two stay in sync, so changing the server's type list means
+ * changing this one too.
+ */
+export const CATEGORY_TYPES = Object.freeze({
+    accident: Object.freeze(['vehicular', 'motorcycle', 'pedestrian', 'bicycle', 'self_accident', 'mechanical', 'other']),
+    fire: Object.freeze(['structural', 'vegetation', 'vehicular_fire', 'other_fire']),
+    crime: Object.freeze(['theft', 'assault', 'vandalism', 'other_crime']),
+});
+
+/** Ordered `{ value, label }` options for one category's type select. */
+export const getIncidentTypeOptions = (category) => Object.freeze(
+    (CATEGORY_TYPES[category] || []).map((value) => Object.freeze({ value, label: getIncidentTypeLabel(value) }))
+);
+
+/** Ordered `{ value, label }` options for form selects (all categories). */
 export const INCIDENT_TYPE_OPTIONS = Object.freeze(
     Object.entries(INCIDENT_TYPE_LABELS).map(([value, label]) => Object.freeze({ value, label }))
 );
@@ -56,6 +81,8 @@ export const getReportIncidentTypeLabel = (report, fallback = 'Unspecified incid
 export default {
     INCIDENT_TYPE_LABELS,
     INCIDENT_TYPE_OPTIONS,
+    CATEGORY_TYPES,
+    getIncidentTypeOptions,
     getIncidentTypeLabel,
     getReportIncidentTypeLabel,
 };

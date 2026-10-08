@@ -1,13 +1,8 @@
 import { getIncidentTypeLabel } from '../config/incidentTypes';
 
-const TITLE_CASE_PATTERN = /\b\w/g;
-
 export const formatIncidentLabel = (value, fallback = 'Incident') => {
     if (!value || typeof value !== 'string') return fallback;
-    return value
-        .replace(/_/g, ' ')
-        .trim()
-        .replace(TITLE_CASE_PATTERN, (letter) => letter.toUpperCase());
+    return getIncidentTypeLabel(value, fallback);
 };
 
 /**

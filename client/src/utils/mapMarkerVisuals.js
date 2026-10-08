@@ -1,4 +1,5 @@
 import { MAP_STATUS_CONFIG, MAP_RISK_ZONE_CONFIG } from '../config/mapVisuals';
+import { getIncidentTypeLabel } from '../config/incidentTypes';
 
 /**
  * Darkens (negative percent) or lightens a #rrggbb hex toward black/white.
@@ -298,7 +299,7 @@ export const createOperationalMarkerElement = ({
         : 0;
     const baseLabel = isGroup
         ? `${groupedReports.length} incidents at this location`
-        : `${report?.title || report?.incidentType || 'Incident'} map marker`;
+        : `${report?.title || getIncidentTypeLabel(report?.incidentType, 'Incident')} map marker`;
     // Facts a sighted reader gets for free and a screen reader does not: the
     // marker's colour says unverified, and its shape says somebody is already
     // handling it. Motion is not something a screen reader can observe either,

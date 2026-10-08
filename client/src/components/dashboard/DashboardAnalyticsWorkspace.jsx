@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { formatDistanceToNow, addMonths, isSameMonth, parseISO, subMonths } from 'date-fns';
 import toast from '../../utils/appToast';
 import { toSafeArray, safeCount } from '../../utils/safeCollection';
+import { getIncidentTypeLabel } from '../../config/incidentTypes';
 import { formatMonthLabel, toValidDate } from '../../utils/safeDate';
 import useReachData from '../../hooks/useReachData';
 import ReachPanel, { REACH_EXPLANATION } from './ReachPanel';
@@ -1621,7 +1622,7 @@ const DashboardAnalyticsWorkspace = ({
                                                     <span aria-hidden="true">·</span>
                                                 </span>
                                                 <span className="inline-flex items-baseline gap-2">
-                                                    <span>{toSentenceCase(reportItem.incidentType) || 'Unclassified incident'}</span>
+                                                    <span>{getIncidentTypeLabel(reportItem.incidentType, 'Unclassified incident')}</span>
                                                     <span aria-hidden="true">·</span>
                                                 </span>
                                                 <time

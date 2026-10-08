@@ -20,6 +20,7 @@ import {
 } from './incidentReportConfig';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 import { getTransferOrigin } from '../../utils/incidentDetails';
+import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 import { getMapStatusDot } from '../../config/mapVisuals';
 import { Skeleton, SkeletonButton } from '../ui/Skeleton';
 
@@ -441,7 +442,7 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
     const updateMeta = latestUpdate ? getReportUpdateMeta(latestUpdate?.tag) : null;
     const assignment = getResponderAssignment(safeReport);
     const resolved = safeReport.status === 'resolved';
-    const incidentType = safeReport.incidentType || safeReport.incidentCategory || safeReport.accidentType || 'Incident';
+    const incidentType = getReportIncidentTypeLabel(safeReport, 'Incident');
     // Acknowledged transfers keep their downstream status (e.g. responding),
     // so provenance needs its own line — the status badge alone can't show it.
     // Origin viewers read "to", everyone else reads "from".
@@ -495,7 +496,7 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
             <h2 className={`mt-2 break-words text-base font-semibold leading-6 sm:text-[17px] ${resolved ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
                 {safeReport.address || 'Address unavailable'}
             </h2>
-            <p className="mt-1 line-clamp-1 text-[13px] capitalize text-gray-600 dark:text-gray-300">
+            <p className="mt-1 line-clamp-1 text-[13px] text-gray-600 dark:text-gray-300">
                 {incidentType}
                 {safeReport.description && <span className="normal-case text-gray-500 dark:text-gray-400"> &middot; {safeReport.description}</span>}
             </p>

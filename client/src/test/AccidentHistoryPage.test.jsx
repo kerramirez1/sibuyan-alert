@@ -136,7 +136,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        expect(await screen.findByRole('heading', { level: 1, name: 'Accident history' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Incident history' })).toBeInTheDocument();
         expect(screen.getByText(/Public Archive/i)).toBeInTheDocument();
 
         // Stat strip metrics
@@ -164,7 +164,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         // Expand the own-municipality (Magdiwang) card: full operational
         // details render only for the user's own municipality.
@@ -194,7 +194,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         const searchInput = screen.getByPlaceholderText(/Search (location|archive)/i);
         fireEvent.change(searchInput, { target: { value: 'Today' } });
@@ -211,14 +211,14 @@ describe('AccidentHistoryPage features and filters', () => {
         ))).toBeInTheDocument();
     });
 
-    test('switches expanded state cleanly when clicking another accident record', async () => {
+    test('switches expanded state cleanly when clicking another incident record', async () => {
         render(
             <MemoryRouter>
                 <AccidentHistoryPage />
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         const expandButtons = screen.getAllByRole('button', { name: /Expand details/i });
         expect(expandButtons.length).toBeGreaterThanOrEqual(2);
@@ -242,7 +242,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         const municipalitySelect = screen.getByLabelText('Filter by municipality');
         const barangaySelect = screen.getByLabelText('Filter by barangay');
@@ -278,7 +278,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         const severitySelect = screen.getByLabelText('Filter by severity');
         const municipalitySelect = screen.getByLabelText('Filter by municipality');
@@ -300,7 +300,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         const summary = screen.getByRole('region', { name: 'History summary' });
         // With 1 in Poblacion, 1 in Taguilos, 1 in Tampayan: 3-way tie
@@ -327,12 +327,12 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         const searchInput = screen.getByPlaceholderText(/Search (location|archive)/i);
         fireEvent.change(searchInput, { target: { value: 'NonExistentPlace' } });
 
-        expect(screen.getByRole('heading', { level: 2, name: 'No accident records found' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: 'No incident records found' })).toBeInTheDocument();
         expect(screen.getByText('Try adjusting the selected filters.')).toBeInTheDocument();
 
         const clearBtn = screen.getAllByRole('button', { name: /Clear filters/i })[0];
@@ -350,7 +350,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         // Open mobile filter sheet
         const mobileFilterBtn = screen.getByRole('button', { name: /Filters/i });
@@ -379,7 +379,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         const municipalitySelect = screen.getAllByLabelText('Filter by municipality')[0];
         fireEvent.change(municipalitySelect, { target: { value: 'Cajidiocan' } });
@@ -406,7 +406,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
 
         const summary = screen.getByRole('region', { name: 'History summary' });
         const topBarangayBtn = within(summary).getByRole('button');
@@ -456,7 +456,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
         expect(await screen.findByText('Cambajao, Cajidiocan')).toBeInTheDocument();
         expect(screen.queryByText('Cambajao, San Fernando')).not.toBeInTheDocument();
     });
@@ -468,7 +468,7 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { level: 1, name: 'Accident history' });
+        await screen.findByRole('heading', { level: 1, name: 'Incident history' });
         // List rows render barangay + municipality (addresses stay in dossiers).
         expect(await screen.findByText('Poblacion, Cajidiocan')).toBeInTheDocument();
         expect(mocks.getReports).toHaveBeenCalledTimes(1);
@@ -482,9 +482,9 @@ describe('AccidentHistoryPage features and filters', () => {
             </MemoryRouter>
         );
 
-        expect(screen.getByRole('heading', { level: 1, name: 'Accident history' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Incident history' })).toBeInTheDocument();
         expect(screen.getByText('Poblacion, Cajidiocan')).toBeInTheDocument();
-        expect(screen.queryByLabelText('Loading accident archive')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Loading incident archive')).not.toBeInTheDocument();
         expect(mocks.getReports).toHaveBeenCalledTimes(1);
     });
 

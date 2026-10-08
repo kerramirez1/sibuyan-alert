@@ -57,3 +57,39 @@ describe('report request validation', () => {
         });
     });
 });
+
+describe('incident category validation', () => {
+    test.each([
+        ['fire', 'structural'],
+        ['fire', 'vegetation'],
+        ['fire', 'vehicular_fire'],
+        ['fire', 'other_fire'],
+        ['crime', 'theft'],
+        ['crime', 'assault'],
+        ['crime', 'vandalism'],
+        ['crime', 'other_crime'],
+        ['accident', 'vehicular'],
+    ])('accepts %s / %s', async (incidentCategory, incidentType) => {
+        await request(createApp())
+            .post('/reports')
+            .send({ ...validReport, incidentCategory, incidentType })
+            .expect(204);
+    });
+
+    test.each([
+        [{ incidentCategory: 'maritime', incidentType: 'vehicular' }, 'Invalid incident category'],
+        [{ incidentCategory: 'fire', incidentType: 'vehicular' }, 'Invalid incident type'],
+        [{ incidentCategory: 'crime', incidentType: 'structural' }, 'Invalid incident type'],
+        [{ incidentCategory: 'accident', incidentType: 'theft' }, 'Invalid incident type'],
+    ])('rejects %#', async (override, expectedMessage) => {
+        const response = await request(createApp())
+            .post('/reports')
+            .send({ ...validReport, ...override })
+            .expect(400);
+
+        expect(response.body.errors).toContainEqual({
+            field: '',
+            message: expectedMessage,
+        });
+    });
+});

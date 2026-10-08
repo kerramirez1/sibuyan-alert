@@ -315,7 +315,7 @@ export const sendVerificationEmail = async (user, status, feedback = '') => {
           <div class="status-badge">${isApproved ? '✓ APPROVED' : '✗ REJECTED'}</div>
           <p class="message">
             ${isApproved
-      ? `Your reporter account has been verified! You can now submit accident reports on the ${PRODUCT_NAME} platform.`
+      ? `Your reporter account has been verified! You can now submit incident reports on the ${PRODUCT_NAME} platform.`
       : 'Unfortunately, your reporter verification request was not approved at this time.'}
           </p>
           ${feedback ? `
@@ -394,8 +394,8 @@ export const sendReportStatusEmail = async (user, report, status, feedback = '')
           </div>
           <p class="message">
             ${isVerified
-      ? 'Your accident report has been verified and is now visible on the public map.'
-      : 'Your accident report was not verified. Please see the feedback below.'}
+      ? 'Your incident report has been verified and is now visible on the public map.'
+      : 'Your incident report was not verified. Please see the feedback below.'}
           </p>
           ${feedback ? `
             <div class="feedback">

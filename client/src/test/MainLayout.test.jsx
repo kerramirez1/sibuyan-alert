@@ -60,7 +60,7 @@ describe('MainLayout responsive navigation', () => {
     test('uses consistent navigation styling and a readable municipal account label', () => {
         renderLayout();
 
-        const activeLink = screen.getByRole('link', { name: 'Accident History' });
+        const activeLink = screen.getByRole('link', { name: 'Incident History' });
         expect(activeLink).toHaveClass('min-h-10', 'bg-white/[0.08]', 'text-white', 'border-sky-300');
         expect(activeLink.className).not.toContain('gradient');
         expect(activeLink.className).not.toContain('shadow');
@@ -180,7 +180,7 @@ describe('MainLayout responsive navigation', () => {
         // Navigation labels are icon-only (sr-only) between md and lg, visible at lg+.
         expect(within(sidebar).getByText('Map')).toHaveClass('md:sr-only', 'lg:not-sr-only');
         expect(within(sidebar).getByText('Island Operations')).toHaveClass('md:sr-only', 'lg:not-sr-only');
-        expect(within(sidebar).getByRole('link', { name: 'Accident History' }))
+        expect(within(sidebar).getByRole('link', { name: 'Incident History' }))
             .toHaveClass('md:justify-center', 'md:px-2', 'lg:justify-start', 'lg:px-3');
 
         // Account details and sign-out text follow the same breakpoint.
@@ -206,7 +206,7 @@ describe('MainLayout responsive navigation', () => {
         expect(within(sidebar).getByRole('link', { name: 'Map' })).toHaveAttribute('href', '/dashboard');
         expect(within(sidebar).getByRole('link', { name: 'Risk Zones' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: 'Analytics' })).toHaveAttribute('href', '/dashboard?view=analytics');
-        expect(within(sidebar).getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Incident History' })).toBeInTheDocument();
 
         // Unauthorized items remain hidden
         expect(screen.queryByRole('link', { name: 'Submit Report' })).not.toBeInTheDocument();
@@ -275,7 +275,7 @@ describe('MainLayout responsive navigation', () => {
         const sidebar = screen.getByRole('complementary', { name: 'Primary navigation' });
         expect(within(sidebar).getByRole('link', { name: 'Overview' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: 'Map' })).toBeInTheDocument();
-        expect(within(sidebar).getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Incident History' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: /Sign in/i })).toHaveAttribute('href', '/login');
         expect(within(sidebar).getByRole('link', { name: /Become a Reporter/i })).toHaveAttribute('href', '/register');
 
@@ -303,8 +303,8 @@ describe('MainLayout responsive navigation', () => {
         expect(within(sidebar).getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: 'My Reports' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: 'Map' })).toBeInTheDocument();
-        expect(within(sidebar).getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
-        // Reporter bottom nav mirrors Accident History for thumb reach
+        expect(within(sidebar).getByRole('link', { name: 'Incident History' })).toBeInTheDocument();
+        // Reporter bottom nav mirrors Incident History for thumb reach
         expect(screen.getByRole('navigation', { name: 'Reporter quick navigation' })).toBeInTheDocument();
         // The operational bar is for the operational roles only.
         expect(screen.queryByRole('navigation', { name: 'Operational quick navigation' })).not.toBeInTheDocument();
@@ -331,7 +331,7 @@ describe('MainLayout responsive navigation', () => {
         const submitReportLink = within(reporterSidebar).getByRole('link', { name: 'Submit Report' });
         const myReportsLink = within(reporterSidebar).getByRole('link', { name: 'My Reports' });
         const mapLink = within(reporterSidebar).getByRole('link', { name: 'Map' });
-        const historyLink = within(reporterSidebar).getByRole('link', { name: 'Accident History' });
+        const historyLink = within(reporterSidebar).getByRole('link', { name: 'Incident History' });
 
         // Shared dimensions & ergonomics across all items
         [dashboardLink, submitReportLink, myReportsLink, mapLink, historyLink].forEach((link) => {
@@ -406,7 +406,7 @@ describe('MainLayout responsive navigation', () => {
         expect(within(sidebar).getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: 'Incident Reports' })).toBeInTheDocument();
         expect(within(sidebar).getByRole('link', { name: 'Map' })).toBeInTheDocument();
-        expect(within(sidebar).getByRole('link', { name: 'Accident History' })).toBeInTheDocument();
+        expect(within(sidebar).getByRole('link', { name: 'Incident History' })).toBeInTheDocument();
 
         expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Risk Zones' })).not.toBeInTheDocument();

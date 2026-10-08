@@ -268,7 +268,7 @@ const HomePage = () => {
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <p className="max-w-lg text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
                                 <strong className="font-semibold text-amber-600 dark:text-amber-400">Disclaimer:</strong>{' '}
-                                Sibuyan Alert supports accident reporting and emergency coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
+                                Sibuyan Alert supports incident reporting and emergency coordination. For immediate life-threatening emergencies, contact the appropriate official emergency service directly.
                             </p>
                             <p className="shrink-0 text-[11px] font-medium text-gray-500">© 2026 Sibuyan Alert System</p>
                         </div>

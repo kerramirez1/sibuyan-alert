@@ -1232,7 +1232,7 @@ const ReportPage = () => {
             if (staged) await removeQueuedReport(staged.entry.clientReportId);
             clearReportDraft();
             setDraftRestored(false);
-            toast.success('Accident report submitted successfully!');
+            toast.success('Incident report submitted successfully!');
             navigate('/my-reports');
         } finally {
             try {

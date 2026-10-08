@@ -16,6 +16,8 @@ import {
     upsertDashboardReport,
 } from '../utils/dashboardReports';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
+import { getIncidentTypeLabel } from '../config/incidentTypes';
+import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import {
     DEFAULT_MAP_SCOPE,
     MAP_SCOPE_ISLAND,
@@ -1043,10 +1045,9 @@ const DashboardPage = () => {
     const incidentTypeBarData = useMemo(() => {
         const counts = {};
         periodReports.forEach((report) => {
-            const rawType = String(report?.incidentType || report?.incidentCategory || 'Unspecified');
-            const name = rawType
-                .replace(/[_-]+/g, ' ')
-                .replace(/\b\w/g, (character) => character.toUpperCase());
+            const name = getIncidentTypeLabel(report?.incidentType, '')
+                || INCIDENT_CATEGORIES[report?.incidentCategory]?.label
+                || 'Unspecified';
             counts[name] = (counts[name] || 0) + 1;
         });
         return Object.entries(counts)

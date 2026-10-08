@@ -821,8 +821,8 @@ describe('MapIncidentDetails Component in Map Dashboard', () => {
 
             // Incident type appears in Overview metadata grid (label and value)
             expect(screen.getByText('Incident type')).toBeInTheDocument();
-            const motorcycleElements = screen.getAllByText('Motorcycle');
-            // Exactly 1 instance of 'Motorcycle' in the metadata grid (not duplicated in header badge)
+            const motorcycleElements = screen.getAllByText('Motorcycle accident');
+            // Exactly 1 instance of 'Motorcycle accident' in the metadata grid (not duplicated in header badge)
             expect(motorcycleElements.length).toBe(1);
         });
 

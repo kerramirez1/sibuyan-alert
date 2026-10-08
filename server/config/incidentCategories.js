@@ -1,5 +1,6 @@
-// MVP scope: road accidents only. Maritime, fire, and natural-disaster
-// incidents are out of scope and must not be accepted here.
+// Incident scope: road accidents plus fire and crime incidents.
+// Maritime and natural-disaster incidents remain out of scope and must not
+// be accepted here.
 export const INCIDENT_CATEGORIES = Object.freeze({
     accident: Object.freeze({
         label: 'Road Accident',
@@ -13,6 +14,26 @@ export const INCIDENT_CATEGORIES = Object.freeze({
             'other',
         ]),
         emoji: '🚗',
+    }),
+    fire: Object.freeze({
+        label: 'Fire Incident',
+        types: Object.freeze([
+            'structural',
+            'vegetation',
+            'vehicular_fire',
+            'other_fire',
+        ]),
+        emoji: '🔥',
+    }),
+    crime: Object.freeze({
+        label: 'Crime Incident',
+        types: Object.freeze([
+            'theft',
+            'assault',
+            'vandalism',
+            'other_crime',
+        ]),
+        emoji: '🚨',
     }),
 });
 

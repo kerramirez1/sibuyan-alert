@@ -20,6 +20,7 @@ import {
     setCachedData,
 } from '../utils/queryCache';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
+import { getReportIncidentTypeLabel } from '../config/incidentTypes';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import ProtectedEvidenceGallery from '../components/report/ProtectedEvidenceGallery';
@@ -59,16 +60,6 @@ const SEVERITY_CONFIG = {
         dot: 'bg-red-500',
         badge: 'border-red-200/90 bg-red-50/80 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300',
     },
-};
-
-const INCIDENT_TYPE_LABELS = {
-    vehicular: 'Vehicular Collision',
-    motorcycle: 'Motorcycle Accident',
-    pedestrian: 'Hit & Run / Pedestrian',
-    bicycle: 'Bicycle Accident',
-    self_accident: 'Self Accident',
-    mechanical: 'Mechanical Failure',
-    other: 'Other Incident',
 };
 
 const DATE_OPTIONS = [
@@ -133,7 +124,7 @@ const getCoordinates = (report) => {
 };
 
 /**
- * Filter Modal / Bottom Sheet for Accident History Archive
+ * Filter Modal / Bottom Sheet for Incident History Archive
  */
 const ArchiveFilterModal = ({
     isOpen,
@@ -417,9 +408,9 @@ const AccidentHistoryPage = () => {
             setReports(nextReports);
             setCachedData(historyCacheKey, nextReports);
         } catch (error) {
-            console.error('Failed to fetch accident history:', error);
+            console.error('Failed to fetch incident history:', error);
             if (getStaleData(historyCacheKey) === null && !silent) {
-                toast.error('Failed to load accident history');
+                toast.error('Failed to load incident history');
             }
         } finally {
             setLoading(false);
@@ -695,8 +686,8 @@ const AccidentHistoryPage = () => {
 
     if (loading && reports.length === 0) {
         return (
-            <div className="mx-auto max-w-6xl space-y-5" role="status" aria-busy="true" aria-label="Loading accident archive">
-                <span className="sr-only">Loading accident archive</span>
+            <div className="mx-auto max-w-6xl space-y-5" role="status" aria-busy="true" aria-label="Loading incident archive">
+                <span className="sr-only">Loading incident archive</span>
                 {/* Header Skeleton */}
                 <div className="space-y-2">
                     <Skeleton variant="text" role={null} className="h-3 w-28 rounded" />
@@ -735,7 +726,7 @@ const AccidentHistoryPage = () => {
 
     return (
         <div className="page-shell max-w-6xl space-y-5">
-            <PageHeader eyebrow="Public Archive" title="Accident history" description="Resolved public-safety incidents across Sibuyan Island." />
+            <PageHeader eyebrow="Public Archive" title="Incident history" description="Resolved public-safety incidents across Sibuyan Island." />
 
             {/* Shared summary strip with My Reports / Dashboard: same labels, dots, dividers, sizes. */}
             <section
@@ -814,13 +805,13 @@ const AccidentHistoryPage = () => {
             </section>
 
             {/* Resolved Incident Records Ledger */}
-            <section className="surface-panel" aria-label="Resolved accident records">
+            <section className="surface-panel" aria-label="Resolved incident records">
                 {/* Search-First Archive Toolbar */}
                 <div className="border-b border-gray-200 p-3 sm:p-4 dark:border-white/10">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
                         {/* Primary Search Input */}
                         <label className="relative block flex-1 min-w-[200px]">
-                            <span className="sr-only">Search accident history</span>
+                            <span className="sr-only">Search incident history</span>
                             <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
                             <input
                                 type="search"
@@ -971,8 +962,8 @@ const AccidentHistoryPage = () => {
 
                 {/* Records Listing */}
                 {loading ? (
-                    <div className="divide-y divide-gray-100 dark:divide-white/5 p-2 sm:p-4" role="status" aria-busy="true" aria-label="Loading accident records">
-                        <span className="sr-only">Loading accident records</span>
+                    <div className="divide-y divide-gray-100 dark:divide-white/5 p-2 sm:p-4" role="status" aria-busy="true" aria-label="Loading incident records">
+                        <span className="sr-only">Loading incident records</span>
                         {[0, 1, 2, 3, 4].map((i) => (
                             <SkeletonRow key={i} lines={2} trailingAction className="px-3 py-3.5" />
                         ))}
@@ -983,7 +974,7 @@ const AccidentHistoryPage = () => {
                             <HiOutlineArchive className="h-5 w-5" />
                         </div>
                         <h2 className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">
-                            {hasFilters ? 'No accident records found' : 'No resolved records available'}
+                            {hasFilters ? 'No incident records found' : 'No resolved records available'}
                         </h2>
                         <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
                             {hasFilters
@@ -1042,7 +1033,7 @@ const AccidentHistoryPage = () => {
                                             type="button"
                                             onClick={() => toggleExpandedDossier(report)}
                                             aria-expanded={isExpanded}
-                                            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${INCIDENT_TYPE_LABELS[report.incidentType] || 'incident'}`}
+                                            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${getReportIncidentTypeLabel(report, 'incident')}`}
                                             className={`grid w-full grid-cols-[minmax(0,1fr)_74px_24px] items-center gap-1.5 border-l-4 px-3 py-3.5 text-left sm:grid-cols-[minmax(0,1fr)_88px_28px] sm:gap-3 sm:px-4 md:grid-cols-[minmax(0,1.5fr)_minmax(140px,.8fr)_130px_110px_28px] md:gap-4 md:px-5 cursor-pointer ${isExpanded ? 'border-l-brand-600 bg-brand-500/[0.04] dark:border-l-brand-500 dark:bg-white/[0.01]' : 'border-l-transparent'}`}
                                         >
                                             <div className="min-w-0">
@@ -1051,7 +1042,7 @@ const AccidentHistoryPage = () => {
                                                         <HiCheck className="h-2.5 w-2.5" />
                                                     </span>
                                                     <p className="line-clamp-1 text-sm font-semibold text-gray-900 dark:text-white">
-                                                        {INCIDENT_TYPE_LABELS[report.incidentType] || report.incidentType || 'Road incident'}
+                                                        {getReportIncidentTypeLabel(report, 'Road incident')}
                                                     </p>
                                                 </div>
                                                 <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400 pl-5">

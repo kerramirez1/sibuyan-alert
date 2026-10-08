@@ -204,7 +204,7 @@ describe('SocketProvider notification policy', () => {
         // Authenticated responder: no public popup (has scoped alerts instead).
         act(() => trigger('reportVerified', {
             id: 'report-9',
-            incidentType: 'Vehicular collision',
+            incidentType: 'vehicular',
             address: 'J. Rizal Street',
         }));
         expect(mocks.toast.success).not.toHaveBeenCalled();
@@ -216,7 +216,7 @@ describe('SocketProvider notification policy', () => {
             await waitFor(() => expect(mocks.ioMock).toHaveBeenCalledTimes(2));
             act(() => trigger('reportVerified', {
                 id: 'report-9',
-                incidentType: 'Vehicular collision',
+                incidentType: 'vehicular',
                 address: 'J. Rizal Street',
             }));
             expect(mocks.toast.success).toHaveBeenCalledWith(

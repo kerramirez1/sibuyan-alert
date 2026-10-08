@@ -4,6 +4,7 @@ import HighRiskZone from '../models/HighRiskZone.js';
 import { buildViewerIdentity, recordViewEvent, readTopReach } from '../services/viewEventService.js';
 import { VIEW_TARGET_TYPES } from '../models/ViewEvent.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
+import { getIncidentTypeLabel } from '../utils/incidentTypeLabel.js';
 
 /**
  * Resolves the record a view points at, once.
@@ -282,7 +283,7 @@ export const getReachLeaderboard = async (req, res) => {
             data: {
                 reports: shape(reportRows, reportById, (record, row) => ({
                     id: String(record._id),
-                    label: record.title || record.incidentType || 'Incident',
+                    label: record.title || getIncidentTypeLabel(record.incidentType, 'Incident'),
                     municipalityName: record.municipalityName || '',
                     status: record.status || '',
                     ...readCounts(row),

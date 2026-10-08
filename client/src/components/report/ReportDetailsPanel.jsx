@@ -66,6 +66,20 @@ const ReportDetailsPanel = ({
     const currentCategory = INCIDENT_CATEGORIES[formData.incidentCategory];
     const selectedSeverity = SEVERITY_LEVELS.find((level) => level.value === formData.severity);
 
+    // Category change sets the category AND resets the type to the new
+    // category's first type — the generic handleChange must not be used
+    // here, or a stale cross-category type would survive the switch.
+    const handleCategoryChange = (event) => {
+        const nextCategory = event?.target?.value;
+        const category = INCIDENT_CATEGORIES[nextCategory];
+        if (!category) return;
+        setFormData((prev) => ({
+            ...prev,
+            incidentCategory: nextCategory,
+            incidentType: category.types.length > 0 ? category.types[0].value : prev.incidentType,
+        }));
+    };
+
     return (
         <div>
             {/* Step 2: Incident Details */}
@@ -81,7 +95,22 @@ const ReportDetailsPanel = ({
                 <div className="mt-5 grid gap-5 lg:grid-cols-2">
                     <label className="block min-w-0 lg:col-span-2">
                         <span className="field-label">
-                            Accident type
+                            Incident category
+                        </span>
+                        <select
+                            name="incidentCategory"
+                            value={formData.incidentCategory}
+                            onChange={handleCategoryChange}
+                            className={inputClass}
+                        >
+                            {Object.entries(INCIDENT_CATEGORIES).map(([value, category]) => (
+                                <option key={value} value={value}>{category.label}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="block min-w-0 lg:col-span-2">
+                        <span className="field-label">
+                            Incident type
                         </span>
                         <select
                             name="incidentType"

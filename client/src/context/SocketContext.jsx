@@ -7,6 +7,8 @@ import { useAuth } from './AuthContext';
 import toast from '../utils/appToast';
 import { resolveSocketOrigin } from '../utils/runtimeUrl';
 import { refreshAuthSession } from '../services/api';
+import { getIncidentTypeLabel, getReportIncidentTypeLabel } from '../config/incidentTypes';
+import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 
 const SocketContext = createContext(null);
 
@@ -223,7 +225,10 @@ export const SocketProvider = ({ children }) => {
         const handleReportVerifiedAlert = (alertData) => {
             if (user?.role !== 'responder') return;
 
-            toast(`VERIFIED: ${alertData.incidentType || alertData.incidentCategory} at ${alertData.address || alertData.municipalityName}`, {
+            const what = getIncidentTypeLabel(alertData.incidentType, '')
+                || INCIDENT_CATEGORIES[alertData.incidentCategory]?.label
+                || 'Incident';
+            toast(`VERIFIED: ${what} at ${alertData.address || alertData.municipalityName}`, {
                 dedupeKey: `report-verified:${alertData.id || alertData._id || 'unknown'}`,
                 style: {
                     background: 'var(--danger)',
@@ -271,7 +276,7 @@ export const SocketProvider = ({ children }) => {
             if (user) return;
             if (!report || typeof report !== 'object') return;
             const reportId = String(report.id || report._id || 'unknown');
-            const what = report.incidentType || report.incidentCategory || 'Incident';
+            const what = getReportIncidentTypeLabel(report, 'Incident');
             const where = report.address || report.municipalityName || 'Sibuyan Island';
             toast.success(`New verified incident on the map: ${what} at ${where}`, {
                 dedupeKey: `public-verified:${reportId}`,

@@ -345,16 +345,16 @@ const MainLayout = ({ children, fitWindow = false }) => {
                             </NavLink>
                         )}
 
-                        {/* Accident History link */}
+                        {/* Incident History link */}
                         <NavLink
                             to="/accident-history"
-                            title="Accident History"
+                            title="Incident History"
                             aria-current={location.pathname === '/accident-history' ? 'page' : undefined}
                             className={({ isActive }) => getNavLinkClass(isActive)}
                             onClick={closeDrawer}
                         >
                             <HiOutlineClock className={NAV_ICON_CLASS} aria-hidden="true" />
-                            <span className="truncate md:sr-only lg:not-sr-only">Accident History</span>
+                            <span className="truncate md:sr-only lg:not-sr-only">Incident History</span>
                         </NavLink>
                     </nav>
 

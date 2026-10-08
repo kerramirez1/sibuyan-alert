@@ -1,11 +1,19 @@
-import { INCIDENT_TYPE_OPTIONS } from '../../config/incidentTypes';
+import { getIncidentTypeOptions } from '../../config/incidentTypes';
 
 export const INCIDENT_CATEGORIES = {
     accident: {
         label: 'Road accident',
         // Derived from the canonical label map so the form and every display
         // path can never disagree about what a type is called.
-        types: INCIDENT_TYPE_OPTIONS,
+        types: getIncidentTypeOptions('accident'),
+    },
+    fire: {
+        label: 'Fire',
+        types: getIncidentTypeOptions('fire'),
+    },
+    crime: {
+        label: 'Crime',
+        types: getIncidentTypeOptions('crime'),
     },
 };
 

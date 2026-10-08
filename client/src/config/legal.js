@@ -131,8 +131,8 @@ export const LEGAL_DOCUMENTS = Object.freeze({
             {
                 title: '2. MVP scope and limitations',
                 paragraphs: [
-                    'This release is a minimum viable product (MVP) focused on road accidents only. During the MVP phase, the system accepts reports limited to the following road-accident categories: vehicular, motorcycle, pedestrian, bicycle, self-accident, mechanical, and other road incidents.',
-                    'Maritime incidents, fire emergencies, natural disasters, medical emergencies, and other non-road-accident incident types are explicitly out of scope in this MVP. Do not rely on this system for those emergencies; contact the appropriate dedicated emergency service directly.',
+                    'This release covers road accidents, fire incidents, and crime incidents. The system accepts reports for the following categories: road accidents (vehicular, motorcycle, pedestrian, bicycle, self-accident, mechanical, and other road incidents), fire incidents (structural, vegetation/forest-grass, vehicle fire, and other fire incidents), and crime incidents (theft, assault, vandalism, and other crime incidents).',
+                    'Maritime incidents, natural disasters, medical emergencies, and other incident types not listed above are explicitly out of scope. Do not rely on this system for those emergencies; contact the appropriate dedicated emergency service directly.',
                     'Features, categories, coverage, and integrations may change as the system evolves. The operator makes no guarantee that out-of-scope incidents will be received, processed, or responded to through this platform.',
                 ],
             },
