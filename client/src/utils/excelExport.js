@@ -2,10 +2,16 @@ import { normalizeSpreadsheetValue } from './csvExport';
 import { formatCasualtyMetric } from './incidentDetails';
 import { getIncidentTypeLabel } from '../config/incidentTypes';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
-import { formatTrendBucketLabel } from './trendChartImage';
 
 const TITLE_FONT = { bold: true, size: 14, color: { argb: 'FF111827' } };
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E5F46' } };
+const THIN_BORDER = {
+    top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+    left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+    bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+    right: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+};
+const BANDED_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
 const HEADER_FONT = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
 const DATE_NUMBER_FORMAT = 'yyyy-mm-dd hh:mm';
 
@@ -52,12 +58,12 @@ const writeFullWidthRow = (worksheet, lastColumn, text, { bold = false } = {}) =
 
 /**
  * Appends a full-width note row to the Summary sheet after the workbook was
- * built (e.g. the trend-chart note, which can only be added once
- * rasterization succeeds). The Summary sheet has two columns (A:B).
+ * built (e.g. an export note, which can only be added once a condition
+ * succeeds). The Summary sheet has two columns (A:B).
  */
 export const appendSummaryNote = (summarySheet, text) => writeFullWidthRow(summarySheet, 'B', text);
 
-const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable = true }) => {
+const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable = true, banded = false }) => {
     const lastColumn = columnLetter(columns.length);
 
     const titleRow = worksheet.addRow([title]);
@@ -71,12 +77,14 @@ const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable 
     headerRow.eachCell((cell) => {
         cell.fill = HEADER_FILL;
         cell.alignment = { vertical: 'middle' };
+        cell.border = THIN_BORDER;
     });
 
     columns.forEach((column, index) => {
         worksheet.getColumn(index + 1).width = column.width;
     });
 
+    let dataRowIndex = 0;
     rows.forEach((record) => {
         // Full-width rows (e.g. Summary notes): the text is written into
         // column A and merged across to the last column, so Excel/WPS can
@@ -87,8 +95,15 @@ const addTitledTable = (worksheet, { title, columns = [], rows = [], filterable 
             return;
         }
         const row = worksheet.addRow(columns.map((column) => toCellValue(record[column.key])));
+        if (banded && dataRowIndex % 2 === 1) {
+            row.eachCell((cell) => {
+                cell.fill = BANDED_FILL;
+            });
+        }
+        dataRowIndex += 1;
         columns.forEach((column, index) => {
             const cell = row.getCell(index + 1);
+            cell.border = THIN_BORDER;
             // A column can opt its Date cells in wholesale (column.date), or a
             // single record can opt in (record.date).
             if ((column.date || record.date) && cell.value instanceof Date) {
@@ -126,11 +141,6 @@ const formatAgencies = (report) => {
     return agencies ? agencies.join(', ') : 'Awaiting assignment';
 };
 
-const toTrendCount = (value) => {
-    const count = Number(value);
-    return Number.isFinite(count) && count >= 0 ? Math.floor(count) : 0;
-};
-
 /**
  * Builds a formatted multi-sheet analytics workbook.
  *
@@ -144,13 +154,11 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
     summary = [],
     incidents = [],
     zones = [],
-    trend = [],
     truncatedNote = '',
 } = {}) => {
     const safeIncidents = Array.isArray(incidents) ? incidents : [];
     const safeZones = Array.isArray(zones) ? zones : [];
     const safeSummary = Array.isArray(summary) ? summary : [];
-    const safeTrend = Array.isArray(trend) ? trend : [];
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Sibuyan Alert';
     workbook.created = exportedAt instanceof Date ? exportedAt : new Date();
@@ -185,6 +193,7 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
     const incidentSheet = workbook.addWorksheet('Incidents');
     addTitledTable(incidentSheet, {
         title: `Incident Reports · ${scopeLabel}${monthLabel ? ` · ${monthLabel}` : ''}`,
+        banded: true,
         columns: [
             { key: 'dateReported', label: 'Date Reported', width: 18, date: true },
             { key: 'incidentTime', label: 'Incident Time', width: 18, date: true },
@@ -239,32 +248,10 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
         })),
     });
 
-    const trendSheet = workbook.addWorksheet('Trend Data');
-    addTitledTable(trendSheet, {
-        title: `Incident Trend Data · ${scopeLabel}${monthLabel ? ` · ${monthLabel}` : ''}`,
-        columns: [
-            { key: 'period', label: 'Period', width: 18 },
-            { key: 'minor', label: 'Minor', width: 12 },
-            { key: 'moderate', label: 'Moderate', width: 12 },
-            { key: 'severe', label: 'Severe', width: 12 },
-            { key: 'critical', label: 'Critical', width: 12 },
-            { key: 'unknown', label: 'Unknown', width: 12 },
-            { key: 'total', label: 'Total', width: 12 },
-        ],
-        rows: safeTrend.map((bucket) => ({
-            period: formatTrendBucketLabel(bucket),
-            minor: toTrendCount(bucket?.minor),
-            moderate: toTrendCount(bucket?.moderate),
-            severe: toTrendCount(bucket?.severe),
-            critical: toTrendCount(bucket?.critical),
-            unknown: toTrendCount(bucket?.unknown),
-            total: toTrendCount(bucket?.total),
-        })),
-    });
-
     const zoneSheet = workbook.addWorksheet('Risk Zones');
     addTitledTable(zoneSheet, {
         title: `High-Risk Zones · ${scopeLabel}`,
+        banded: true,
         columns: [
             { key: 'name', label: 'Zone Name', width: 32, wrap: true },
             { key: 'type', label: 'Type', width: 18 },
