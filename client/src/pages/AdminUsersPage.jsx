@@ -627,6 +627,8 @@ const AdminUsersPage = () => {
                                 <option value="">All roles</option>
                                 <option value="ordinary">Ordinary</option>
                                 <option value="reporter">Reporter</option>
+                                <option value="responder">Responder</option>
+                                <option value="municipal_admin">Admin</option>
                             </select>
 
                             {/* Verification Status Filter */}

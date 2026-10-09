@@ -138,11 +138,13 @@ export const getUsers = async (req, res) => {
 
         const query = {};
 
-        if (role && ['ordinary', 'reporter', 'responder'].includes(role)) {
+        if (role && ['ordinary', 'reporter', 'responder', 'municipal_admin'].includes(role)) {
             query.role = role;
         } else {
-            // Administrator accounts are not manageable from the municipal user list.
-            query.role = { $in: ['ordinary', 'reporter', 'responder'] };
+            // Administrator accounts are visible in the municipal user list but
+            // not manageable from it — ensureUserScopeAccess still refuses
+            // municipal_admin targets for every management action.
+            query.role = { $in: ['ordinary', 'reporter', 'responder', 'municipal_admin'] };
         }
 
         if (verificationStatus) query.verificationStatus = verificationStatus;
@@ -187,7 +189,7 @@ export const getUsers = async (req, res) => {
         // Get counts by role
         const scope = query.$and ? { $and: query.$and } : {};
         const [totalUsers, reporters, responders, pendingVerification] = await Promise.all([
-            User.countDocuments({ role: { $in: ['ordinary', 'reporter', 'responder'] }, ...scope }),
+            User.countDocuments({ role: { $in: ['ordinary', 'reporter', 'responder', 'municipal_admin'] }, ...scope }),
             User.countDocuments({ role: 'reporter', ...scope }),
             User.countDocuments({ role: 'responder', ...scope }),
             User.countDocuments({ role: 'reporter', verificationStatus: 'pending', ...scope }),

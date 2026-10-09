@@ -569,6 +569,32 @@ describe('AdminUsersPage', () => {
     });
 
     /**
+     * The role filter admits the newly visible account types. Newly
+     * provisioned municipal_admin accounts must be findable, not invisible.
+     */
+    describe('role filter', () => {
+        test('renders Responder and Admin options in the role dropdown', async () => {
+            render(<AdminUsersPage />);
+            await screen.findAllByText('Jayker Ramirez');
+
+            const select = screen.getByLabelText('Filter by role');
+            const options = within(select).getAllByRole('option').map((option) => option.textContent);
+            expect(options).toEqual(['All roles', 'Ordinary', 'Reporter', 'Responder', 'Admin']);
+        });
+
+        test('selecting Admin filters the list by municipal_admin', async () => {
+            render(<AdminUsersPage />);
+            await screen.findAllByText('Jayker Ramirez');
+
+            fireEvent.change(screen.getByLabelText('Filter by role'), { target: { value: 'municipal_admin' } });
+
+            await waitFor(() => expect(mocks.getUsers).toHaveBeenCalledWith(
+                expect.objectContaining({ role: 'municipal_admin' }),
+            ));
+        });
+    });
+
+    /**
      * Verifier identity on the directory. With several admins per
      * municipality, an approved reporter's row must say who verified them.
      */
