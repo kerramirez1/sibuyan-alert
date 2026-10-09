@@ -162,6 +162,12 @@ const IncidentDetailsContent = ({
                 </section>
             )}
 
+            {report.verifiedBy ? (
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Verified by {report.verifiedBy?.name || 'Unknown'}
+                </p>
+            ) : null}
+
             {highlightedUpdate && highlightedUpdateMeta && (
                 <section
                     className={`rounded-xl border p-3.5 ${UPDATE_ALERT_STYLES[highlightedUpdateMeta.tone] || UPDATE_ALERT_STYLES.amber}`}

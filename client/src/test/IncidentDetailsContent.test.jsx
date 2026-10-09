@@ -236,6 +236,41 @@ describe('IncidentDetailsContent', () => {
         expect(screen.queryByText(/No casualties or affected-area impacts recorded/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/No affected-area impacts recorded/i)).not.toBeInTheDocument();
     });
+    test('shows the verifier identity when the report was verified by an admin', () => {
+        render(
+            <IncidentDetailsContent
+                report={{ ...sampleReport, verifiedBy: { id: 'admin-1', name: 'Maria Santos' } }}
+                viewerRole="municipal_admin"
+                user={{ role: 'municipal_admin' }}
+            />
+        );
+
+        expect(screen.getByText('Verified by Maria Santos')).toBeInTheDocument();
+    });
+
+    test('falls back to Unknown when the verifier record carries no name', () => {
+        render(
+            <IncidentDetailsContent
+                report={{ ...sampleReport, verifiedBy: { id: 'admin-1' } }}
+                viewerRole="municipal_admin"
+                user={{ role: 'municipal_admin' }}
+            />
+        );
+
+        expect(screen.getByText('Verified by Unknown')).toBeInTheDocument();
+    });
+
+    test('renders nothing about the verifier when verifiedBy is absent', () => {
+        render(
+            <IncidentDetailsContent
+                report={sampleReport}
+                viewerRole="municipal_admin"
+                user={{ role: 'municipal_admin' }}
+            />
+        );
+
+        expect(screen.queryByText(/Verified by/)).not.toBeInTheDocument();
+    });
 });
 
 describe('IncidentDetailsContent — resolution photos section gating', () => {

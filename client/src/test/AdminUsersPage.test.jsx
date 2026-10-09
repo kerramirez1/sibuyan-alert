@@ -567,4 +567,56 @@ describe('AdminUsersPage', () => {
             await waitFor(() => expect(mocks.toast.error).toHaveBeenCalledWith('This responder has already set a password'));
         });
     });
+
+    /**
+     * Verifier identity on the directory. With several admins per
+     * municipality, an approved reporter's row must say who verified them.
+     */
+    describe('verifier identity', () => {
+        const approvedWithVerifier = {
+            _id: 'user-3',
+            name: 'Pedro Reyes',
+            email: 'pedro@example.com',
+            role: 'reporter',
+            verificationStatus: 'approved',
+            address: 'Poblacion, Cajidiocan',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            lastLogin: '2026-02-01T00:00:00.000Z',
+            idDocument: null,
+            selfiePhoto: null,
+            verifiedBy: { _id: 'admin-1', name: 'Maria Santos' },
+        };
+
+        const approvedLegacy = {
+            ...approvedWithVerifier,
+            _id: 'user-4',
+            name: 'Ana Dela Cruz',
+            email: 'ana@example.com',
+            verifiedBy: null,
+        };
+
+        beforeEach(() => {
+            mocks.getUsers.mockResolvedValue({
+                data: {
+                    data: {
+                        users: [approvedWithVerifier, approvedLegacy],
+                        stats: { totalUsers: 2, reporters: 2, pendingVerification: 0, responders: 0 },
+                    },
+                },
+            });
+        });
+
+        test('shows who verified an approved reporter, and nothing for a legacy record', async () => {
+            render(<AdminUsersPage />);
+
+            await screen.findAllByText('Pedro Reyes');
+
+            // Desktop table and mobile card both render the line.
+            expect(screen.getAllByText('Verified by Maria Santos').length).toBeGreaterThan(0);
+
+            // Legacy record: verifiedBy absent, no verifier line.
+            const rows = screen.getAllByText(/Verified by/);
+            expect(rows.every((node) => node.textContent === 'Verified by Maria Santos')).toBe(true);
+        });
+    });
 });

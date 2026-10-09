@@ -754,7 +754,12 @@ const AdminUsersPage = () => {
                                             </div>
                                         </td>
                                         <td className="px-3 py-3 whitespace-nowrap">{renderRoleBadge(user?.role)}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap">{renderVerificationBadge(user?.verificationStatus)}</td>
+                                        <td className="px-3 py-3 whitespace-nowrap">
+                                            {renderVerificationBadge(user?.verificationStatus)}
+                                            {user?.role === 'reporter' && user?.verificationStatus === 'approved' && user?.verifiedBy?.name ? (
+                                                <p className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">Verified by {user.verifiedBy.name}</p>
+                                            ) : null}
+                                        </td>
                                         <td className="px-3 py-3 whitespace-nowrap">
                                             <div className="flex items-center gap-1.5">
                                                 {user?.idDocument ? (
@@ -890,6 +895,10 @@ const AdminUsersPage = () => {
                                         <span className="truncate">{user.address}</span>
                                     </p>
                                 )}
+
+                                {user?.role === 'reporter' && user?.verificationStatus === 'approved' && user?.verifiedBy?.name ? (
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Verified by {user.verifiedBy.name}</p>
+                                ) : null}
 
                                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-white/5 text-[11px] text-gray-500 dark:text-gray-400">
                                     <div className="flex items-center gap-1.5">
