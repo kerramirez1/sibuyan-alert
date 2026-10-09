@@ -259,6 +259,34 @@ export const validateCreateResponder = [
     handleValidationErrors,
 ];
 
+/**
+ * Provisioning a municipal_admin account for the caller's own municipality.
+ *
+ * The server decides all three — the role is always `municipal_admin`, the
+ * municipality always comes from the session, and the credential is set by
+ * the new admin themselves from the emailed invitation. Silently dropping a
+ * supplied value would let a cross-municipality or role-escalation attempt
+ * read as a success, and a 400 is the honest answer to a field the client
+ * should not be sending.
+ */
+export const validateCreateAdmin = [
+    body('name')
+        .trim()
+        .notEmpty().withMessage('Name is required')
+        .isLength({ max: 100 }).withMessage('Name cannot exceed 100 characters'),
+    body('email')
+        .trim()
+        .notEmpty().withMessage('Email is required')
+        .isEmail().withMessage('Please enter a valid email'),
+    body('assignedMunicipality')
+        .not().exists().withMessage('Municipality is derived from your account and cannot be supplied'),
+    body('role')
+        .not().exists().withMessage('Role is assigned by the server and cannot be supplied'),
+    body('password')
+        .not().exists().withMessage('The admin sets their own password from the invitation email'),
+    handleValidationErrors,
+];
+
 export const validateVerifyReport = [
     param('id')
         .isMongoId().withMessage('Invalid report ID'),

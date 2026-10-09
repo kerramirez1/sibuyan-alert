@@ -1290,7 +1290,7 @@ const RESPONDER_INVITATION_TTL_MS = 3600000; // 1 hour
  * `DELIVERY_FAILED`, and is safe to show to an administrator. The token and
  * URL are never logged and never returned: the URL is the credential.
  */
-const issueResponderInvitation = async (user, { actor = null, municipality = null, action = 'invited' } = {}) => {
+const issueResponderInvitation = async (user, { actor = null, municipality = null, action = 'invited', roleLabel = 'responder' } = {}) => {
     const crypto = await import('crypto');
     const inviteToken = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = crypto.createHash('sha256').update(inviteToken).digest('hex');
@@ -1314,6 +1314,7 @@ const issueResponderInvitation = async (user, { actor = null, municipality = nul
                 municipality,
                 agency: getUnitTypeLabel(user.agency),
                 invitedBy: actor?.name || '',
+                roleLabel,
             });
             delivered = Boolean(result?.success);
             if (!delivered) {
@@ -1500,6 +1501,90 @@ export const createResponder = async (req, res) => {
 };
 
 /**
+ * @desc    Provision a municipal_admin account for the caller's own municipality.
+ * @route   POST /api/admin/users/admin
+ * @access  Private (municipal_admin)
+ *
+ * Mirrors createResponder: the municipality comes from the session and nowhere
+ * else; the validator already rejected a client-supplied one with a 400, so a
+ * supplied value can never widen or narrow this scope. Sovereignty is
+ * preserved by construction — an administrator can only ever provision for the
+ * office they already belong to.
+ */
+export const createAdmin = async (req, res) => {
+    try {
+        const adminUser = req.user;
+        const municipality = adminUser?.assignedMunicipality;
+
+        if (!municipality) {
+            return res.status(403).json({
+                success: false,
+                message: 'Municipality is not assigned to this administrator',
+            });
+        }
+
+        const name = String(req.body?.name || '').trim();
+        const email = String(req.body?.email || '').trim().toLowerCase();
+
+        // Checked against the normalised address, matching the schema's own
+        // lowercase+trim, so "A@B.com" cannot slip past a check for "a@b.com".
+        const existing = await User.findOne({ email });
+        if (existing) {
+            return res.status(409).json({
+                success: false,
+                code: 'EMAIL_IN_USE',
+                message: 'An account with this email already exists',
+            });
+        }
+
+        const newAdmin = new User({
+            email,
+            name,
+            // Both of these are the server's decision, never the client's.
+            role: 'municipal_admin',
+            assignedMunicipality: municipality,
+            createdBy: adminUser._id,
+        });
+
+        const { delivered, failureCode } = await issueResponderInvitation(newAdmin, {
+            actor: adminUser,
+            municipality,
+            roleLabel: 'admin',
+        });
+
+        return res.status(201).json({
+            success: true,
+            data: {
+                user: toProvisionedResponderPayload(newAdmin),
+                invitationSent: delivered,
+                // A delivery failure is not a creation failure: the account exists
+                // and is inert. The administrator gets the cause — server
+                // configuration versus a rejected message — plus an explicit
+                // retry rather than an ambiguous half-created state.
+                message: delivered
+                    ? `Invitation sent to ${newAdmin.email}`
+                    : `Account created, but the invitation email could not be sent (${describeInvitationFailure(failureCode)}). Use "Resend invitation" to try again.`,
+            },
+        });
+    } catch (error) {
+        // The unique index is the real duplicate guard; the check above only
+        // exists to return a friendly message before the insert is attempted.
+        if (error?.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                code: 'EMAIL_IN_USE',
+                message: 'An account with this email already exists',
+            });
+        }
+        console.error('Create admin error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to create the admin account',
+        });
+    }
+};
+
+/**
  * @desc    Re-issue a responder's invitation.
  * @route   POST /api/admin/users/:id/invite
  * @access  Private (municipal_admin)
@@ -1520,15 +1605,31 @@ export const resendResponderInvitation = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        const scopeCheck = await ensureUserScopeAccess(adminUser, user);
-        if (!scopeCheck.allowed) {
-            return res.status(403).json({ success: false, message: scopeCheck.message });
+        // Sovereignty exception, invite-only: a municipal_admin may re-issue an
+        // invitation for an admin of their OWN municipality — the same boundary
+        // as creation. Every other capability (verify, delete, …) still refuses
+        // municipal_admin targets through ensureUserScopeAccess.
+        if (user.role === 'municipal_admin') {
+            const sameOffice = Boolean(adminUser.assignedMunicipality)
+                && user.assignedMunicipality === adminUser.assignedMunicipality;
+            if (!sameOffice) {
+                return res.status(403).json({ success: false, message: 'Not authorized to manage this account' });
+            }
+        } else {
+            const scopeCheck = await ensureUserScopeAccess(adminUser, user);
+            if (!scopeCheck.allowed) {
+                return res.status(403).json({ success: false, message: scopeCheck.message });
+            }
         }
 
-        if (user.role !== 'responder') {
+        // Invitations are only issued for provisioned accounts (responders and
+        // municipal admins created through the Add-user dialog); reporters and
+        // the administrator themself are never invite-receivers.
+        const roleLabel = user.role === 'municipal_admin' ? 'admin' : 'responder';
+        if (!['responder', 'municipal_admin'].includes(user.role)) {
             return res.status(400).json({
                 success: false,
-                message: 'Invitations are only issued for responder accounts',
+                message: 'Invitations are only issued for responder and admin accounts',
             });
         }
 
@@ -1536,7 +1637,7 @@ export const resendResponderInvitation = async (req, res) => {
             return res.status(409).json({
                 success: false,
                 code: 'ALREADY_ACTIVATED',
-                message: 'This responder has already set a password',
+                message: `This ${roleLabel} has already set a password`,
             });
         }
 
@@ -1544,6 +1645,7 @@ export const resendResponderInvitation = async (req, res) => {
             actor: adminUser,
             municipality: adminUser.assignedMunicipality,
             action: 'invitation_resent',
+            roleLabel,
         });
 
         if (!delivered) {

@@ -197,6 +197,7 @@ export const adminAPI = {
     // There is no password field for the same reason — the responder sets their
     // own from the emailed invitation.
     createResponder: (data) => api.post('/admin/users/responder', data),
+    createAdmin: (data) => api.post('/admin/users/admin', data),
     resendResponderInvitation: (id) => api.post(`/admin/users/${id}/invite`),
     getReports: (params) => api.get('/admin/reports', { params }),
     getReportById: (id, config = {}) => api.get(`/admin/reports/${id}`, config),

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     verifyReporter: vi.fn(),
     deleteUser: vi.fn(),
     createResponder: vi.fn(),
+    createAdmin: vi.fn(),
     resendResponderInvitation: vi.fn(),
     getProtected: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn() },
@@ -18,6 +19,7 @@ vi.mock('../services/api', () => ({
         verifyReporter: mocks.verifyReporter,
         deleteUser: mocks.deleteUser,
         createResponder: mocks.createResponder,
+        createAdmin: mocks.createAdmin,
         resendResponderInvitation: mocks.resendResponderInvitation,
     },
     filesAPI: {
@@ -265,8 +267,8 @@ describe('AdminUsersPage', () => {
             // The directory renders a desktop table and a mobile card list, so
             // every user appears twice.
             await screen.findAllByText('Jayker Ramirez');
-            fireEvent.click(screen.getByRole('button', { name: 'Add a responder account' }));
-            await screen.findByRole('heading', { name: 'Add responder' });
+            fireEvent.click(screen.getByRole('button', { name: 'Add a user account' }));
+            await screen.findByRole('heading', { name: 'Add user' });
         };
 
         const fillForm = () => {
@@ -429,6 +431,86 @@ describe('AdminUsersPage', () => {
             submit();
 
             await waitFor(() => expect(mocks.getUsers.mock.calls.length).toBeGreaterThan(callsBefore));
+        });
+    });
+
+    /**
+     * Provisioning a municipal_admin for the administrator's own municipality.
+     * The dialog is unified: one button, one dialog, an account-type selector.
+     * The assertions that matter: the Agency field disappears for admins, the
+     * payload carries only name/email, and the request goes to the admin
+     * endpoint — the municipality is still the server's decision.
+     */
+    describe('add admin', () => {
+        const openForm = async () => {
+            render(<AdminUsersPage />);
+            // The directory renders a desktop table and a mobile card list, so
+            // every user appears twice.
+            await screen.findAllByText('Jayker Ramirez');
+            fireEvent.click(screen.getByRole('button', { name: 'Add a user account' }));
+            await screen.findByRole('heading', { name: 'Add user' });
+        };
+
+        const selectAdmin = () => fireEvent.click(screen.getByRole('radio', { name: 'Admin' }));
+        const fillForm = () => {
+            fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Ana Reyes' } });
+            fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ana@example.com' } });
+        };
+        const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Create and send invitation' }));
+
+        test('dialog renders the account-type selector with Responder preselected', async () => {
+            await openForm();
+
+            const group = screen.getByRole('radiogroup', { name: 'Account type' });
+            expect(within(group).getByRole('radio', { name: 'Responder' })).toHaveAttribute('aria-checked', 'true');
+            expect(within(group).getByRole('radio', { name: 'Admin' })).toHaveAttribute('aria-checked', 'false');
+            // Agency is a responder-only field and visible by default.
+            expect(screen.getByLabelText('Agency')).toBeInTheDocument();
+        });
+
+        test('selecting Admin hides the Agency field and shows the admin helper copy', async () => {
+            await openForm();
+
+            selectAdmin();
+
+            expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+            expect(screen.getByText(/the admin sets their own password from a single-use invitation link/)).toBeInTheDocument();
+        });
+
+        test('submits name/email only to the admin endpoint', async () => {
+            mocks.createAdmin.mockResolvedValue({
+                data: { data: { invitationSent: true, message: 'Invitation sent to ana@example.com' } },
+            });
+
+            await openForm();
+            selectAdmin();
+            fillForm();
+            submit();
+
+            await waitFor(() => expect(mocks.createAdmin).toHaveBeenCalledTimes(1));
+            expect(mocks.createResponder).not.toHaveBeenCalled();
+
+            const payload = mocks.createAdmin.mock.calls[0][0];
+            expect(payload).toEqual({ name: 'Ana Reyes', email: 'ana@example.com' });
+            expect(payload).not.toHaveProperty('agency');
+            expect(payload).not.toHaveProperty('role');
+            expect(payload).not.toHaveProperty('assignedMunicipality');
+            expect(payload).not.toHaveProperty('password');
+
+            await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledWith('Invitation sent to ana@example.com'));
+        });
+
+        test('surfaces the server error for a failed admin creation', async () => {
+            mocks.createAdmin.mockRejectedValue({
+                response: { data: { success: false, message: 'Failed to create the admin account' } },
+            });
+
+            await openForm();
+            selectAdmin();
+            fillForm();
+            submit();
+
+            expect(await screen.findByRole('alert')).toHaveTextContent('Failed to create the admin account');
         });
     });
 

@@ -13,6 +13,7 @@ import {
     dismissTransferredReport,
     deleteUser,
     createResponder,
+    createAdmin,
     resendResponderInvitation,
     getDashboardStats,
     transferReport,
@@ -27,6 +28,7 @@ import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import {
     validateCreateResponder,
+    validateCreateAdmin,
     validateVerifyReporter,
     validateVerifyReport,
     validateRespondToReport,
@@ -54,6 +56,7 @@ router.get('/presence', requireRole('municipal_admin'), getPresence);
 router.get('/users', requireRole('municipal_admin'), getUsers);
 // Registered before `/users/:id` so "responder" can never be read as an id.
 router.post('/users/responder', requireRole('municipal_admin'), validateCreateResponder, createResponder);
+router.post('/users/admin', requireRole('municipal_admin'), validateCreateAdmin, createAdmin);
 router.post('/users/:id/invite', requireRole('municipal_admin'), validateMongoIdParam, resendResponderInvitation);
 router.get('/users/:id', requireRole('municipal_admin'), validateMongoIdParam, getUserById);
 router.put('/users/:id/verify', requireRole('municipal_admin'), validateVerifyReporter, verifyReporter);

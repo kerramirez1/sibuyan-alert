@@ -571,7 +571,7 @@ export const sendResponderInvitationEmail = async (
   email,
   name,
   inviteUrl,
-  { municipality = '', agency = '', invitedBy = '' } = {},
+  { municipality = '', agency = '', invitedBy = '', roleLabel = 'responder' } = {},
 ) => {
   const context = [
     municipality ? `<li><strong>Municipality:</strong> ${municipality}</li>` : '',
@@ -582,9 +582,11 @@ export const sendResponderInvitationEmail = async (
   // Who invited them, in a sentence — not only as a list row. "You have been
   // added" with no named source is the shape of a phishing mail; a named
   // municipal administrator is the detail that makes it checkable.
+  // roleLabel distinguishes admin invitations from responder ones.
+  const roleName = roleLabel === 'admin' ? 'admin' : 'responder';
   const invitedBySentence = invitedBy
-    ? `${invitedBy} has created a responder account for you`
-    : 'A municipal administrator has created a responder account for you';
+    ? `${invitedBy} has created a ${roleName} account for you`
+    : `A municipal administrator has created a ${roleName} account for you`;
 
   // Written by hand rather than derived from the HTML. The link goes on its own
   // line, the details are one per line, and nothing decorative is carried over.
@@ -634,7 +636,7 @@ export const sendResponderInvitationEmail = async (
     <body>
       <div class="container">
         <div class="header">
-          <h1>🚑 Responder Account Invitation</h1>
+          <h1>${roleName === 'admin' ? '🛡️ Admin Account Invitation' : '🚑 Responder Account Invitation'}</h1>
         </div>
         <div class="content">
           <p class="message">Hello <strong>${name}</strong>,</p>
