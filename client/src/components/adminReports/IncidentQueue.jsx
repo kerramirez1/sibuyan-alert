@@ -21,6 +21,7 @@ import {
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 import { getTransferOrigin } from '../../utils/incidentDetails';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
+import { INCIDENT_CATEGORIES } from '../report/reportConfig';
 import { getMapStatusDot } from '../../config/mapVisuals';
 import { Skeleton, SkeletonButton } from '../ui/Skeleton';
 
@@ -443,6 +444,11 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
     const assignment = getResponderAssignment(safeReport);
     const resolved = safeReport.status === 'resolved';
     const incidentType = getReportIncidentTypeLabel(safeReport, 'Incident');
+    // The triage fact — what happened — rides as text on an achromatic badge,
+    // never on colour: hue is reserved for the severity scale. Unknown or
+    // legacy categories omit the badge rather than guess.
+    const categoryKey = typeof safeReport.incidentCategory === 'string' ? safeReport.incidentCategory : '';
+    const categoryShortLabel = INCIDENT_CATEGORIES[categoryKey] ? categoryKey.toUpperCase() : '';
     // Acknowledged transfers keep their downstream status (e.g. responding),
     // so provenance needs its own line — the status badge alone can't show it.
     // Origin viewers read "to", everyone else reads "from".
@@ -475,6 +481,11 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
             <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="record-state-group min-w-0">
                     <IncidentSeverityIndicator severity={safeReport.severity} />
+                    {categoryShortLabel ? (
+                        <span className="inline-flex shrink-0 items-center rounded border border-gray-300 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-600 dark:text-gray-300">
+                            {categoryShortLabel}
+                        </span>
+                    ) : null}
                     <span className="record-state-group__divider" aria-hidden="true" />
                     <OperationalStatusIndicator status={safeReport.status} />
                 </div>
@@ -492,14 +503,20 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                 </time>
             </div>
 
-            {/* The strongest content in the record: where it happened. */}
-            <h2 className={`mt-2 break-words text-base font-semibold leading-6 sm:text-[17px] ${resolved ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
-                {safeReport.address || 'Address unavailable'}
-            </h2>
-            <p className="mt-1 line-clamp-1 text-[13px] text-gray-600 dark:text-gray-300">
+            {/* The strongest content in the record: what happened. The type
+                leads as the prominent line; the address drops to a secondary
+                line beneath it; the description keeps its line below that. */}
+            <h2 className={`mt-2 break-words text-[15px] font-semibold leading-6 ${resolved ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
                 {incidentType}
-                {safeReport.description && <span className="normal-case text-gray-500 dark:text-gray-400"> &middot; {safeReport.description}</span>}
+            </h2>
+            <p className="mt-0.5 break-words text-[13px] text-gray-500 dark:text-gray-400">
+                {safeReport.address || 'Address unavailable'}
             </p>
+            {safeReport.description ? (
+                <p className="mt-1 line-clamp-1 text-[13px] text-gray-600 dark:text-gray-300">
+                    {safeReport.description}
+                </p>
+            ) : null}
 
             {/* Labels stay quiet, values carry the weight, and the pair spreads
                 into columns so the record's width is used rather than trailing
