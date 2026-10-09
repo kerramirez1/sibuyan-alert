@@ -13,7 +13,7 @@ describe('server incident type labels', () => {
 
     test('getIncidentTypeLabel resolves canonical labels and falls back safely', () => {
         expect(getIncidentTypeLabel('structural')).toBe('Structural fire');
-        expect(getIncidentTypeLabel('theft')).toBe('Theft');
+        expect(getIncidentTypeLabel('fallen_tree')).toBe('Fallen tree');
         expect(getIncidentTypeLabel('vehicular')).toBe('Vehicular collision');
         expect(getIncidentTypeLabel('invented', 'Incident')).toBe('Incident');
         expect(getIncidentTypeLabel(null, 'Incident')).toBe('Incident');

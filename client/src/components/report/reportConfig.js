@@ -11,9 +11,9 @@ export const INCIDENT_CATEGORIES = {
         label: 'Fire',
         types: getIncidentTypeOptions('fire'),
     },
-    crime: {
-        label: 'Crime',
-        types: getIncidentTypeOptions('crime'),
+    hazard: {
+        label: 'Road Hazard',
+        types: getIncidentTypeOptions('hazard'),
     },
 };
 

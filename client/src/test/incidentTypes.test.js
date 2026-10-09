@@ -16,10 +16,11 @@ const EXPECTED_NEW_LABELS = {
     vegetation: 'Forest/grass fire',
     vehicular_fire: 'Vehicle fire',
     other_fire: 'Other fire incident',
-    theft: 'Theft',
-    assault: 'Assault',
-    vandalism: 'Vandalism',
-    other_crime: 'Other crime incident',
+    fallen_tree: 'Fallen tree',
+    fallen_post: 'Fallen post/pole',
+    road_debris: 'Debris on road',
+    landslide: 'Landslide/rockfall',
+    other_hazard: 'Other road hazard',
 };
 
 describe('incident type labels — one source of truth', () => {
@@ -31,7 +32,7 @@ describe('incident type labels — one source of truth', () => {
         }
     });
 
-    test('new fire and crime labels resolve', () => {
+    test('new fire and hazard labels resolve', () => {
         for (const [type, label] of Object.entries(EXPECTED_NEW_LABELS)) {
             expect(getIncidentTypeLabel(type)).toBe(label);
         }
@@ -73,7 +74,7 @@ describe('incident type labels — one source of truth', () => {
         expect(getIncidentTypeLabel('vehicular')).toBe('Vehicular collision');
         expect(getIncidentTypeLabel('mechanical')).toBe('Mechanical failure');
         expect(getIncidentTypeLabel('structural')).toBe('Structural fire');
-        expect(getIncidentTypeLabel('theft')).toBe('Theft');
+        expect(getIncidentTypeLabel('fallen_tree')).toBe('Fallen tree');
     });
 
     test('unknown values fall back to a specific title-cased label, not a placeholder', () => {

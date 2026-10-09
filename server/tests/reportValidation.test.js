@@ -64,10 +64,11 @@ describe('incident category validation', () => {
         ['fire', 'vegetation'],
         ['fire', 'vehicular_fire'],
         ['fire', 'other_fire'],
-        ['crime', 'theft'],
-        ['crime', 'assault'],
-        ['crime', 'vandalism'],
-        ['crime', 'other_crime'],
+        ['hazard', 'fallen_tree'],
+        ['hazard', 'fallen_post'],
+        ['hazard', 'road_debris'],
+        ['hazard', 'landslide'],
+        ['hazard', 'other_hazard'],
         ['accident', 'vehicular'],
     ])('accepts %s / %s', async (incidentCategory, incidentType) => {
         await request(createApp())
@@ -78,9 +79,10 @@ describe('incident category validation', () => {
 
     test.each([
         [{ incidentCategory: 'maritime', incidentType: 'vehicular' }, 'Invalid incident category'],
+        [{ incidentCategory: 'crime', incidentType: 'theft' }, 'Invalid incident category'],
         [{ incidentCategory: 'fire', incidentType: 'vehicular' }, 'Invalid incident type'],
-        [{ incidentCategory: 'crime', incidentType: 'structural' }, 'Invalid incident type'],
-        [{ incidentCategory: 'accident', incidentType: 'theft' }, 'Invalid incident type'],
+        [{ incidentCategory: 'hazard', incidentType: 'structural' }, 'Invalid incident type'],
+        [{ incidentCategory: 'accident', incidentType: 'fallen_tree' }, 'Invalid incident type'],
     ])('rejects %#', async (override, expectedMessage) => {
         const response = await request(createApp())
             .post('/reports')

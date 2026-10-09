@@ -40,7 +40,7 @@ describe('IncidentQueue incident card — incident kind', () => {
     test.each([
         ['accident', 'vehicular', 'ACCIDENT'],
         ['fire', 'structural', 'FIRE'],
-        ['crime', 'theft', 'CRIME'],
+        ['hazard', 'fallen_tree', 'HAZARD'],
     ])('category badge renders the short label for %s', (category, type, expected) => {
         renderQueue([{ ...baseReport, incidentCategory: category, incidentType: type }]);
 
@@ -50,11 +50,11 @@ describe('IncidentQueue incident card — incident kind', () => {
 
     test('badge is omitted when the category is missing or unknown', () => {
         const { unmount } = renderQueue([{ ...baseReport, incidentCategory: undefined }]);
-        expect(within(cardFor()).queryByText(/^(ACCIDENT|FIRE|CRIME)$/)).not.toBeInTheDocument();
+        expect(within(cardFor()).queryByText(/^(ACCIDENT|FIRE|HAZARD)$/)).not.toBeInTheDocument();
         unmount();
 
         renderQueue([{ ...baseReport, incidentCategory: 'tornado' }]);
-        expect(within(cardFor()).queryByText(/^(ACCIDENT|FIRE|CRIME)$/)).not.toBeInTheDocument();
+        expect(within(cardFor()).queryByText(/^(ACCIDENT|FIRE|HAZARD)$/)).not.toBeInTheDocument();
     });
 
     test('incident type is the prominent line above the address', () => {

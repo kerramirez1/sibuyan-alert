@@ -31,8 +31,8 @@ describe('ReportDetailsPanel incident category', () => {
         renderPanel();
 
         const select = screen.getByRole('combobox', { name: 'Incident category' });
-        expect([...select.options].map((option) => option.value)).toEqual(['accident', 'fire', 'crime']);
-        expect([...select.options].map((option) => option.textContent)).toEqual(['Road accident', 'Fire', 'Crime']);
+        expect([...select.options].map((option) => option.value)).toEqual(['accident', 'fire', 'hazard']);
+        expect([...select.options].map((option) => option.textContent)).toEqual(['Road accident', 'Fire', 'Road Hazard']);
     });
 
     test('changing the category resets the type to the new category first type', () => {
@@ -48,14 +48,14 @@ describe('ReportDetailsPanel incident category', () => {
         expect(next.incidentType).toBe('structural');
     });
 
-    test('changing to crime resets the type to theft', () => {
+    test('changing to hazard resets the type to fallen_tree', () => {
         const { setFormData } = renderPanel({ incidentCategory: 'fire', incidentType: 'vegetation' });
 
-        fireEvent.change(screen.getByRole('combobox', { name: 'Incident category' }), { target: { value: 'crime' } });
+        fireEvent.change(screen.getByRole('combobox', { name: 'Incident category' }), { target: { value: 'hazard' } });
 
         const updater = setFormData.mock.calls[0][0];
         const next = updater({ incidentCategory: 'fire', incidentType: 'vegetation' });
-        expect(next).toMatchObject({ incidentCategory: 'crime', incidentType: 'theft' });
+        expect(next).toMatchObject({ incidentCategory: 'hazard', incidentType: 'fallen_tree' });
     });
 
     test('the type select shows the current category options', () => {

@@ -1,4 +1,4 @@
-// Incident scope: road accidents plus fire and crime incidents.
+// Incident scope: road accidents, fire incidents, and road hazards.
 // Maritime and natural-disaster incidents remain out of scope and must not
 // be accepted here.
 export const INCIDENT_CATEGORIES = Object.freeze({
@@ -25,15 +25,16 @@ export const INCIDENT_CATEGORIES = Object.freeze({
         ]),
         emoji: '🔥',
     }),
-    crime: Object.freeze({
-        label: 'Crime Incident',
+    hazard: Object.freeze({
+        label: 'Road Hazard',
         types: Object.freeze([
-            'theft',
-            'assault',
-            'vandalism',
-            'other_crime',
+            'fallen_tree',
+            'fallen_post',
+            'road_debris',
+            'landslide',
+            'other_hazard',
         ]),
-        emoji: '🚨',
+        emoji: '⚠️',
     }),
 });
 

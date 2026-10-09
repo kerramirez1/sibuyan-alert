@@ -26,10 +26,11 @@ export const INCIDENT_TYPE_LABELS = Object.freeze({
     vegetation: 'Forest/grass fire',
     vehicular_fire: 'Vehicle fire',
     other_fire: 'Other fire incident',
-    theft: 'Theft',
-    assault: 'Assault',
-    vandalism: 'Vandalism',
-    other_crime: 'Other crime incident',
+    fallen_tree: 'Fallen tree',
+    fallen_post: 'Fallen post/pole',
+    road_debris: 'Debris on road',
+    landslide: 'Landslide/rockfall',
+    other_hazard: 'Other road hazard',
 });
 
 /**
@@ -41,7 +42,7 @@ export const INCIDENT_TYPE_LABELS = Object.freeze({
 export const CATEGORY_TYPES = Object.freeze({
     accident: Object.freeze(['vehicular', 'motorcycle', 'pedestrian', 'bicycle', 'self_accident', 'mechanical', 'other']),
     fire: Object.freeze(['structural', 'vegetation', 'vehicular_fire', 'other_fire']),
-    crime: Object.freeze(['theft', 'assault', 'vandalism', 'other_crime']),
+    hazard: Object.freeze(['fallen_tree', 'fallen_post', 'road_debris', 'landslide', 'other_hazard']),
 });
 
 /** Ordered `{ value, label }` options for one category's type select. */

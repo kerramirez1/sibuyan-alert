@@ -90,7 +90,7 @@ const EMPTY_HAZARD_LAYERS = Object.freeze([]);
 const INCIDENT_COLORS = {
     accident: '#3B82F6',
     fire: '#EF4444',
-    crime: '#8B5CF6',
+    hazard: '#F59E0B',
 };
 
 const ZONE_COLORS = {

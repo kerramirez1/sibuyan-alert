@@ -26,12 +26,12 @@ const reportSchema = new mongoose.Schema(
         // Incident Category - Main classification
         incidentCategory: {
             type: String,
-            enum: ['accident', 'fire', 'crime'],
+            enum: ['accident', 'fire', 'hazard'],
             required: [true, 'Incident category is required'],
             default: 'accident',
         },
 
-        // Sub-type based on category (road accident, fire, or crime)
+        // Sub-type based on category (road accident, fire, or road hazard)
         incidentType: {
             type: String,
             required: [true, 'Incident type is required'],
@@ -472,7 +472,7 @@ reportSchema.pre('save', async function (next) {
         const categoryLabels = {
             accident: 'Road Accident',
             fire: 'Fire Incident',
-            crime: 'Crime Incident',
+            hazard: 'Road Hazard',
         };
         this.title = `${categoryLabels[this.incidentCategory] || 'Incident'} at ${this.address?.split(',')[0] || 'Unknown Location'}`;
     }

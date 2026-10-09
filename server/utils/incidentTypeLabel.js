@@ -19,10 +19,11 @@ const INCIDENT_TYPE_LABELS = Object.freeze({
     vegetation: 'Forest/grass fire',
     vehicular_fire: 'Vehicle fire',
     other_fire: 'Other fire incident',
-    theft: 'Theft',
-    assault: 'Assault',
-    vandalism: 'Vandalism',
-    other_crime: 'Other crime incident',
+    fallen_tree: 'Fallen tree',
+    fallen_post: 'Fallen post/pole',
+    road_debris: 'Debris on road',
+    landslide: 'Landslide/rockfall',
+    other_hazard: 'Other road hazard',
 });
 
 export { INCIDENT_TYPE_LABELS };
