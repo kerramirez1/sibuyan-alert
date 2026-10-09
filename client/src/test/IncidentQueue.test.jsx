@@ -34,7 +34,7 @@ const renderQueue = (reports) => render(
     />,
 );
 
-const cardFor = (id) => screen.getByRole('article');
+const cardFor = () => screen.getByRole('article');
 
 describe('IncidentQueue incident card — incident kind', () => {
     test.each([
@@ -44,23 +44,23 @@ describe('IncidentQueue incident card — incident kind', () => {
     ])('category badge renders the short label for %s', (category, type, expected) => {
         renderQueue([{ ...baseReport, incidentCategory: category, incidentType: type }]);
 
-        const card = cardFor('report-1');
+        const card = cardFor();
         expect(within(card).getByText(expected)).toBeInTheDocument();
     });
 
     test('badge is omitted when the category is missing or unknown', () => {
         const { unmount } = renderQueue([{ ...baseReport, incidentCategory: undefined }]);
-        expect(within(cardFor('report-1')).queryByText(/^(ACCIDENT|FIRE|CRIME)$/)).not.toBeInTheDocument();
+        expect(within(cardFor()).queryByText(/^(ACCIDENT|FIRE|CRIME)$/)).not.toBeInTheDocument();
         unmount();
 
         renderQueue([{ ...baseReport, incidentCategory: 'tornado' }]);
-        expect(within(cardFor('report-1')).queryByText(/^(ACCIDENT|FIRE|CRIME)$/)).not.toBeInTheDocument();
+        expect(within(cardFor()).queryByText(/^(ACCIDENT|FIRE|CRIME)$/)).not.toBeInTheDocument();
     });
 
     test('incident type is the prominent line above the address', () => {
         renderQueue([{ ...baseReport }]);
 
-        const card = cardFor('report-1');
+        const card = cardFor();
         const typeLine = within(card).getByRole('heading', { level: 2 });
         expect(typeLine).toHaveTextContent('Structural fire');
         expect(typeLine.className).toMatch(/text-\[15px\]/);
