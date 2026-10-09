@@ -683,7 +683,7 @@ export const sendResponderInvitationEmail = async (
     // No emoji in the subject. It carries no meaning a reader needs, and a
     // decorative pictograph in front of a credential-setting call to action is a
     // small but free contribution to a spam score.
-    subject: `Responder account invitation - ${PRODUCT_NAME}`,
+    subject: `${roleName === 'admin' ? 'Admin' : 'Responder'} account invitation - ${PRODUCT_NAME}`,
     html,
     text,
     ...(senderMailbox

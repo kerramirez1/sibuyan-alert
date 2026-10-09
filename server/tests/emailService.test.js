@@ -107,4 +107,18 @@ describe('invitation deliverability headers', () => {
 
         expect(mailMocks.sendMail.mock.calls[0][0]).not.toHaveProperty('headers');
     });
+
+    test.each([
+        ['responder', 'Responder account invitation - Sibuyan Alert'],
+        ['admin', 'Admin account invitation - Sibuyan Alert'],
+        [undefined, 'Responder account invitation - Sibuyan Alert'],
+    ])('names the account type in the subject when roleLabel is %s', async (roleLabel, expected) => {
+        const inviteUrl = `https://app.example/reset-password/${'c'.repeat(64)}`;
+        await sendResponderInvitationEmail('user@example.com', 'Ana Reyes', inviteUrl, { roleLabel });
+
+        const mailOptions = mailMocks.sendMail.mock.calls[0][0];
+        expect(mailOptions.subject).toBe(expected);
+        // No emoji in the subject: plain text, no pictograph.
+        expect(mailOptions.subject).not.toMatch(/[^\x20-\x7E]/);
+    });
 });
