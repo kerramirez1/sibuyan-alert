@@ -33,6 +33,7 @@ const { getUsers, deleteUser } = await import('../controllers/adminController.js
 const ADMIN = { _id: 'admin-1', name: 'Maria Santos', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' };
 
 const MOCK_USERS = [
+    { _id: 'admin-1', name: 'Maria Santos', email: 'maria@example.com', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
     { _id: 'ord-1', name: 'Ord User', email: 'ord@example.com', role: 'ordinary', assignedMunicipality: 'Cajidiocan' },
     { _id: 'rep-1', name: 'Rep One', email: 'rep@example.com', role: 'reporter', verificationStatus: 'approved', assignedMunicipality: 'Cajidiocan' },
     { _id: 'resp-1', name: 'Resp One', email: 'resp@example.com', role: 'responder', assignedMunicipality: 'Cajidiocan' },
@@ -52,6 +53,10 @@ const applyQuery = (query) => {
     }
     if (query.verificationStatus) {
         users = users.filter((u) => u.verificationStatus === query.verificationStatus);
+    }
+    // The viewer never sees their own account.
+    if (query._id && query._id.$ne) {
+        users = users.filter((u) => u._id !== query._id.$ne);
     }
     return users;
 };
@@ -100,6 +105,10 @@ describe('getUsers — municipal_admin visibility', () => {
         expect(payload.users.map((u) => u._id)).toContain('adm-1');
         // Another municipality's admin stays out of scope.
         expect(payload.users.map((u) => u._id)).not.toContain('adm-2');
+        // The viewing administrator never sees their own account.
+        expect(payload.users.map((u) => u._id)).not.toContain('admin-1');
+        // The query itself excludes the viewer's _id.
+        expect(mocks.find.mock.calls.map((call) => call[0]).find((q) => 'role' in q)._id).toEqual({ $ne: 'admin-1' });
         // The query itself admits all four roles.
         expect(listQuery().role).toEqual({
             $in: ['ordinary', 'reporter', 'responder', 'municipal_admin'],
@@ -129,12 +138,14 @@ describe('getUsers — municipal_admin visibility', () => {
         });
     });
 
-    test('totalUsers stat counts municipal_admin accounts', async () => {
+    test('totalUsers stat counts municipal_admin accounts and excludes the viewer', async () => {
         const res = createRes();
 
         await getUsers({ user: ADMIN, query: {} }, res);
 
         const payload = res.json.mock.calls[0][0].data;
+        // ord-1, rep-1, resp-1, adm-1: four accounts; admin-1 (the viewer) and
+        // adm-2 (other municipality) are out.
         expect(payload.stats.totalUsers).toBe(4);
         expect(payload.stats.reporters).toBe(1);
         expect(payload.stats.responders).toBe(1);

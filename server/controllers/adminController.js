@@ -147,6 +147,10 @@ export const getUsers = async (req, res) => {
             query.role = { $in: ['ordinary', 'reporter', 'responder', 'municipal_admin'] };
         }
 
+        // The viewing administrator never sees their own account — the list
+        // shows the people they manage, not themselves.
+        query._id = { $ne: adminUser._id };
+
         if (verificationStatus) query.verificationStatus = verificationStatus;
         if (safeSearch) {
             const pattern = escapeRegex(safeSearch);
@@ -189,7 +193,7 @@ export const getUsers = async (req, res) => {
         // Get counts by role
         const scope = query.$and ? { $and: query.$and } : {};
         const [totalUsers, reporters, responders, pendingVerification] = await Promise.all([
-            User.countDocuments({ role: { $in: ['ordinary', 'reporter', 'responder', 'municipal_admin'] }, ...scope }),
+            User.countDocuments({ role: { $in: ['ordinary', 'reporter', 'responder', 'municipal_admin'] }, _id: { $ne: adminUser._id }, ...scope }),
             User.countDocuments({ role: 'reporter', ...scope }),
             User.countDocuments({ role: 'responder', ...scope }),
             User.countDocuments({ role: 'reporter', verificationStatus: 'pending', ...scope }),
