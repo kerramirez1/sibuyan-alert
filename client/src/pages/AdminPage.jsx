@@ -277,9 +277,9 @@ const AdminPage = () => {
         return () => window.clearInterval(interval);
     }, []);
 
-    // Presence poll for municipal_admin
+    // Presence poll for municipal_admin and responder
     useEffect(() => {
-        if (user?.role !== 'municipal_admin') return undefined;
+        if (user?.role !== 'municipal_admin' && user?.role !== 'responder') return undefined;
         fetchPresence();
         const interval = window.setInterval(fetchPresence, 30000);
         return () => window.clearInterval(interval);

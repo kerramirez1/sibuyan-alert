@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     },
     callbacks: {},
     getResponder: vi.fn(),
+    getPresence: vi.fn(),
     getAdmin: vi.fn(),
     renderCount: 0,
     connectivity: { isOffline: false },
@@ -50,7 +51,7 @@ vi.mock('../services/api', () => ({
         getResponder: mocks.getResponder,
         getAdmin: mocks.getAdmin,
     },
-    adminAPI: {},
+    adminAPI: { getPresence: mocks.getPresence },
     systemAPI: { getHealth: vi.fn().mockResolvedValue({ data: { success: true } }) },
 }));
 
@@ -360,5 +361,17 @@ describe('AdminPage weak-signal intervals', () => {
         // The rollover branch is not gated on reachability: the calendar day
         // changed, so the dashboard force-refreshes regardless.
         expect(mocks.getResponder).toHaveBeenCalledTimes(2);
+    });
+
+    test('polls presence for the responder role on mount', async () => {
+        mocks.getPresence.mockResolvedValue({
+            data: { success: true, data: { respondersOnline: 2, adminsOnline: 1, operatorsOnline: 3 } },
+        });
+
+        render(<AdminPage />);
+
+        // The responder branch renders the workspace; the presence poll must
+        // fire too — the useEffect guard used to return early for responders.
+        await waitFor(() => expect(mocks.getPresence).toHaveBeenCalled());
     });
 });
