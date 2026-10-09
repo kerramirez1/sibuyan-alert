@@ -127,6 +127,7 @@ const ResponderDashboardWorkspace = ({
     stats,
     loading = false,
     error = '',
+    presence = null,
     onRetry,
 }) => {
     const municipalityName = user?.assignedMunicipality || 'Sibuyan Island';
@@ -209,6 +210,11 @@ const ResponderDashboardWorkspace = ({
                         </span>
                         <span aria-hidden="true" className="text-gray-300 dark:text-gray-700">·</span>
                         <span>{agencyName} · {municipalityName}</span>
+                        {presence && typeof presence === 'object' && !Array.isArray(presence) && Number.isFinite(presence?.respondersOnline) ? (
+                            <span className="tabular-nums">
+                                · {presence.respondersOnline} {presence.respondersOnline === 1 ? 'responder' : 'responders'} online
+                            </span>
+                        ) : null}
                     </div>
                 </div>
 

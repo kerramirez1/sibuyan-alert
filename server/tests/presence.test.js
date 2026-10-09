@@ -1,5 +1,6 @@
 import { describe, expect, test, vi as jest } from 'vitest';
 import { getPresence } from '../controllers/adminController.js';
+import { requireRole } from '../middleware/roleCheck.js';
 
 const createRes = () => {
     const res = {};
@@ -72,5 +73,28 @@ describe('GET /api/admin/presence', () => {
 
         expect(res.status).toHaveBeenCalledWith(503);
         expect(res.json.mock.calls[0][0].code).toBe('REALTIME_UNAVAILABLE');
+    });
+});
+
+/**
+ * Route-level role gating for GET /api/admin/presence. The controller itself
+ * is municipality-scoped and returns counts only, so responders of the same
+ * municipality may read it; ordinary users and reporters may not.
+ */
+describe('GET /api/admin/presence — role gating', () => {
+    const runGate = (role) => new Promise((resolve) => {
+        const middleware = requireRole('municipal_admin', 'responder');
+        const req = { user: { _id: 'u1', role, assignedMunicipality: 'Cajidiocan' } };
+        const res = { status: (code) => ({ json: () => resolve(code) }) };
+        middleware(req, res, () => resolve(200));
+    });
+
+    test.each([
+        ['municipal_admin', 200],
+        ['responder', 200],
+        ['ordinary', 403],
+        ['reporter', 403],
+    ])('role %s → %s', async (role, expected) => {
+        expect(await runGate(role)).toBe(expected);
     });
 });

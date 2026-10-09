@@ -48,7 +48,7 @@ router.use(requireRole('municipal_admin', 'responder'));
 // Dashboard — municipal administrators only (not responders)
 // ============================================================
 router.get('/dashboard', requireRole('municipal_admin'), getDashboardStats);
-router.get('/presence', requireRole('municipal_admin'), getPresence);
+router.get('/presence', requireRole('municipal_admin', 'responder'), getPresence);
 
 // ============================================================
 // User management — municipal administrators only (not responders)

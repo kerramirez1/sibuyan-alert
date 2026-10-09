@@ -225,4 +225,30 @@ describe('ResponderDashboardWorkspace', () => {
         expect(screen.getByText('No incident hotspots recorded')).toBeInTheDocument();
         expect(screen.getByText('No critical or high-priority zones')).toBeInTheDocument();
     });
+
+    describe('presence indicator', () => {
+        it('renders the online-responder count when the presence prop is present', () => {
+            renderWorkspace({ presence: { respondersOnline: 3 } });
+
+            expect(screen.getByText(/· 3 responders online/)).toBeInTheDocument();
+        });
+
+        it('uses the singular form for one online responder', () => {
+            renderWorkspace({ presence: { respondersOnline: 1 } });
+
+            expect(screen.getByText(/· 1 responder online/)).toBeInTheDocument();
+        });
+
+        it('renders nothing extra when presence is absent', () => {
+            renderWorkspace();
+
+            expect(screen.queryByText(/responders? online/)).not.toBeInTheDocument();
+        });
+
+        it('renders nothing extra when the count is not a finite number', () => {
+            renderWorkspace({ presence: { respondersOnline: 'many' } });
+
+            expect(screen.queryByText(/responders? online/)).not.toBeInTheDocument();
+        });
+    });
 });

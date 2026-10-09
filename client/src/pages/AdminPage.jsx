@@ -201,9 +201,11 @@ const AdminPage = () => {
         }, 150);
     }, [fetchDashboardStats]);
 
-    // Socket-authenticated responder presence (municipal_admin only).
+    // Socket-authenticated responder presence (municipal_admin + responder).
+    // The endpoint returns counts only — no identities — scoped to the
+    // caller's own municipality, so it is safe for responders to read.
     const fetchPresence = useCallback(async () => {
-        if (user?.role !== 'municipal_admin') return;
+        if (user?.role !== 'municipal_admin' && user?.role !== 'responder') return;
         try {
             const response = await adminAPI.getPresence();
             const nextPresence = response?.data?.data;
@@ -318,6 +320,7 @@ const AdminPage = () => {
                 stats={stats}
                 loading={loading}
                 error={dashboardError}
+                presence={presence}
                 onRetry={() => fetchDashboardStats({ showLoading: true })}
             />
         );
