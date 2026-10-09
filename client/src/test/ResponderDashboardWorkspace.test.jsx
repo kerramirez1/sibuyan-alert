@@ -233,8 +233,20 @@ describe('ResponderDashboardWorkspace', () => {
             expect(screen.getByText(/· 3 responders online/)).toBeInTheDocument();
         });
 
-        it('uses the singular form for one online responder', () => {
+        it('says the viewer is the only responder online when the count is 1 and they are online', () => {
+            renderWorkspace({ presence: { respondersOnline: 1, viewerIsOnline: true } });
+
+            expect(screen.getByText(/· You are the only responder online/)).toBeInTheDocument();
+        });
+
+        it('falls back to "1 responder online" when viewerIsOnline is absent', () => {
             renderWorkspace({ presence: { respondersOnline: 1 } });
+
+            expect(screen.getByText(/· 1 responder online/)).toBeInTheDocument();
+        });
+
+        it('falls back to "1 responder online" when viewerIsOnline is false', () => {
+            renderWorkspace({ presence: { respondersOnline: 1, viewerIsOnline: false } });
 
             expect(screen.getByText(/· 1 responder online/)).toBeInTheDocument();
         });

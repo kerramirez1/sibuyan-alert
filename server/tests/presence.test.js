@@ -46,8 +46,27 @@ describe('GET /api/admin/presence', () => {
             respondersOnline: 2,
             adminsOnline: 1,
             operatorsOnline: 3,
+            // The requesting admin's own socket (id 'a1') is in the room.
+            viewerIsOnline: true,
         });
         expect(typeof payload.data.updatedAt).toBe('string');
+    });
+
+    test('viewerIsOnline is false when the requesting user has no socket in the room', async () => {
+        const io = {
+            in: jest.fn(() => ({ fetchSockets: jest.fn(async () => []) })),
+        };
+        const req = {
+            user: { _id: 'a2', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
+            app: { get: jest.fn(() => io) },
+        };
+        const res = createRes();
+
+        await getPresence(req, res);
+
+        const payload = res.json.mock.calls[0][0];
+        expect(payload.success).toBe(true);
+        expect(payload.data.viewerIsOnline).toBe(false);
     });
 
     test('returns 403 when the administrator has no municipality', async () => {

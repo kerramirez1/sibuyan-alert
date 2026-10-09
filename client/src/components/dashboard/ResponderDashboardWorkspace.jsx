@@ -212,7 +212,9 @@ const ResponderDashboardWorkspace = ({
                         <span>{agencyName} · {municipalityName}</span>
                         {presence && typeof presence === 'object' && !Array.isArray(presence) && Number.isFinite(presence?.respondersOnline) ? (
                             <span className="tabular-nums">
-                                · {presence.respondersOnline} {presence.respondersOnline === 1 ? 'responder' : 'responders'} online
+                                {presence.respondersOnline === 1 && presence.viewerIsOnline === true
+                                    ? '· You are the only responder online'
+                                    : `· ${presence.respondersOnline} ${presence.respondersOnline === 1 ? 'responder' : 'responders'} online`}
                             </span>
                         ) : null}
                     </div>

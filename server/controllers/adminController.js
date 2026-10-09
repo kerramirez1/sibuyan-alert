@@ -1837,6 +1837,9 @@ export const getPresence = async (req, res) => {
                 respondersOnline,
                 adminsOnline,
                 operatorsOnline: onlineUsers.length,
+                // Lets the responder dashboard disambiguate "1 responder
+                // online": when true, that one is the viewer themselves.
+                viewerIsOnline: onlineById.has(String(admin._id)),
                 updatedAt: new Date().toISOString(),
             },
         });
