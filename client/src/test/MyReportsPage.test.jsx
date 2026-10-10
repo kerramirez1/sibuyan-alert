@@ -318,6 +318,26 @@ describe('reporter situation update flow', () => {
         expect(screen.queryByText('Poblacion coastal road')).not.toBeInTheDocument();
     });
 
+    test('filters reports by category from the modal', async () => {
+        const accidentReport = { ...initialReport, _id: 'report-1', incidentCategory: 'accident', address: 'Poblacion coastal road' };
+        const fireReport = { ...initialReport, _id: 'report-3', incidentCategory: 'fire', address: 'Market area fire' };
+        mocks.getMyReports.mockResolvedValue({ data: { data: [accidentReport, fireReport] } });
+
+        renderPage();
+
+        expect(await screen.findByText('Poblacion coastal road')).toBeInTheDocument();
+        expect(screen.getByText('Market area fire')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /Filter reports/i }));
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText('Category')).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Fire' }));
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Apply filters' }));
+
+        expect(await screen.findByText('Market area fire')).toBeInTheDocument();
+        expect(screen.queryByText('Poblacion coastal road')).not.toBeInTheDocument();
+    });
+
     test('renders empty state when reporter has no submissions', async () => {
         mocks.getMyReports.mockResolvedValueOnce({ data: { data: [] } });
 

@@ -101,3 +101,29 @@ describe('IncidentQueueControls responder tab row', () => {
         });
     });
 });
+
+describe('IncidentQueueControls category filter', () => {
+    test('renders category options and wires selection to setCategory', () => {
+        const setCategory = vi.fn();
+        renderResponderControls({ responderView: 'all', category: '', setCategory });
+
+        const categoryRow = screen.getByLabelText('Filter by category');
+        ['All categories', 'Accident', 'Fire', 'Road Hazard'].forEach((label) => {
+            expect(within(categoryRow).getByRole('button', { name: new RegExp(`^${label}( incidents)?$`) })).toBeInTheDocument();
+        });
+
+        const allButton = within(categoryRow).getByRole('button', { name: 'All categories' });
+        expect(allButton).toHaveAttribute('aria-pressed', 'true');
+
+        fireEvent.click(within(categoryRow).getByRole('button', { name: 'Fire incidents' }));
+        expect(setCategory).toHaveBeenCalledWith('fire');
+    });
+
+    test('marks the active category with aria-pressed', () => {
+        renderResponderControls({ responderView: 'all', category: 'hazard', setCategory: vi.fn() });
+
+        const categoryRow = screen.getByLabelText('Filter by category');
+        expect(within(categoryRow).getByRole('button', { name: 'Road Hazard incidents' })).toHaveAttribute('aria-pressed', 'true');
+        expect(within(categoryRow).getByRole('button', { name: 'Fire incidents' })).toHaveAttribute('aria-pressed', 'false');
+    });
+});

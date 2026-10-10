@@ -126,3 +126,60 @@ describe('useIncidentReports realtime synchronization', () => {
         expect(result.current.status).toBe('verified');
     });
 });
+
+describe('useIncidentReports category filter', () => {
+    beforeEach(() => {
+        clearQueryCache();
+        listeners.clear();
+        subscribeMock.mockClear();
+        getReportsMock.mockReset();
+        getReportsMock.mockReturnValue(fetchQueuePage(['report-1']));
+    });
+
+    test('includes the category in the API call and a distinct cache key', async () => {
+        const { result } = renderHook(() => useIncidentReports({
+            subscribe: subscribeMock,
+            role: 'municipal_admin',
+        }));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(getReportsMock).toHaveBeenCalledTimes(1);
+        expect(getReportsMock.mock.calls[0][0]).not.toHaveProperty('category');
+
+        await act(async () => {
+            result.current.setCategory('fire');
+        });
+        await waitFor(() => expect(getReportsMock).toHaveBeenCalledTimes(2));
+
+        const lastParams = getReportsMock.mock.calls[getReportsMock.mock.calls.length - 1][0];
+        expect(lastParams).toMatchObject({ category: 'fire', page: 1 });
+        expect(result.current.category).toBe('fire');
+
+        // Switching back to '' must reuse its own fresh cache instead of
+        // re-fetching — proof the keys for the two categories are distinct.
+        await act(async () => {
+            result.current.setCategory('');
+        });
+        await act(async () => {});
+        expect(getReportsMock).toHaveBeenCalledTimes(2);
+        expect(result.current.category).toBe('');
+    });
+
+    test('clearFilters resets the category and page', async () => {
+        const { result } = renderHook(() => useIncidentReports({
+            subscribe: subscribeMock,
+            role: 'municipal_admin',
+        }));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(async () => {
+            result.current.setCategory('hazard');
+        });
+        await waitFor(() => expect(result.current.category).toBe('hazard'));
+
+        await act(async () => {
+            result.current.clearFilters();
+        });
+        expect(result.current.category).toBe('');
+        expect(result.current.page).toBe(1);
+    });
+});

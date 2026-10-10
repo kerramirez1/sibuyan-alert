@@ -149,6 +149,8 @@ const AdminReportsPage = () => {
                 lastUpdatedAt={reportState.lastUpdatedAt}
                 status={reportState.status}
                 setStatus={reportState.setStatus}
+                category={reportState.category}
+                setCategory={reportState.setCategory}
                 searchDraft={reportState.searchDraft}
                 setSearchDraft={reportState.setSearchDraft}
                 appliedSearch={reportState.appliedSearch}

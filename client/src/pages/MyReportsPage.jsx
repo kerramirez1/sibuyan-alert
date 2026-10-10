@@ -18,6 +18,17 @@ import {
     setCachedData,
 } from '../utils/queryCache';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
+import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
+
+// Category options for the reporter's client-side filter (short badge-style
+// labels; canonical labels stay in reportConfig).
+const CATEGORY_FILTER_OPTIONS = [
+    { value: 'all', label: 'All categories' },
+    ...Object.entries(INCIDENT_CATEGORIES).map(([value, config]) => ({
+        value,
+        label: value === 'accident' ? 'Accident' : config.label,
+    })),
+];
 import { normalizeEvidenceDescriptor } from '../utils/evidenceModel';
 import { useSocket } from '../context/SocketContext';
 import { useConnectivity } from '../hooks/useConnectivity';
@@ -142,15 +153,17 @@ const getEvidenceCount = (report) => {
 };
 
 // Mobile filter bottom sheet / modal
-function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, counts, totalReports, hiddenCount = 0 }) {
+function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, counts, totalReports, hiddenCount = 0, filterCategory = 'all' }) {
     const [draftStatus, setDraftStatus] = useState(filterStatus);
+    const [draftCategory, setDraftCategory] = useState(filterCategory);
     const modalId = useId();
 
     useEffect(() => {
         if (isOpen) {
             setDraftStatus(filterStatus);
+            setDraftCategory(filterCategory);
         }
-    }, [isOpen, filterStatus]);
+    }, [isOpen, filterStatus, filterCategory]);
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -167,13 +180,20 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
     if (!isOpen || typeof document === 'undefined') return null;
 
     const handleApply = () => {
-        onApplyFilter(draftStatus);
+        onApplyFilter(draftStatus, draftCategory);
         onClose();
     };
 
     const handleClear = () => {
         setDraftStatus('all');
+        setDraftCategory('all');
     };
+
+    const categoryButtonClass = (isSelected) => `flex w-full items-center justify-between rounded px-3 py-2.5 text-sm cursor-pointer ${
+        isSelected
+            ? 'font-semibold text-gray-900 dark:text-white'
+            : 'font-normal text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+    }`;
 
     return createPortal(
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
@@ -204,6 +224,9 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
 
                 {/* Options List */}
                 <div className="flex-1 overflow-y-auto px-2 pb-2">
+                    <p className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                        Status
+                    </p>
                     {FILTERS.map((filterKey) => {
                         const count = filterKey === 'all' ? totalReports : (counts[filterKey] || 0);
                         if (filterKey !== 'all' && count === 0) return null;
@@ -245,6 +268,25 @@ function MyReportsFilterModal({ isOpen, onClose, filterStatus, onApplyFilter, co
                             <span className="text-xs tabular-nums text-gray-400">{hiddenCount}</span>
                         </button>
                     )}
+
+                    {/* Category filter (client-side, like status) */}
+                    <p className="px-3 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                        Category
+                    </p>
+                    {CATEGORY_FILTER_OPTIONS.map((option) => {
+                        const isSelected = draftCategory === option.value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setDraftCategory(option.value)}
+                                aria-pressed={isSelected}
+                                className={categoryButtonClass(isSelected)}
+                            >
+                                <span>{option.label}</span>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Footer Actions */}
@@ -374,6 +416,7 @@ function MyReportsPage() {
     const [error, setError] = useState('');
     const [selectedReportId, setSelectedReportId] = useState(null);
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterCategory, setFilterCategory] = useState('all');
     const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [viewerItem, setViewerItem] = useState(null);
     const [updateDialogReportId, setUpdateDialogReportId] = useState(null);
@@ -706,6 +749,7 @@ function MyReportsPage() {
         return (Array.isArray(listSource) ? listSource : [])
             .filter(Boolean)
             .filter((report) => {
+                if (filterCategory !== 'all' && report?.incidentCategory !== filterCategory) return false;
                 if (filterStatus === 'all' || filterStatus === 'hidden') return true;
                 // 'active' is a dashboard-level grouping (verified + transferred + responding),
                 // not a report status — it only arrives via ?status= deep links.
@@ -713,7 +757,7 @@ function MyReportsPage() {
                 return report?.status === filterStatus;
             })
             .sort((a, b) => new Date(b?.createdAt) - new Date(a?.createdAt));
-    }, [filterStatus, reports, hiddenReports]);
+    }, [filterStatus, filterCategory, reports, hiddenReports]);
 
     // Each card drives the ?status= deep-link filter via filterStatus. 'active'
     // is the dashboard-level grouping (verified + transferred + responding);
@@ -840,7 +884,7 @@ function MyReportsPage() {
                                     onClick={() => setFilterModalOpen(true)}
                                     className="inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap px-1 text-xs font-semibold text-brand-700 underline-offset-4 hover:text-brand-800 hover:underline min-[360px]:text-sm sm:hidden dark:text-sky-400 dark:hover:text-sky-300"
                                 >
-                                    <span>Filter reports{filterStatus !== 'all' ? ' · 1' : ''}</span>
+                                    <span>Filter reports{filterStatus !== 'all' || filterCategory !== 'all' ? ' · 1' : ''}</span>
                                 </button>
                             )}
                         </div>
@@ -1215,7 +1259,11 @@ function MyReportsPage() {
                 isOpen={filterModalOpen}
                 onClose={() => setFilterModalOpen(false)}
                 filterStatus={filterStatus}
-                onApplyFilter={(status) => setFilterStatus(status)}
+                filterCategory={filterCategory}
+                onApplyFilter={(status, category) => {
+                    setFilterStatus(status);
+                    setFilterCategory(category || 'all');
+                }}
                 counts={counts}
                 totalReports={Array.isArray(reports) ? reports.length : 0}
                 hiddenCount={hiddenReports.length}

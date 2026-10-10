@@ -9,8 +9,8 @@ import {
     setCachedData,
 } from '../utils/queryCache';
 
-export const getIncidentQueueCacheKey = ({ role, responderView, status, page, appliedSearch, focusedReportId }) => (
-    `incident-queue:${role || 'unknown'}:${responderView || 'all'}:${status || ''}:p${page}:q${appliedSearch || ''}:f${focusedReportId || ''}`
+export const getIncidentQueueCacheKey = ({ role, responderView, status, category, page, appliedSearch, focusedReportId }) => (
+    `incident-queue:${role || 'unknown'}:${responderView || 'all'}:${status || ''}:${category || ''}:p${page}:q${appliedSearch || ''}:f${focusedReportId || ''}`
 );
 
 const getErrorMessage = (error) => (
@@ -43,6 +43,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
     });
     const [error, setError] = useState('');
     const [status, setStatusState] = useState(responderView === 'all' ? validInitialStatus : '');
+    const [category, setCategoryState] = useState('');
     const [searchDraft, setSearchDraft] = useState('');
     const [appliedSearch, setAppliedSearch] = useState('');
     const [selectedReport, setSelectedReport] = useState(null);
@@ -64,7 +65,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
     const fetchReports = useCallback(async ({ silent = false, force = false } = {}) => {
         const requestId = ++fetchRequestIdRef.current;
         const isStaleResponse = () => requestId !== fetchRequestIdRef.current;
-        const cacheKey = getIncidentQueueCacheKey({ role, responderView, status, page, appliedSearch, focusedReportId });
+        const cacheKey = getIncidentQueueCacheKey({ role, responderView, status, category, page, appliedSearch, focusedReportId });
         // Explicit user actions (Refresh / Try again) bypass the fresh-cache
         // shortcut; automatic mount fetches use it to kill the 2nd-visit skeleton.
         if (!silent && !force) {
@@ -115,6 +116,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
                     limit: 20,
                     ...(responderView !== 'all' ? { responderView } : {}),
                     ...(responderView === 'all' && status ? { status } : {}),
+                    ...(category ? { category } : {}),
                     ...(appliedSearch ? { search: appliedSearch } : {}),
                 };
             // Force bypasses request deduping too: an explicit Refresh must
@@ -173,10 +175,10 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
                 else if (getStaleData(cacheKey) !== null) setLoading(false);
             }
         }
-    }, [appliedSearch, focusedReportId, page, responderView, role, status]);
+    }, [appliedSearch, category, focusedReportId, page, responderView, role, status]);
 
     useEffect(() => {
-        const cacheKey = getIncidentQueueCacheKey({ role, responderView, status, page, appliedSearch, focusedReportId });
+        const cacheKey = getIncidentQueueCacheKey({ role, responderView, status, category, page, appliedSearch, focusedReportId });
         if (getCachedData(cacheKey, QUERY_CACHE_TTLS.queue) !== null) {
             fetchReports();
             return;
@@ -186,7 +188,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             return;
         }
         fetchReports();
-    }, [fetchReports, appliedSearch, focusedReportId, page, responderView, role, status]);
+    }, [fetchReports, appliedSearch, category, focusedReportId, page, responderView, role, status]);
 
     const refreshRef = useRef(fetchReports);
     useEffect(() => {
@@ -348,15 +350,21 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
 
     const visibleReports = useMemo(() => {
         const safeReports = Array.isArray(reports) ? reports.filter(Boolean) : [];
-        if (responderView === 'all' && status) {
-            return safeReports.filter((report) => report?.status === status);
-        }
-        return safeReports;
-    }, [reports, responderView, status]);
+        return safeReports.filter((report) => {
+            if (responderView === 'all' && status && report?.status !== status) return false;
+            if (category && report?.incidentCategory !== category) return false;
+            return true;
+        });
+    }, [reports, responderView, status, category]);
 
     const setStatus = useCallback((nextStatus) => {
         setPage(1);
         setStatusState(nextStatus);
+    }, []);
+
+    const setCategory = useCallback((nextCategory) => {
+        setPage(1);
+        setCategoryState(nextCategory);
     }, []);
 
     const applySearch = useCallback(() => {
@@ -373,6 +381,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         setSearchDraft('');
         setAppliedSearch('');
         setStatusState('');
+        setCategoryState('');
         setPage(1);
     }, []);
 
@@ -403,6 +412,8 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         error,
         status,
         setStatus,
+        category,
+        setCategory,
         searchDraft,
         setSearchDraft,
         appliedSearch,

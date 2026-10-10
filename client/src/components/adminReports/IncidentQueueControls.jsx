@@ -9,6 +9,17 @@ import {
     getRoleStatuses,
     INCIDENT_STATUS,
 } from './incidentReportConfig';
+import { INCIDENT_CATEGORIES } from '../report/reportConfig';
+
+// Short badge-style labels for the category filter; the canonical labels
+// live in reportConfig so the two can never disagree about naming.
+const CATEGORY_FILTER_OPTIONS = [
+    { value: '', label: 'All categories' },
+    ...Object.entries(INCIDENT_CATEGORIES).map(([value, config]) => ({
+        value,
+        label: value === 'accident' ? 'Accident' : config.label,
+    })),
+];
 
 const RESPONDER_VIEW_COPY = {
     available: {
@@ -108,6 +119,8 @@ const IncidentFilterBar = ({
     responderDescription,
     status,
     setStatus,
+    category,
+    setCategory,
     searchDraft,
     setSearchDraft,
     applySearch,
@@ -197,6 +210,24 @@ const IncidentFilterBar = ({
                 </ScrollFadeRow>
             )}
         </div>
+
+        <div className="filter-bar__row">
+            <span className="filter-bar__label">Category</span>
+            <ScrollFadeRow className="flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" aria-label="Filter by category" tabIndex={0}>
+                {CATEGORY_FILTER_OPTIONS.map((option) => (
+                    <button
+                        key={option.value || 'all'}
+                        type="button"
+                        aria-pressed={category === option.value}
+                        aria-label={option.value ? `${option.label} incidents` : 'All categories'}
+                        onClick={() => setCategory(option.value)}
+                        className="status-filter shrink-0 whitespace-nowrap"
+                    >
+                        {option.label}
+                    </button>
+                ))}
+            </ScrollFadeRow>
+        </div>
     </section>
 );
 
@@ -207,6 +238,8 @@ const ResponderQueueControls = ({
     lastUpdatedAt,
     status,
     setStatus,
+    category,
+    setCategory,
     searchDraft,
     setSearchDraft,
     appliedSearch,
@@ -216,7 +249,7 @@ const ResponderQueueControls = ({
     loading,
 }) => {
     const activeResponderView = RESPONDER_VIEW_COPY[responderView] || RESPONDER_VIEW_COPY.all;
-    const hasFilters = Boolean((responderView === 'all' && status) || appliedSearch);
+    const hasFilters = Boolean((responderView === 'all' && status) || category || appliedSearch);
     // Refs to each tab button, keyed by view value, so the active tab can be
     // scrolled into view inside the horizontally scrollable tab row.
     const tabButtonRefs = useRef({});
@@ -284,6 +317,8 @@ const ResponderQueueControls = ({
                 responderDescription={activeResponderView.description}
                 status={status}
                 setStatus={setStatus}
+                category={category}
+                setCategory={setCategory}
                 searchDraft={searchDraft}
                 setSearchDraft={setSearchDraft}
                 applySearch={applySearch}
@@ -305,6 +340,8 @@ const IncidentQueueControls = ({
     lastUpdatedAt,
     status,
     setStatus,
+    category,
+    setCategory,
     searchDraft,
     setSearchDraft,
     appliedSearch,
@@ -314,7 +351,7 @@ const IncidentQueueControls = ({
     loading,
 }) => {
     const isResponder = role === 'responder';
-    const hasFilters = Boolean((responderView === 'all' && status) || appliedSearch);
+    const hasFilters = Boolean((responderView === 'all' && status) || category || appliedSearch);
 
     if (isResponder) {
         return (
@@ -326,6 +363,8 @@ const IncidentQueueControls = ({
                 lastUpdatedAt={lastUpdatedAt}
                 status={status}
                 setStatus={setStatus}
+                category={category}
+                setCategory={setCategory}
                 searchDraft={searchDraft}
                 setSearchDraft={setSearchDraft}
                 appliedSearch={appliedSearch}
@@ -365,6 +404,8 @@ const IncidentQueueControls = ({
                 responderView={responderView}
                 status={status}
                 setStatus={setStatus}
+                category={category}
+                setCategory={setCategory}
                 searchDraft={searchDraft}
                 setSearchDraft={setSearchDraft}
                 applySearch={applySearch}
