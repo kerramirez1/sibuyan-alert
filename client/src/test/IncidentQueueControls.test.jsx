@@ -94,10 +94,14 @@ describe('IncidentQueueControls responder tab row', () => {
         // users can move focus into it to scroll when the chips overflow.
         const statusRow = screen.getByLabelText('Filter by status');
         expect(statusRow).toHaveClass('flex-nowrap', 'overflow-x-auto', 'no-scrollbar');
-        expect(statusRow).not.toHaveClass('flex-wrap');
+        // Desktop tightening: narrower gap so every status fits one line.
+        expect(statusRow).toHaveClass('lg:gap-0.5');
+        expect(statusRow).not.toHaveClass('flex-wrap', 'lg:flex-wrap');
         expect(statusRow).toHaveAttribute('tabindex', '0');
         within(statusRow).getAllByRole('button').forEach((button) => {
             expect(button).toHaveClass('shrink-0', 'whitespace-nowrap');
+            const badge = button.querySelector('span[aria-hidden="true"]');
+            expect(badge).toHaveClass('lg:ml-1', 'lg:px-1');
         });
     });
 });

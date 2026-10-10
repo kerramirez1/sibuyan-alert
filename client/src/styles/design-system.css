@@ -292,6 +292,9 @@
         .filter-bar__controls { flex-direction: row; align-items: center; gap: 12px; }
         .filter-bar__buttons { flex-shrink: 0; }
         .record-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        /* Compact status filters so every status fits the queue's single
+           filter line; mobile sizing below this query is untouched. */
+        .status-filter { padding: 4px 6px; font-size: 12px; }
     }
 
     @media (min-width: 1024px) {

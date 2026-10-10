@@ -209,7 +209,7 @@ const IncidentFilterBar = ({
             {responderView !== 'all' ? (
                 <p className="filter-bar__scope">{responderDescription}</p>
             ) : (
-                <ScrollFadeRow className="flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" aria-label="Filter by status" tabIndex={0}>
+                <ScrollFadeRow className="flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar lg:gap-0.5" aria-label="Filter by status" tabIndex={0}>
                     <button
                         type="button"
                         aria-pressed={status === ''}
@@ -218,7 +218,7 @@ const IncidentFilterBar = ({
                         className="status-filter shrink-0 whitespace-nowrap"
                     >
                         All statuses
-                        <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{toCount(stats?.total)}</span>
+                        <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 lg:ml-1 lg:px-1 dark:bg-white/10 dark:text-gray-300">{toCount(stats?.total)}</span>
                     </button>
                     {getRoleStatuses(role).map((statusValue) => {
                         const config = INCIDENT_STATUS[statusValue];
@@ -233,7 +233,7 @@ const IncidentFilterBar = ({
                                 className="status-filter shrink-0 whitespace-nowrap"
                             >
                                 {config.label}
-                                <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{count}</span>
+                                <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 lg:ml-1 lg:px-1 dark:bg-white/10 dark:text-gray-300">{count}</span>
                             </button>
                         );
                     })}
@@ -363,7 +363,7 @@ const ResponderQueueControls = ({
                                 className="filter-tab"
                             >
                                 {view.label}
-                                <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 dark:bg-white/10 dark:text-gray-300">{count}</span>
+                                <span aria-hidden="true" className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-gray-600 lg:ml-1 lg:px-1 dark:bg-white/10 dark:text-gray-300">{count}</span>
                             </button>
                         );
                     })}
