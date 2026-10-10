@@ -157,6 +157,7 @@ describe('map provider configuration', () => {
             includeStreet: true,
             include3DLabels: true,
             pmtilesUrl: 'https://maps.example.gov/sibuyan.pmtiles',
+            labels3DPmtilesUrl: 'https://maps.example.gov/labels.pmtiles',
         });
 
         expect(Array.isArray(result.streetLayerIds)).toBe(true);
@@ -189,6 +190,7 @@ describe('map provider configuration', () => {
             includeStreet: true,
             include3DLabels: true,
             pmtilesUrl: 'https://maps.example.gov/sibuyan.pmtiles',
+            labels3DPmtilesUrl: 'https://maps.example.gov/labels.pmtiles',
         });
 
         expect(result.hasVectorLabels).toBe(true);

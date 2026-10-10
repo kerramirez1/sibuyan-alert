@@ -12,6 +12,24 @@ vi.mock('../components/report/ProtectedEvidenceGallery', () => ({
     default: ({ images }) => <div data-testid="mock-evidence-gallery">{images?.length || 0} photos</div>,
 }));
 
+// Same fix as AdminEvidenceInspection.test.jsx: ResponderIncidentInspector
+// calls useSocket() but this suite renders it without a provider.
+vi.mock('../context/SocketContext', () => ({
+    useSocket: () => ({
+        unreadCount: 0,
+        notifications: [],
+        connected: true,
+        isConnected: true,
+        subscribe: vi.fn(() => () => {}),
+        emit: vi.fn(),
+        markAsRead: vi.fn(),
+        markAllAsRead: vi.fn(),
+        subscribeToIncident: vi.fn(),
+        unsubscribeFromIncident: vi.fn(),
+    }),
+    SocketProvider: ({ children }) => <>{children}</>,
+}));
+
 describe('Admin and Responder Casualty and Non-Duplicated Overview Inspection Flow', () => {
     const baseReport = {
         _id: 'report-c-101',

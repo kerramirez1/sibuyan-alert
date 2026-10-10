@@ -65,6 +65,18 @@ vi.mock('../components/ui/NotificationBell', () => ({
     default: () => <div data-testid="notification-bell" />,
 }));
 
+// The real hook probes /api/health with raw fetch, which fails in jsdom and
+// flips isOnline to false — LoginPage then renders its offline variant and
+// the login form never exists. Other suites mock this the same way.
+vi.mock('../hooks/useConnectivity', () => ({
+    useConnectivity: () => ({
+        isOnline: true,
+        isOffline: false,
+        lastChangedAt: null,
+        probeNow: async () => true,
+    }),
+}));
+
 vi.mock('../context/SocketContext', () => ({
     useSocket: () => ({
         unreadCount: 0,

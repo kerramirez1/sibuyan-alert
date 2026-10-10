@@ -35,6 +35,26 @@ vi.mock('../components/map/MapView', () => ({
     default: () => <div data-testid="mock-map-view" />,
 }));
 
+// fe380cc (2026-10-02) added useSocket() to ResponderIncidentInspector, but
+// this suite renders the inspector directly without a provider. Mock the
+// context with the full shape other suites use, so every subscriber in the
+// tree gets a stable subscribe function.
+vi.mock('../context/SocketContext', () => ({
+    useSocket: () => ({
+        unreadCount: 0,
+        notifications: [],
+        connected: true,
+        isConnected: true,
+        subscribe: vi.fn(() => () => {}),
+        emit: vi.fn(),
+        markAsRead: vi.fn(),
+        markAllAsRead: vi.fn(),
+        subscribeToIncident: vi.fn(),
+        unsubscribeFromIncident: vi.fn(),
+    }),
+    SocketProvider: ({ children }) => <>{children}</>,
+}));
+
 // Test Harness Component to test useOperationalIncidentDetails -> ResponderIncidentInspector integration
 const TestInspectorWithHook = ({ initialReport, user, onViewImage }) => {
     const detailState = useOperationalIncidentDetails(initialReport, user?.role);
