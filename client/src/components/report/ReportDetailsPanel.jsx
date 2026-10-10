@@ -3,7 +3,7 @@ import {
     HiOutlineExclamation,
     HiOutlineTrash,
 } from 'react-icons/hi';
-import { INCIDENT_CATEGORIES, SEVERITY_LEVELS } from './reportConfig';
+import { INCIDENT_CATEGORIES, SEVERITY_LEVELS, getSeverityDescription } from './reportConfig';
 
 const FieldError = ({ id, children }) => (
     <p id={id} className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
@@ -65,6 +65,7 @@ const ReportDetailsPanel = ({
 }) => {
     const currentCategory = INCIDENT_CATEGORIES[formData.incidentCategory];
     const selectedSeverity = SEVERITY_LEVELS.find((level) => level.value === formData.severity);
+    const severityDescription = getSeverityDescription(formData.incidentCategory, formData.severity);
 
     // Category change sets the category AND resets the type to the new
     // category's first type — the generic handleChange must not be used
@@ -158,7 +159,7 @@ const ReportDetailsPanel = ({
                         </select>
                         <span className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${selectedSeverity?.dot || 'bg-gray-400'}`} aria-hidden="true" />
-                            <span>{selectedSeverity?.description}</span>
+                            <span>{severityDescription}</span>
                         </span>
                     </label>
 

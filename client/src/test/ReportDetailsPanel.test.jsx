@@ -67,3 +67,27 @@ describe('ReportDetailsPanel incident category', () => {
         expect(typeSelect.value).toBe('structural');
     });
 });
+
+describe('ReportDetailsPanel severity descriptions', () => {
+    test.each([
+        ['accident', 'Minor injuries requiring a medical checkup'],
+        ['fire', 'Growing fire; nearby structures or vegetation at risk'],
+        ['hazard', 'Partial road blockage; pass with caution'],
+    ])('category %s shows its own severity wording', (category, expected) => {
+        renderPanel({ incidentCategory: category, severity: 'moderate' });
+
+        expect(screen.getByText(expected)).toBeInTheDocument();
+    });
+
+    test('unknown category falls back to the generic severity description', () => {
+        renderPanel({ incidentCategory: 'maritime', severity: 'critical' });
+
+        expect(screen.getByText('Life-threatening injuries or fatalities')).toBeInTheDocument();
+    });
+
+    test('unknown severity renders no description', () => {
+        renderPanel({ severity: 'extreme' });
+
+        expect(screen.queryByText(/Life-threatening|Uncontrolled fire|impassable/)).not.toBeInTheDocument();
+    });
+});
