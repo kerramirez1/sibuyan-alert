@@ -103,27 +103,70 @@ describe('IncidentQueueControls responder tab row', () => {
 });
 
 describe('IncidentQueueControls category filter', () => {
-    test('renders category options and wires selection to setCategory', () => {
+    test('category is an icon button at the end of the status row, not a separate row', () => {
+        renderResponderControls({ responderView: 'all', category: '', setCategory: vi.fn() });
+
+        const iconButton = screen.getByRole('button', { name: 'Filter by category' });
+        expect(iconButton).toBeInTheDocument();
+        expect(iconButton).toHaveAttribute('aria-haspopup', 'menu');
+        expect(iconButton).toHaveAttribute('aria-expanded', 'false');
+        // The standalone category row is gone; only the menu (closed) carries that label.
+        expect(screen.queryByLabelText('Filter by category', { selector: '[role="menu"]' })).not.toBeInTheDocument();
+    });
+
+    test('dropdown opens, selects an option, and closes', () => {
         const setCategory = vi.fn();
         renderResponderControls({ responderView: 'all', category: '', setCategory });
 
-        const categoryRow = screen.getByLabelText('Filter by category');
-        ['All categories', 'Accident', 'Fire', 'Road Hazard'].forEach((label) => {
-            expect(within(categoryRow).getByRole('button', { name: new RegExp(`^${label}( incidents)?$`) })).toBeInTheDocument();
-        });
+        fireEvent.click(screen.getByRole('button', { name: 'Filter by category' }));
+        const menu = screen.getByRole('menu', { name: 'Filter by category' });
+        expect(menu).toBeInTheDocument();
 
-        const allButton = within(categoryRow).getByRole('button', { name: 'All categories' });
-        expect(allButton).toHaveAttribute('aria-pressed', 'true');
+        const items = within(menu).getAllByRole('menuitemradio');
+        expect(items.map((item) => item.textContent)).toEqual(['All categories', 'Accident', 'Fire', 'Road Hazard']);
 
-        fireEvent.click(within(categoryRow).getByRole('button', { name: 'Fire incidents' }));
+        fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Fire' }));
         expect(setCategory).toHaveBeenCalledWith('fire');
+        expect(screen.queryByRole('menu', { name: 'Filter by category' })).not.toBeInTheDocument();
     });
 
-    test('marks the active category with aria-pressed', () => {
-        renderResponderControls({ responderView: 'all', category: 'hazard', setCategory: vi.fn() });
+    test('active category shows on the button; "All categories" clears', () => {
+        const setCategory = vi.fn();
+        renderResponderControls({ responderView: 'all', category: 'fire', setCategory });
 
-        const categoryRow = screen.getByLabelText('Filter by category');
-        expect(within(categoryRow).getByRole('button', { name: 'Road Hazard incidents' })).toHaveAttribute('aria-pressed', 'true');
-        expect(within(categoryRow).getByRole('button', { name: 'Fire incidents' })).toHaveAttribute('aria-pressed', 'false');
+        const iconButton = screen.getByRole('button', { name: 'Category: Fire, change filter' });
+        expect(iconButton).toHaveTextContent('Fire');
+
+        fireEvent.click(iconButton);
+        const menu = screen.getByRole('menu', { name: 'Filter by category' });
+        expect(within(menu).getByRole('menuitemradio', { name: 'Fire' })).toHaveAttribute('aria-checked', 'true');
+
+        fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'All categories' }));
+        expect(setCategory).toHaveBeenCalledWith('');
+    });
+
+    test('Escape and outside click close the dropdown', () => {
+        renderResponderControls({ responderView: 'all', category: '', setCategory: vi.fn() });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Filter by category' }));
+        expect(screen.getByRole('menu', { name: 'Filter by category' })).toBeInTheDocument();
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByRole('menu', { name: 'Filter by category' })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Filter by category' }));
+        expect(screen.getByRole('menu', { name: 'Filter by category' })).toBeInTheDocument();
+        fireEvent.pointerDown(document.body);
+        expect(screen.queryByRole('menu', { name: 'Filter by category' })).not.toBeInTheDocument();
+    });
+
+    test('dropdown works in the responder non-all view too', () => {
+        const setCategory = vi.fn();
+        renderResponderControls({ responderView: 'available', category: '', setCategory });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Filter by category' }));
+        const menu = screen.getByRole('menu', { name: 'Filter by category' });
+        fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Road Hazard' }));
+        expect(setCategory).toHaveBeenCalledWith('hazard');
     });
 });

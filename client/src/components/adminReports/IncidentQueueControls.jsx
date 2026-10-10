@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+    HiOutlineFilter,
     HiOutlineRefresh,
     HiOutlineSearch,
     HiOutlineX,
@@ -127,7 +128,36 @@ const IncidentFilterBar = ({
     clearFilters,
     hasFilters,
     stats,
-}) => (
+}) => {
+    const [categoryOpen, setCategoryOpen] = useState(false);
+    const categoryMenuRef = useRef(null);
+    const activeCategory = CATEGORY_FILTER_OPTIONS.find((option) => option.value && option.value === category) || null;
+
+    // The dropdown is transient UI: Escape or an outside pointer closes it.
+    useEffect(() => {
+        if (!categoryOpen) return undefined;
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') setCategoryOpen(false);
+        };
+        const handlePointerDown = (event) => {
+            if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target)) {
+                setCategoryOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('pointerdown', handlePointerDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('pointerdown', handlePointerDown);
+        };
+    }, [categoryOpen]);
+
+    const selectCategory = (value) => {
+        setCategory(value);
+        setCategoryOpen(false);
+    };
+
+    return (
     <section aria-label="Incident filters" className="filter-bar mb-5">
         <form
             onSubmit={(event) => {
@@ -209,27 +239,55 @@ const IncidentFilterBar = ({
                     })}
                 </ScrollFadeRow>
             )}
-        </div>
-
-        <div className="filter-bar__row">
-            <span className="filter-bar__label">Category</span>
-            <ScrollFadeRow className="flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" aria-label="Filter by category" tabIndex={0}>
-                {CATEGORY_FILTER_OPTIONS.map((option) => (
-                    <button
-                        key={option.value || 'all'}
-                        type="button"
-                        aria-pressed={category === option.value}
-                        aria-label={option.value ? `${option.label} incidents` : 'All categories'}
-                        onClick={() => setCategory(option.value)}
-                        className="status-filter shrink-0 whitespace-nowrap"
+            {/* Category lives here, pinned right of the status row: one
+                filter line, with the active category carried on the button
+                itself. The menu is transient; the filter logic is unchanged. */}
+            <div ref={categoryMenuRef} className="relative ml-auto shrink-0">
+                <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={categoryOpen}
+                    aria-label={activeCategory ? `Category: ${activeCategory.label}, change filter` : 'Filter by category'}
+                    onClick={() => setCategoryOpen((open) => !open)}
+                    className={activeCategory
+                        ? 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--accent)] bg-[var(--accent-soft)] px-2.5 py-1.5 text-xs font-semibold text-[var(--accent-text)]'
+                        : 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5'}
+                >
+                    <HiOutlineFilter className="h-4 w-4" aria-hidden="true" />
+                    {activeCategory ? <span>{activeCategory.label}</span> : null}
+                </button>
+                {categoryOpen ? (
+                    <div
+                        role="menu"
+                        aria-label="Filter by category"
+                        className="absolute right-0 z-20 mt-1 min-w-44 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-white/10 dark:bg-[#0c1813]"
                     >
-                        {option.label}
-                    </button>
-                ))}
-            </ScrollFadeRow>
+                        {CATEGORY_FILTER_OPTIONS.map((option) => {
+                            const isChecked = category === option.value;
+                            return (
+                                <button
+                                    key={option.value || 'all'}
+                                    type="button"
+                                    role="menuitemradio"
+                                    aria-checked={isChecked}
+                                    onClick={() => selectCategory(option.value)}
+                                    className={`flex w-full items-center justify-between gap-4 px-3 py-2 text-left text-sm ${
+                                        isChecked
+                                            ? 'font-semibold text-[var(--accent-text)]'
+                                            : 'font-normal text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5'
+                                    }`}
+                                >
+                                    <span>{option.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                ) : null}
+            </div>
         </div>
     </section>
-);
+    );
+};
 
 const ResponderQueueControls = ({
     responderView,
