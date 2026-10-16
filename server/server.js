@@ -410,7 +410,9 @@ app.use('/api', (req, res) => {
 
 // In production this serves the Vite build and client-side routes. In
 // development Vite continues to run independently with its API proxy.
-configureProductionClient(app);
+// Registered inside startServer() (not module scope) so a missing
+// client/dist fails through the normal boot error path instead of
+// surfacing as a raw uncaught exception before crash handlers exist.
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
@@ -467,6 +469,8 @@ export const startServer = async () => {
         console.warn('⚠️ Single-dyno mode: in-memory rate limits + Socket.IO rooms. Scale past 1 web dyno only after setting REDIS_URL.');
     }
 
+    configureProductionClient(app);
+
     return httpServer.listen(PORT, () => {
     console.log('');
     console.log('╔════════════════════════════════════════════════════════════════╗');
@@ -487,6 +491,14 @@ export const startServer = async () => {
     console.log('║                                                                ║');
     console.log('╚════════════════════════════════════════════════════════════════╝');
     console.log('');
+
+    // Orphaned evidence requeue: runs only after $PORT is bound, and
+    // fire-and-forget so it can never delay or fail the boot. The job
+    // itself is wrapped to never throw; the .catch here only covers a
+    // synchronous import failure.
+    import('./controllers/reportController.js')
+        .then(({ requeueOrphanedEvidenceAnalysis }) => requeueOrphanedEvidenceAnalysis())
+        .catch((error) => console.error('Orphaned evidence requeue failed to start:', error?.message || error));
     });
 };
 

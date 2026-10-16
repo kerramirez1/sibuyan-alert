@@ -13,7 +13,7 @@ import { describeHazardsAt } from '../services/hazardAreaService.js';
 import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
-import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket } from '../services/gridFsService.js';
+import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket, parseGridFsFileId } from '../services/gridFsService.js';
 import { readUploadBuffer, cleanupTempUploadFiles } from '../middleware/upload.js';
 import { generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
 import { evidenceProcessingQueue } from '../services/evidenceProcessingQueue.js';
@@ -225,6 +225,106 @@ const persistEvidenceMetadata = async (reportId, evidenceIndex, metadata) => {
             },
         }],
     );
+};
+
+/**
+ * Streams a previously uploaded evidence image back out of GridFS.
+ *
+ * The multer temp files are gone after a restart, so a boot-time requeue
+ * cannot reuse the submit-time `readUploadBuffer(file)` path. The stored
+ * GridFS file behind `images[]` is the durable source of the same bytes.
+ */
+const downloadStoredEvidenceBuffer = async (imageUrl) => {
+    const fileId = parseGridFsFileId(imageUrl);
+    if (!fileId) throw new Error('Cannot resolve a GridFS file id from the stored image URL');
+    const file = await findGridFsFile(fileId);
+    if (!file) throw new Error('Stored evidence file not found in GridFS');
+    if (file.length != null && file.length > 15 * 1024 * 1024) {
+        throw new Error('Stored evidence file too large to analyse');
+    }
+    const downloadStream = getGridFsBucket().openDownloadStream(file._id);
+    const chunks = [];
+    for await (const chunk of downloadStream) chunks.push(chunk);
+    return Buffer.concat(chunks);
+};
+
+/**
+ * Runs one orphaned evidence analysis from its stored GridFS bytes and
+ * persists the result, mirroring the submit-time queued job exactly
+ * (same options, same entry builders, same per-photo failure isolation).
+ */
+const analyzeStoredEvidenceImage = async (reportId, evidenceIndex, imageUrl) => {
+    let entry;
+
+    try {
+        const buffer = await downloadStoredEvidenceBuffer(imageUrl);
+        const derivative = await generateRedactedEvidenceDerivative(
+            buffer,
+            EVIDENCE_ANALYSIS_OPTIONS,
+        );
+        entry = buildEvidenceMetadataEntry(evidenceIndex, derivative.metadata);
+    } catch (error) {
+        console.warn(`Orphaned evidence analysis failed for index ${evidenceIndex}:`, error?.message || error);
+        entry = buildFailedEvidenceMetadataEntry(evidenceIndex);
+    }
+
+    await persistEvidenceMetadata(reportId, evidenceIndex, entry);
+};
+
+/**
+ * Boot-time requeue for evidence analysis orphaned by a dyno restart.
+ *
+ * The evidence queue is in-memory only, and Heroku cycles dynos daily and on
+ * every deploy. A report whose analysis was queued or in flight at restart
+ * would otherwise keep its images[] entries without evidenceMetadata entries
+ * forever, and the public projection renders those as "processing"
+ * permanently. This scan finds such reports and requeues the missing indices
+ * through the EXISTING evidenceProcessingQueue — it never re-uploads and
+ * never mutates images[].
+ *
+ * Bounded by design: only reports created inside a recent window are
+ * examined, at most REQUEUE_MAX_DOCUMENTS per boot, and the whole job is
+ * wrapped so a failure is logged and can never throw into the boot path.
+ */
+const REQUEUE_MAX_DOCUMENTS = 50;
+const REQUEUE_AGE_WINDOW_DAYS = 7;
+
+export const requeueOrphanedEvidenceAnalysis = async () => {
+    try {
+        const since = new Date(Date.now() - REQUEUE_AGE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+        const candidates = await Report.find({
+            createdAt: { $gte: since },
+            $expr: {
+                $gt: [
+                    { $size: { $ifNull: ['$images', []] } },
+                    { $size: { $ifNull: ['$evidenceMetadata', []] } },
+                ],
+            },
+        })
+            .sort({ createdAt: -1 })
+            .limit(REQUEUE_MAX_DOCUMENTS)
+            .select('_id images evidenceMetadata')
+            .lean();
+
+        let requeued = 0;
+        for (const report of candidates) {
+            const images = Array.isArray(report.images) ? report.images : [];
+            const metadata = Array.isArray(report.evidenceMetadata) ? report.evidenceMetadata : [];
+            const indexed = new Set(metadata.map((entry) => Number(entry?.index)));
+            images.forEach((imageUrl, index) => {
+                if (indexed.has(index)) return;
+                requeued += 1;
+                evidenceProcessingQueue.enqueue(() => analyzeStoredEvidenceImage(report._id, index, imageUrl));
+            });
+        }
+
+        if (requeued > 0) {
+            console.log(`🔁 Requeued ${requeued} orphaned evidence analysis task(s) from ${candidates.length} report(s)`);
+        }
+    } catch (error) {
+        // Best-effort by design: an orphan scan must never fail the boot.
+        console.error('Orphaned evidence requeue failed:', error?.message || error);
+    }
 };
 
 /**

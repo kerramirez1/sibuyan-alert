@@ -8,12 +8,16 @@ const require = createRequire(import.meta.url);
  *
  * Default is the in-memory store (single web dyno only). When REDIS_URL is
  * set and the optional `rate-limit-redis` + `redis` packages are installed,
- * all limiters share Redis so limits stay consistent across dynos/processes.
- * If REDIS_URL is set but the packages are missing, startup fails fast via
- * validateRuntimeConfig/scaling guards — limits never silently diverge.
+ * every limiter gets its OWN RedisStore over ONE shared Redis client, so
+ * limits stay consistent across dynos/processes. The stores must not be
+ * shared between limiters: express-rate-limit's unsharedStore validation
+ * throws ERR_ERL_STORE_REUSE for a reused store instance, which would crash
+ * the boot. If REDIS_URL is set but the packages are missing, startup fails
+ * fast via validateRuntimeConfig/scaling guards — limits never silently
+ * diverge.
  */
 
-const getSharedRateLimitStore = () => {
+const createRateLimitStoreFactory = () => {
     if (!process.env.REDIS_URL?.trim()) return null;
     try {
         const { RedisStore } = require('rate-limit-redis');
@@ -23,14 +27,18 @@ const getSharedRateLimitStore = () => {
         // Fire-and-forget: express-rate-limit queues while connecting.
         client.connect().catch((error) => console.error('❌ Redis rate-limit connect failed:', error.message));
         console.log('🔗 Rate limiting uses shared Redis store');
-        return new RedisStore({ sendCommand: (...args) => client.sendCommand(args) });
+        // One client, one fresh RedisStore per limiter (unique key prefix).
+        return (prefix) => new RedisStore({
+            sendCommand: (...args) => client.sendCommand(args),
+            prefix,
+        });
     } catch {
         throw new Error('REDIS_URL is set but optional packages are missing: npm install rate-limit-redis redis --workspace=sibuyan-accident-alert-server');
     }
 };
 
-const sharedStore = getSharedRateLimitStore();
-const withStore = (options) => (sharedStore ? { ...options, store: sharedStore } : options);
+const createRateLimitStore = createRateLimitStoreFactory();
+const withStore = (options, prefix) => (createRateLimitStore ? { ...options, store: createRateLimitStore(prefix) } : options);
 
 /** Auth endpoints: login, register, forgot-password */
 export const authLimiter = rateLimit(withStore({
@@ -42,7 +50,7 @@ export const authLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many attempts. Please try again after 15 minutes.',
     },
-}));
+}, 'rl:auth:'));
 
 /** Stricter limiter for forgot-password (prevents email flooding) */
 export const passwordResetLimiter = rateLimit(withStore({
@@ -54,7 +62,7 @@ export const passwordResetLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many password reset requests. Please try again after an hour.',
     },
-}));
+}, 'rl:pwreset:'));
 
 /** Report creation limiter (prevents spam submissions) */
 export const reportCreationLimiter = rateLimit(withStore({
@@ -75,7 +83,7 @@ export const reportCreationLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many reports submitted. Please try again shortly.',
     },
-}));
+}, 'rl:report:'));
 
 /**
  * Evidence-upload limiter (POST /:id/evidence). Two-phase submit sends each
@@ -98,7 +106,7 @@ export const reportEvidenceLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many reports submitted. Please try again shortly.',
     },
-}));
+}, 'rl:evidence:'));
 
 /** Public geocoding proxy limiter; protects the upstream Nominatim service. */
 export const locationLookupLimiter = rateLimit(withStore({
@@ -110,7 +118,7 @@ export const locationLookupLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many location lookups. Please wait a moment and try again.',
     },
-}));
+}, 'rl:geocode:'));
 
 /**
  * View recorder, shared by report and zone views.
@@ -130,7 +138,7 @@ export const viewLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many view updates. Please wait a moment and try again.',
     },
-}));
+}, 'rl:view:'));
 
 /** Typeahead search: generous burst for keystroke-driven queries, no PII in payload. */
 export const searchLimiter = rateLimit(withStore({
@@ -142,7 +150,7 @@ export const searchLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many searches. Please wait a moment and try again.',
     },
-}));
+}, 'rl:search:'));
 
 /**
  * Analytics dashboards: same budget as search (60/min/IP). The aggregations
@@ -159,7 +167,7 @@ export const analyticsLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many analytics requests. Please wait a moment and try again.',
     },
-}));
+}, 'rl:analytics:'));
 
 /** Protect subscription persistence without interfering with normal silent resync. */
 export const pushSubscriptionLimiter = rateLimit(withStore({
@@ -171,4 +179,4 @@ export const pushSubscriptionLimiter = rateLimit(withStore({
         success: false,
         message: 'Too many notification subscription updates. Please try again shortly.',
     },
-}));
+}, 'rl:pushsub:'));
