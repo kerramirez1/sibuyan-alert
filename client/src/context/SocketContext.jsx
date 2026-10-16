@@ -241,6 +241,7 @@ export const SocketProvider = ({ children }) => {
 
         // RESPONDER-SPECIFIC: Alert when a NEW report is submitted in their municipality.
         const handleNewReportAlert = (alertData) => {
+            if (!alertData || typeof alertData !== 'object') return;
             // Soft hint only for responder accounts; no unread badge increment for unverified reports.
             if (user?.role !== 'responder') return;
 
@@ -258,6 +259,7 @@ export const SocketProvider = ({ children }) => {
         // Only other response units need a toast. The acting responder already
         // receives the API success confirmation for the same action.
         const handleLocalUnitResponse = (data) => {
+            if (!data || typeof data !== 'object') return;
             if (user?.role !== 'responder') return;
             const actorId = String(data.responder?._id || '');
             if (actorId && actorId === currentUserId) return;
@@ -285,7 +287,8 @@ export const SocketProvider = ({ children }) => {
 
         // Public resolution events update the map. Only scoped operational users
         // other than the actor need a toast announcement.
-        const handleResolutionDetails = (data) => {            if (!['municipal_admin', 'responder'].includes(user?.role)) return;
+        const handleResolutionDetails = (data) => {            if (!data || typeof data !== 'object') return;
+            if (!['municipal_admin', 'responder'].includes(user?.role)) return;
             const actorId = String(data.resolvedBy?._id || '');
             if (actorId && actorId === currentUserId) return;
 
