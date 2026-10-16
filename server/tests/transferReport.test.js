@@ -203,11 +203,14 @@ describe('transferReport controller', () => {
 
     test('successfully transfers report status, logs history, and broadcasts real-time updates', async () => {
         const mockReport = {
+            _id: 'report123',
             status: 'verified',
             municipality: 'muniCajidiocan',
             municipalityName: 'Cajidiocan',
+            address: 'Coastal Road',
             transferHistory: [],
-            save: jest.fn().mockResolvedValue({}),
+            responders: [],
+            respondedBy: null,
         };
         Report.findById.mockReturnValue({
             populate: jest.fn().mockReturnThis(),
@@ -223,6 +226,36 @@ describe('transferReport controller', () => {
             select: jest.fn().mockResolvedValue([{ _id: 'responderUser1' }]),
         });
 
+        // Emulates the atomic transfer: the status/no-active-response filter
+        // and the $set/$push update are applied to the in-memory mock
+        // report, like MongoDB would apply them to the stored document.
+        Report.findOneAndUpdate.mockImplementation((filter, update) => {
+            const statusOk = Array.isArray(filter?.status?.$in)
+                ? filter.status.$in.includes(mockReport.status)
+                : true;
+            const idOk = filter?._id === undefined || String(filter._id) === String(mockReport._id);
+            const clauseOk = (clause) => (clause?.$or || []).some((cond) => {
+                const [field, op] = Object.entries(cond)[0];
+                if (op?.$exists === false) return mockReport[field] === undefined;
+                if (op?.$size !== undefined) {
+                    return Array.isArray(mockReport[field]) && mockReport[field].length === op.$size;
+                }
+                if (op === null) return mockReport[field] == null;
+                return false;
+            });
+            const matched = statusOk && idOk && (filter?.$and || []).every(clauseOk);
+            if (matched) {
+                const pushed = update?.$push?.transferHistory;
+                if (pushed) {
+                    mockReport.transferHistory = [...(mockReport.transferHistory || []), { ...pushed }];
+                }
+                Object.assign(mockReport, update?.$set || {});
+            }
+            return {
+                populate: jest.fn().mockResolvedValue(matched ? mockReport : null),
+            };
+        });
+
         await transferReport(req, res);
 
         expect(mockReport.status).toBe('transferred');
@@ -236,7 +269,17 @@ describe('transferReport controller', () => {
                 reason: 'Geographically closer to Magdiwang station',
             })
         );
-        expect(mockReport.save).toHaveBeenCalled();
+        expect(Report.findOneAndUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: 'report123',
+                status: { $in: ['verified', 'transferred'] },
+            }),
+            expect.objectContaining({
+                $set: expect.objectContaining({ status: 'transferred' }),
+                $push: expect.objectContaining({ transferHistory: expect.anything() }),
+            }),
+            { new: true }
+        );
         expect(broadcastReportTransfer).toHaveBeenCalled();
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -244,6 +287,47 @@ describe('transferReport controller', () => {
                 message: expect.stringContaining('successfully transferred to Magdiwang'),
             })
         );
+    });
+
+    test('returns 409 when a dispatch lands between the read and the atomic write', async () => {
+        const mockReport = {
+            _id: 'report123',
+            status: 'verified',
+            municipality: 'muniCajidiocan',
+            municipalityName: 'Cajidiocan',
+            transferHistory: [],
+            responders: [],
+            respondedBy: null,
+        };
+        // Pre-read sees a transferable report; the re-read in the loser
+        // path sees the dispatch that landed in between.
+        Report.findById.mockImplementation(() => ({
+            populate: jest.fn().mockResolvedValue(mockReport),
+            select: jest.fn().mockReturnThis(),
+            lean: jest.fn().mockResolvedValue({ status: 'responding' }),
+        }));
+
+        const mockTargetMuni = {
+            _id: 'muniMagdiwang',
+            name: 'Magdiwang',
+        };
+        Municipality.findById.mockResolvedValue(mockTargetMuni);
+
+        // The atomic write misses: the report is no longer transferable.
+        Report.findOneAndUpdate.mockReturnValue({
+            populate: jest.fn().mockResolvedValue(null),
+        });
+
+        await transferReport(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(409);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: false,
+                message: 'Cannot transfer a report with status "responding".',
+            })
+        );
+        expect(broadcastReportTransfer).not.toHaveBeenCalled();
     });
 
     test('allows a destination responder to accept a transferred report', async () => {

@@ -2303,7 +2303,10 @@ export const transferReport = async (req, res) => {
         const { targetMunicipalityId, reason } = req.body;
         const admin = req.user;
 
-        const report = await Report.findById(req.params.id)
+        // `let`: the pre-read below serves the authorization/validation
+        // gates; the atomic claim further down reassigns it to the winning
+        // write.
+        let report = await Report.findById(req.params.id)
             .populate('reporter', 'name email pushSubscription notificationPreferences');
 
         if (!report) {
@@ -2359,24 +2362,64 @@ export const transferReport = async (req, res) => {
             || report.transferHistory?.[0]?.fromMunicipalityName
             || fromMuniName;
 
-        // Perform the transfer. `municipalityName` remains the handling office
-        // for scoping/dispatch; original* fields preserve where the incident happened.
-        report.originalMunicipality = originalMuniId;
-        report.originalMunicipalityName = originalMuniName;
-        report.municipality = targetMuni._id;
-        report.municipalityName = targetMuni.name;
-        report.status = 'transferred';
+        // Atomic claim: exactly one concurrent transfer wins. The filter
+        // carries the status guard AND the no-active-response condition
+        // atomically, so (a) a simultaneous transfer cannot interleave a
+        // partial state, and (b) a dispatch landing between our read and this
+        // write makes the update miss instead of reverting the report from
+        // 'responding' back to 'transferred' and orphaning the responders.
+        // A null result means we lost the race — disambiguated below with
+        // the same 409 shape verifyReport uses for its loser path.
+        const updatedReport = await Report.findOneAndUpdate(
+            {
+                _id: report._id,
+                status: { $in: transferableStatuses },
+                $and: [
+                    { $or: [{ responders: { $exists: false } }, { responders: { $size: 0 } }] },
+                    { $or: [{ respondedBy: { $exists: false } }, { respondedBy: null }] },
+                ],
+            },
+            {
+                // Perform the transfer. `municipalityName` remains the
+                // handling office for scoping/dispatch; original* fields
+                // preserve where the incident happened.
+                $set: {
+                    originalMunicipality: originalMuniId,
+                    originalMunicipalityName: originalMuniName,
+                    municipality: targetMuni._id,
+                    municipalityName: targetMuni.name,
+                    status: 'transferred',
+                },
+                $push: {
+                    transferHistory: {
+                        fromMunicipality: fromMuniId,
+                        fromMunicipalityName: fromMuniName,
+                        toMunicipality: targetMuni._id,
+                        toMunicipalityName: targetMuni.name,
+                        reason,
+                        transferredBy: admin._id,
+                    },
+                },
+            },
+            { new: true },
+        ).populate('reporter', 'name email pushSubscription notificationPreferences');
 
-        report.transferHistory.push({
-            fromMunicipality: fromMuniId,
-            fromMunicipalityName: fromMuniName,
-            toMunicipality: targetMuni._id,
-            toMunicipalityName: targetMuni.name,
-            reason,
-            transferredBy: admin._id,
-        });
+        if (!updatedReport) {
+            // Lost the race: the status moved (dispatch, resolve, or another
+            // transfer's municipality change) between our read and this
+            // write. Re-read the status for an accurate message; the 409
+            // shape itself matches the verify conflict the client handles.
+            const current = await Report.findById(report._id).select('status').lean();
+            const currentStatus = current?.status || report.status;
+            return res.status(409).json({
+                success: false,
+                message: `Cannot transfer a report with status "${currentStatus}".`,
+            });
+        }
 
-        await report.save();
+        // From here on, `report` is the winning write; every broadcast and
+        // notification below fires exactly once, for the winner only.
+        report = updatedReport;
 
         // Broadcast real-time update
         const io = req.app.get('io');
