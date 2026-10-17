@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
  * for real against the module's wiring.
  */
 const createdStores = [];
+const issuedCommands = [];
 let RealRedisStore = null;
 
 const installRequireHook = ({ redisAvailable = true } = {}) => {
@@ -22,7 +23,22 @@ const installRequireHook = ({ redisAvailable = true } = {}) => {
                     // Resolved: the fire-and-forget connect() must never hang
                     // the test process on a reconnect loop.
                     connect: () => Promise.resolve(),
-                    sendCommand: () => Promise.resolve(),
+                    // RedisStore's constructor fires two un-awaited SCRIPT LOAD
+                    // calls and requires a string SHA in reply; anything else
+                    // rejects with "unexpected reply from redis client" and
+                    // surfaces as an unhandled rejection. Reply with the shapes
+                    // the real client returns:
+                    //   SCRIPT LOAD -> SHA string
+                    //   EVALSHA     -> [hits, ttlMs] (parsed by parseScriptResponse)
+                    // The wrapper in rateLimiter.js passes the command as ONE
+                    // array arg: (...args) => client.sendCommand(args).
+                    sendCommand: (commandArgs) => {
+                        issuedCommands.push(commandArgs);
+                        const [command] = Array.isArray(commandArgs) ? commandArgs : [];
+                        if (command === 'SCRIPT') return Promise.resolve('a'.repeat(40));
+                        if (command === 'EVALSHA') return Promise.resolve([1, 60_000]);
+                        return Promise.resolve(null);
+                    },
                 }),
             };
         }
@@ -76,6 +92,7 @@ describe('rate limiter Redis store isolation', () => {
     beforeEach(() => {
         vi.resetModules();
         createdStores.length = 0;
+        issuedCommands.length = 0;
         restoreHook = installRequireHook();
     });
 
@@ -99,6 +116,18 @@ describe('rate limiter Redis store isolation', () => {
         const prefixes = createdStores.map((store) => store.prefix);
         expect(new Set(prefixes).size).toBe(9);
         expect([...prefixes].sort()).toEqual([...EXPECTED_PREFIXES].sort());
+    });
+
+    test('the fake client answers SCRIPT LOAD so RedisStore settles', async () => {
+        process.env.REDIS_URL = 'redis://localhost:6379';
+
+        await import('../middleware/rateLimiter.js');
+
+        const scriptLoads = issuedCommands.filter(
+            (args) => Array.isArray(args) && args[0] === 'SCRIPT' && args[1] === 'LOAD'
+        );
+        // Two per store: the increment script and the get script.
+        expect(scriptLoads).toHaveLength(createdStores.length * 2);
     });
 
     test('no store is constructed when REDIS_URL is unset (in-memory limiters)', async () => {
