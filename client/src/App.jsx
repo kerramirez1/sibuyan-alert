@@ -43,6 +43,24 @@ const PageLoader = () => (
     </div>
 );
 
+/**
+ * True when the browser reports a constrained link or the user has asked
+ * to save data. Prefetching is a bet on the next navigation; on a weak link
+ * that bet is paid for by the page currently loading.
+ *
+ * navigator.connection is unavailable on iOS Safari, which returns false
+ * here — prefetch then behaves exactly as it does today.
+ */
+const isConstrainedConnection = () => {
+    if (typeof navigator === 'undefined') return false;
+    const conn = navigator.connection
+        || navigator.mozConnection
+        || navigator.webkitConnection;
+    if (!conn) return false;
+    if (conn.saveData === true) return true;
+    return ['slow-2g', '2g', '3g'].includes(conn.effectiveType);
+};
+
 function App() {
     const { isAuthenticated, loading, user, hadSessionHint } = useAuth();
     const location = useLocation();
@@ -54,6 +72,9 @@ function App() {
     // chunk, no double download. Failures are ignored (route still lazy-loads).
     useEffect(() => {
         if (loading) return;
+        // Do not prefetch a route the user has not asked for while the current
+        // one is still downloading over a weak link.
+        if (isConstrainedConnection()) return;
         const prefetch = () => {
             const tasks = [import('./pages/AccidentHistoryPage')];
             if (!isAuthenticated) {

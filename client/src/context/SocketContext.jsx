@@ -57,7 +57,20 @@ export const SocketProvider = ({ children }) => {
             });
 
             socketInstance = io(socketUrl, {
-                transports: ['polling', 'websocket'],
+                // WebSocket first: on a high-latency link the default polling
+                // handshake costs ~2 round trips before the upgrade probe adds
+                // ~2 more, and every long-poll request carries full HTTP headers
+                // on a metered connection. Polling stays in the list as the
+                // fallback for proxies that block the WebSocket upgrade.
+                transports: ['websocket', 'polling'],
+                // Required for that fallback to exist. engine.io-client only
+                // moves to the next transport in _onError when this flag is
+                // truthy (socket.js: `if (this.opts.tryAllTransports && ...)`),
+                // and it defaults to undefined. Without it a proxy that blocks
+                // the WebSocket upgrade would fail every reconnect attempt on
+                // websocket and never reach polling — the opposite of the old
+                // polling-first config, which always connected.
+                tryAllTransports: true,
                 autoConnect: true,
                 reconnection: true,
                 // Field connectivity is intermittent by nature; retry forever with

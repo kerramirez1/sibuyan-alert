@@ -91,7 +91,10 @@ describe('SocketProvider notification policy', () => {
         await renderConnected();
 
         expect(mocks.ioMock).toHaveBeenCalledWith('http://localhost:5000', expect.objectContaining({
-            transports: ['polling', 'websocket'],
+            transports: ['websocket', 'polling'],
+            // Without this, engine.io never falls through to polling after a
+            // failed WebSocket attempt — see the comment in SocketContext.jsx.
+            tryAllTransports: true,
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 500,
