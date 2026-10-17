@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -77,7 +77,16 @@ export const reportCreationLimiter = rateLimit(withStore({
     keyGenerator: (req) => {
         const userId = req.user?._id || req.user?.id;
         if (userId) return `report-user:${userId}`;
-        return `report-ip:${req.ip}`;
+        // ipKeyGenerator normalises IPv6 to its /56 network; a client that
+        // controls a /64 could otherwise rotate addresses inside it and get a
+        // fresh budget per address. IPv4 (and IPv4-mapped IPv6) is returned
+        // unchanged, so existing IPv4 keying is identical.
+        //
+        // The call must stay INSIDE this function. express-rate-limit validates
+        // ERR_ERL_KEY_GEN_IPV6 by inspecting this function's source text for the
+        // `ipKeyGenerator` identifier — hoisting the call into a module-level
+        // helper would still fail validation.
+        return `report-ip:${ipKeyGenerator(req.ip)}`;
     },
     message: {
         success: false,
@@ -100,7 +109,9 @@ export const reportEvidenceLimiter = rateLimit(withStore({
     keyGenerator: (req) => {
         const userId = req.user?._id || req.user?.id;
         if (userId) return `evidence-user:${userId}`;
-        return `evidence-ip:${req.ip}`;
+        // Same reasoning as reportCreationLimiter: normalise IPv6 to its /56
+        // network so one client cannot rotate addresses for extra budget.
+        return `evidence-ip:${ipKeyGenerator(req.ip)}`;
     },
     message: {
         success: false,

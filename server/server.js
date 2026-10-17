@@ -26,7 +26,7 @@ dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') }
 
 // Import configurations
 import connectDB from './config/db.js';
-import { configureProductionClient } from './config/clientApp.js';
+import { assertProductionClientBuild, registerProductionClient } from './config/clientApp.js';
 import { validateRuntimeConfig } from './config/runtimeConfig.js';
 import { configureWebPush } from './services/pushService.js';
 import { ensureAnalyticsView } from './services/analyticsViewService.js';
@@ -408,11 +408,15 @@ app.use('/api', (req, res) => {
     });
 });
 
-// In production this serves the Vite build and client-side routes. In
-// development Vite continues to run independently with its API proxy.
-// Registered inside startServer() (not module scope) so a missing
-// client/dist fails through the normal boot error path instead of
-// surfacing as a raw uncaught exception before crash handlers exist.
+// Registered HERE, at module scope, so the static layer and SPA fallback sit
+// before the terminal 404 handler below. Registration is side-effect free;
+// the build-existence check that can throw is deferred to startServer()
+// (assertProductionClientBuild) so a missing client/dist still fails through
+// the normal boot error path.
+//
+// Do not move this call into startServer(): Express matches in registration
+// order, and anything appended after the 404 handler is unreachable.
+registerProductionClient(app);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
@@ -453,6 +457,9 @@ const backgroundStops = [];
 
 export const startServer = async () => {
     validateRuntimeConfig(process.env);
+    // Fail before connecting to MongoDB if the production client build is
+    // missing: no point seeding a database for a process that cannot serve.
+    assertProductionClientBuild();
     const { attachSocketRedisAdapter } = await import('./config/scaling.js');
     await attachSocketRedisAdapter(io, process.env);
     await initializeDatabase();
@@ -468,8 +475,6 @@ export const startServer = async () => {
     if (!process.env.REDIS_URL?.trim()) {
         console.warn('⚠️ Single-dyno mode: in-memory rate limits + Socket.IO rooms. Scale past 1 web dyno only after setting REDIS_URL.');
     }
-
-    configureProductionClient(app);
 
     return httpServer.listen(PORT, () => {
     console.log('');
