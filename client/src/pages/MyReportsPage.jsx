@@ -1102,7 +1102,10 @@ function MyReportsPage() {
                                                             { label: 'Incident date', value: formatIncidentDateTime(report?.incidentTime || report?.accidentTime || report?.createdAt) },
                                                             { label: 'Incident type', value: formatIncidentType(report) },
                                                             { label: 'Coordinates', value: formatCoordinates(report) },
-                                                            { label: 'Report views', value: report?.viewCount || 0 },
+                                                            // Distinct viewers, not total opens. The server derives this from the
+                                                            // deduped ViewEvent rows, so repeat opens and a guest-then-signed-in
+                                                            // visit count once.
+                                                            { label: 'Report viewers', value: report?.viewerCount ?? 0 },
                                                             {
                                                                 label: 'Severity',
                                                                 value: (

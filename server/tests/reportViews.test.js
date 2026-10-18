@@ -131,7 +131,7 @@ describe('getOperationalReportById view counting', () => {
         jest.clearAllMocks();
     });
 
-    test('increments viewCount on admin inspection and returns the new count', async () => {
+    test('does not write viewCount on inspection and returns the stored count', async () => {
         const report = {
             _id: REPORT_ID,
             status: 'verified',
@@ -151,10 +151,11 @@ describe('getOperationalReportById view counting', () => {
             user: { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' },
         }, res);
 
-        expect(Report.updateOne).toHaveBeenCalledWith({ _id: REPORT_ID }, { $inc: { viewCount: 1 } });
+        // A GET must not mutate: inspections are counted by POST /api/views.
+        expect(Report.updateOne).not.toHaveBeenCalled();
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true,
-            data: expect.objectContaining({ viewCount: 6 }),
+            data: expect.objectContaining({ viewCount: 5 }),
         }));
     });
 });

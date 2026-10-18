@@ -99,8 +99,7 @@ describe('GET /api/reports/:id (Report by ID Endpoint)', () => {
         vi.restoreAllMocks();
     });
 
-    test('1. Guest / Public user receives sanitized report and atomic viewCount update', async () => {
-        const updateSpy = vi.spyOn(Report, 'updateOne').mockResolvedValue({ acknowledged: true, modifiedCount: 1 });
+    test('1. Guest / Public user receives sanitized report', async () => {
         vi.spyOn(Report, 'findById').mockReturnValue(createMockQuery(baseReport));
 
         const app = createTestApp(null);
@@ -112,6 +111,8 @@ describe('GET /api/reports/:id (Report by ID Endpoint)', () => {
         expect(res.body.data.detailAccess).toBe('public');
         expect(res.body.data.detailCompleteness).toBe('full');
         expect(res.body.data.isOwnedByCurrentUser).toBe(false);
+        // The stored count is reported as-is: a read no longer bumps it.
+        expect(res.body.data.viewCount).toBe(baseReport.viewCount);
 
         // Security / Sanitization: No raw private reporter data or original images exposed to guest
         expect(res.body.data.reporter).toBeUndefined();
@@ -119,12 +120,6 @@ describe('GET /api/reports/:id (Report by ID Endpoint)', () => {
         expect(res.body.data.evidence).toBeDefined();
         expect(res.body.data.evidence.viewerAccess).toBe('redacted');
         expect(res.body.data.evidence.items[0].redactedPreviewUrl).toContain('/preview?rv=3.4');
-
-        // View count was incremented atomically
-        expect(updateSpy).toHaveBeenCalledWith(
-            { _id: reportId },
-            { $inc: { viewCount: 1 } }
-        );
     });
 
     test('2. Report owner receives full report with original evidence and owner capability', async () => {
@@ -274,7 +269,6 @@ describe('GET /api/reports/:id (Report by ID Endpoint)', () => {
                 return { ...this };
             },
         };
-        const updateSpy = vi.spyOn(Report, 'updateOne').mockResolvedValue({ acknowledged: true, modifiedCount: 1 });
         vi.spyOn(Report, 'findById').mockReturnValue(createMockQuery(legacyReport));
 
         const app = createTestApp(null);
@@ -283,29 +277,20 @@ describe('GET /api/reports/:id (Report by ID Endpoint)', () => {
         expect(res.status).toBe(200);
         expect(res.body.success).toBe(true);
         expect(res.body.data.title).toBe('Legacy Title');
-        expect(updateSpy).toHaveBeenCalledWith(
-            { _id: reportId },
-            { $inc: { viewCount: 1 } }
-        );
     });
 
-    test('11. Failed viewCount atomic update is non-blocking and still returns valid report data', async () => {
-        // Mock atomic update failure
-        vi.spyOn(Report, 'updateOne').mockReturnValue({
-            catch(cb) {
-                cb(new Error('Mongo connection glitch'));
-                return Promise.resolve();
-            },
-        });
+    test('11. Reading a report never writes to the database', async () => {
+        const updateSpy = vi.spyOn(Report, 'updateOne').mockResolvedValue({ acknowledged: true });
         vi.spyOn(Report, 'findById').mockReturnValue(createMockQuery(baseReport));
 
         const app = createTestApp(null);
         const res = await request(app).get(`/api/reports/${reportId.toString()}`);
 
-        // The request MUST NOT fail with 500 just because viewCount update had an issue
         expect(res.status).toBe(200);
         expect(res.body.success).toBe(true);
-        expect(res.body.data.title).toBe('Road accident at Poblacion');
+        // A GET must not mutate: view counting belongs to the explicit POST
+        // endpoints, which dedupe and skip owner self-views.
+        expect(updateSpy).not.toHaveBeenCalled();
     });
 
     test('12. Database query failure safely returns 500 error without leaking stack or database details', async () => {

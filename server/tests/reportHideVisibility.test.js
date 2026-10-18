@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, vi as jest } from 'vitest';
+import mongoose from 'mongoose';
 
 // ---------------------------------------------------------------------------
 // Per-reporter report visibility ("hide from my list").
@@ -15,6 +16,19 @@ jest.mock('../models/Report.js', () => ({
         countDocuments: jest.fn(),
     },
 }));
+
+// getMyReports reads viewer counts through one aggregate. Stub only the
+// aggregation so the controller wiring is testable without a database; the
+// named exports stay real because the service validates targetType against
+// them. There is no mongodb-memory-server in this project, and a group of
+// {_id, viewers} rows is exactly what three distinct-viewer rows produce.
+jest.mock('../models/ViewEvent.js', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        default: Object.assign(actual.default, { aggregate: jest.fn() }),
+    };
+});
 
 jest.mock('../models/HighRiskZone.js', () => ({
     default: { find: jest.fn() },
@@ -85,6 +99,7 @@ const { hideMyReport, unhideMyReport, getMyReports, getReports } = await import(
     '../controllers/reportController.js'
 );
 const { default: Report } = await import('../models/Report.js');
+const { default: ViewEvent } = await import('../models/ViewEvent.js');
 
 // Chainable mongoose-query stub: every link returns the chain, .lean()
 // resolves the canned docs.
@@ -325,5 +340,39 @@ describe('getReports per-reporter scoping', () => {
         expect(query.status).toBe('resolved');
         expect(query.$nor).toBeUndefined();
         expect(query.hiddenFromReporterAt).toBeUndefined();
+    });
+});
+
+describe('getMyReports viewer counts', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('attaches a deduped viewerCount per report and leaves viewCount untouched', async () => {
+        const viewedReportId = new mongoose.Types.ObjectId();
+        const unviewedReportId = new mongoose.Types.ObjectId();
+
+        Report.find.mockImplementation(() => chainable([
+            { _id: viewedReportId, reporter: 'reporter-1', viewCount: 11, hiddenFromReporterAt: null },
+            { _id: unviewedReportId, reporter: 'reporter-1', viewCount: 4, hiddenFromReporterAt: null },
+        ]));
+        Report.countDocuments.mockResolvedValue(2);
+
+        // Three distinct viewers on the first report, none on the second.
+        ViewEvent.aggregate.mockResolvedValue([{ _id: viewedReportId, viewers: 3 }]);
+
+        const res = createRes();
+        await getMyReports(authedReq(), res);
+
+        const payload = res.json.mock.calls[0][0];
+        const [viewed, unviewed] = payload.data;
+
+        expect(viewed.viewerCount).toBe(3);
+        expect(unviewed.viewerCount).toBe(0);
+        // viewCount is a different metric (total opens) and stays as stored.
+        expect(viewed.viewCount).toBe(11);
+        expect(unviewed.viewCount).toBe(4);
+        // One aggregate for the page, not one per row.
+        expect(ViewEvent.aggregate).toHaveBeenCalledTimes(1);
     });
 });

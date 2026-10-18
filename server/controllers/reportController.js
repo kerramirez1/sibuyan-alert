@@ -28,6 +28,7 @@ import { resolveQueryPolicy } from '../config/queryPolicy.js';
 import { sendConditionalJson, buildWeakEtag } from '../utils/httpCache.js';
 import { getOrSet } from '../utils/apiCache.js';
 import { CACHE_TTLS } from '../config/queryPolicy.js';
+import { readViewerCountsForTargets } from '../services/viewEventService.js';
 
 const METERS_PER_LATITUDE_DEGREE = 111320;
 
@@ -1153,12 +1154,12 @@ export const getReportById = async (req, res) => {
             }
         }
 
-        // Increment view count atomically without triggering full-document validation
-        Report.updateOne({ _id: report._id }, { $inc: { viewCount: 1 } }).catch((viewErr) => {
-            if (process.env.NODE_ENV !== 'production') {
-                console.warn(`[getReportById] Failed to increment viewCount for report ${report._id}:`, viewErr?.message);
-            }
-        });
+        // Deliberately no write here. This endpoint used to bump viewCount on every
+        // read, which counted one map open twice (the client also records a view via
+        // POST /api/views when a details panel opens), let the report owner inflate
+        // their own count, and turned fallback/prefetch fetches into views. View
+        // counting lives only in the explicit endpoints, which dedupe and skip the
+        // owner.
 
         let responseData;
         if (isOwner || isOperational) {
@@ -1166,7 +1167,7 @@ export const getReportById = async (req, res) => {
             const evidence = buildReportEvidenceObject(reportObj, { isOwner, isOperational });
             responseData = {
                 ...reportObj,
-                viewCount: (reportObj.viewCount || 0) + 1,
+                viewCount: reportObj.viewCount || 0,
                 isOwnedByCurrentUser: isOwner,
                 evidence,
                 evidenceCount: evidence.count,
@@ -1177,7 +1178,7 @@ export const getReportById = async (req, res) => {
             const publicReport = toPublicReport(report, { viewerId: req.user?._id });
             responseData = {
                 ...publicReport,
-                viewCount: (report.viewCount || 0) + 1,
+                viewCount: report.viewCount || 0,
                 detailAccess: 'public',
                 detailCompleteness: 'full',
             };
@@ -1400,6 +1401,11 @@ export const getMyReports = async (req, res) => {
             Report.countDocuments(ownerQuery),
         ]);
 
+        const viewerCounts = await readViewerCountsForTargets({
+            targetType: 'report',
+            targetIds: reports.map((report) => report._id),
+        });
+
         const serialized = reports.map((report) => {
             const reportObj = typeof report.toObject === 'function' ? report.toObject() : report;
             const evidence = buildReportEvidenceObject(reportObj, { isOwner: true });
@@ -1410,6 +1416,7 @@ export const getMyReports = async (req, res) => {
                 evidenceCount: evidence.evidenceCount,
                 detailAccess: 'owner',
                 detailCompleteness: 'full',
+                viewerCount: viewerCounts.get(String(reportObj._id)) || 0,
             };
         });
 

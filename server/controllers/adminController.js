@@ -767,8 +767,9 @@ export const getOperationalReportById = async (req, res) => {
             });
         }
 
-        // Inspections count as views, mirroring the public detail endpoint.
-        Report.updateOne({ _id: report._id }, { $inc: { viewCount: 1 } }).catch(() => {});
+        // Deliberately no write here. Inspections are counted by POST /api/views,
+        // which the details drawer already fires and which dedupes per viewer and
+        // skips the report owner. Bumping here as well counted one open twice.
 
         return res.json({
             success: true,
@@ -777,7 +778,7 @@ export const getOperationalReportById = async (req, res) => {
                     includeReporterContact: canViewReporterContact(req.user, report),
                     includeAdministrative: isMunicipalAdminInReportScope(req.user, report),
                 }),
-                viewCount: (report.viewCount || 0) + 1,
+                viewCount: report.viewCount || 0,
             },
         });
     } catch (error) {

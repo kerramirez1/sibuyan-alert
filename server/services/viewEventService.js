@@ -427,10 +427,38 @@ export const readTopReach = async ({ targetType, limit = 10, targetIds = null } 
     ]);
 };
 
+/**
+ * Distinct-viewer counts for a set of records, as a Map of id -> count.
+ *
+ * One aggregate for the whole page rather than one per row: a My Reports
+ * page holds up to 100 records and a per-row count would be 100 round
+ * trips. The compound unique index on (targetType, targetId, viewerKey)
+ * serves the $match.
+ *
+ * Counts rows, and one row exists per viewer, so the row count IS the
+ * distinct-viewer count — the same rule readTopReach relies on.
+ */
+export const readViewerCountsForTargets = async ({ targetType, targetIds = [] } = {}) => {
+    if (!VIEW_TARGET_TYPES.includes(targetType)) return new Map();
+
+    const ids = (Array.isArray(targetIds) ? targetIds : [])
+        .filter(isObjectId)
+        .map((id) => new mongoose.Types.ObjectId(String(id)));
+    if (ids.length === 0) return new Map();
+
+    const rows = await ViewEvent.aggregate([
+        { $match: { targetType, targetId: { $in: ids } } },
+        { $group: { _id: '$targetId', viewers: { $sum: 1 } } },
+    ]);
+
+    return new Map(rows.map((row) => [String(row._id), row.viewers]));
+};
+
 export default {
     buildViewerIdentity,
     recordViewEvent,
     readTopReach,
+    readViewerCountsForTargets,
     deleteViewEventsForTarget,
     collapseGuestViewForTarget,
     resolveViewerAlias,

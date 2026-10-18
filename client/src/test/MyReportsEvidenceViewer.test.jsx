@@ -70,6 +70,7 @@ describe('MyReports Evidence Inspection and Modal Experience', () => {
         severity: 'severe',
         status: 'verified',
         isOwnedByCurrentUser: true,
+        viewerCount: 0,
         images: ['/api/files/607f1f77bcf86cd799439011/photo1.jpg', '/api/files/607f1f77bcf86cd799439011/photo2.jpg'],
         evidence: {
             evidenceCount: 2,
@@ -204,7 +205,7 @@ describe('MyReports Evidence Inspection and Modal Experience', () => {
         expect(screen.getByText('Incident date')).toBeInTheDocument();
         expect(screen.getByText('Incident type')).toBeInTheDocument();
         expect(screen.getByText('Coordinates')).toBeInTheDocument();
-        expect(screen.getByText('Report views')).toBeInTheDocument();
+        expect(screen.getByText('Report viewers')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Send situation update/i })).toBeInTheDocument();
     });
 
