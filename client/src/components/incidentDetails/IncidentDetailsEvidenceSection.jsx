@@ -21,7 +21,14 @@ const IncidentDetailsEvidenceSection = ({
     const evidenceItemsCount = Array.isArray(evidence?.items) ? evidence.items.length : 0;
     const declaredCount = Number(evidenceCount ?? evidence?.evidenceCount ?? evidence?.count) || 0;
     const totalCount = Math.max(rawImagesCount, evidenceItemsCount, declaredCount);
-    const sectionTitle = heading || `Evidence photos (${totalCount})`;
+    const evidenceUpload = (evidence && typeof evidence === 'object') ? evidence : {};
+    const expectedCount = Math.max(0, Number(evidenceUpload.expected) || 0);
+    const pendingCount = Math.max(0, Number(evidenceUpload.pending) || 0);
+    const uploadStatus = evidenceUpload.uploadStatus || 'complete';
+    const isPending = pendingCount > 0;
+    const sectionTitle = heading || (isPending
+        ? `Evidence photos (${totalCount} of ${expectedCount})`
+        : `Evidence photos (${totalCount})`);
     const emptyNote = labelVariant === 'resolution' ? 'No resolution photos attached.' : 'No evidence attached.';
 
     // Nothing attached is stated, not implied by an absent section.
@@ -33,7 +40,11 @@ const IncidentDetailsEvidenceSection = ({
     // so the two surfaces answer the question the same way. It is deliberately
     // not a `<details>`: there is nothing to expand, and a chevron over an empty
     // body promises content that is not there.
-    if (totalCount === 0) {
+    // A zero received count means "none attached" only when nothing is
+    // expected. While uploads are pending the record supports no such
+    // claim, so the section falls through to show the "0 of N" title and
+    // the pending notice instead.
+    if (totalCount === 0 && !isPending) {
         return (
             <section className={className} aria-labelledby="incident-evidence-heading">
                 <h3
@@ -52,16 +63,33 @@ const IncidentDetailsEvidenceSection = ({
 
     const content = (
         <div className="mt-2.5">
-            <ProtectedEvidenceGallery
-                images={images}
-                evidence={evidence}
-                accessLevel={accessLevel}
-                isOwner={isOwner}
-                isOperational={isOperational}
-                variant="stacked"
-                labelVariant={labelVariant}
-                onViewImage={onViewImage}
-            />
+            {isPending && (
+                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3" role="status">
+                    <p className="text-xs font-semibold text-amber-900">
+                        {uploadStatus === 'uploading'
+                            ? 'Evidence still uploading'
+                            : 'Evidence not received'}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-amber-800">
+                        {totalCount} of {expectedCount} photo{expectedCount === 1 ? '' : 's'} received.
+                        {uploadStatus === 'uploading'
+                            ? ' The reporter is on a weak connection; the remaining photos arrive automatically.'
+                            : ' The reporter may have closed the app before the upload finished.'}
+                    </p>
+                </div>
+            )}
+            {totalCount > 0 ? (
+                <ProtectedEvidenceGallery
+                    images={images}
+                    evidence={evidence}
+                    accessLevel={accessLevel}
+                    isOwner={isOwner}
+                    isOperational={isOperational}
+                    variant="stacked"
+                    labelVariant={labelVariant}
+                    onViewImage={onViewImage}
+                />
+            ) : null}
         </div>
     );
 

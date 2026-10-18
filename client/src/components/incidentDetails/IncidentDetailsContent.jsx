@@ -236,7 +236,12 @@ const IncidentDetailsContent = ({
                     isOperational={visibility.isOperational}
                     onViewImage={onViewImage}
                     collapsible
-                    defaultOpen={Boolean(report.images?.length || report.evidence?.items?.length || report.evidenceCount)}
+                    defaultOpen={Boolean(
+                        report.images?.length
+                        || report.evidence?.items?.length
+                        || report.evidenceCount
+                        || Number(report.evidence?.pending) > 0
+                    )}
                 />
             )}
 
