@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     HiOutlineBadgeCheck,
@@ -382,20 +382,41 @@ const ResponderIncidentInspector = ({
     const [entered, setEntered] = useState(false);
     const isOpen = Boolean(report);
     const reportId = String(report?._id || report?.id || '');
+    const [evidenceProgress, setEvidenceProgress] = useState(null);
     const { subscribe } = useSocket();
 
+    // A different incident must never inherit the previous one's progress.
+    useEffect(() => {
+        setEvidenceProgress(null);
+    }, [reportId]);
+
     // Evidence attached server-side ('reportEvidenceUpdated' to the
-    // municipality room): refetch the open report through the existing
-    // detail flow so the gallery — and its canonical preview-URL
-    // validation — picks up the new evidence.
+    // municipality room). The payload is painted immediately, and the refetch
+    // still runs so the gallery — and its canonical preview-URL validation —
+    // picks up anything the event does not carry.
     useEffect(() => {
         if (!isOpen || !reportId) return undefined;
         const unsubscribe = subscribe('reportEvidenceUpdated', (data) => {
             const evidenceReportId = data?.reportId ?? data?.id ?? data?._id;
             if (evidenceReportId === null || evidenceReportId === undefined || evidenceReportId === '') return;
-            if (String(evidenceReportId) === reportId && typeof onRetryDetails === 'function') {
-                onRetryDetails();
+            if (String(evidenceReportId) !== reportId) return;
+
+            // Paint from the payload. Waiting for the refetch is what made the
+            // count jump 0 -> 5 only when the last photo landed.
+            const received = Number(data?.evidenceCount);
+            const expected = Number(data?.evidenceExpected);
+            if (Number.isFinite(received) && received >= 0) {
+                setEvidenceProgress((previous) => ({
+                    // Never move backwards: a refetch may already be ahead.
+                    evidenceCount: Math.max(received, previous?.evidenceCount ?? 0),
+                    evidenceExpected: Number.isFinite(expected) && expected > 0
+                        ? expected
+                        : (previous?.evidenceExpected ?? 0),
+                }));
             }
+
+            // Keep the background correction exactly as it is today.
+            if (typeof onRetryDetails === 'function') onRetryDetails();
         });
         return () => unsubscribe();
     }, [subscribe, isOpen, reportId, onRetryDetails]);
@@ -407,6 +428,33 @@ const ResponderIncidentInspector = ({
     // are separated from public reach server-side, so an administrator working
     // through their own queue cannot inflate the community figure.
     useRecordView({ targetType: 'report', targetId: reportId });
+
+    const displayedReport = useMemo(() => {
+        if (!evidenceProgress) return report;
+
+        const loadedImages = Array.isArray(report?.images) ? report.images.length : 0;
+        const received = Math.max(evidenceProgress.evidenceCount, loadedImages);
+        const expected = Math.max(
+            evidenceProgress.evidenceExpected,
+            Number(report?.evidence?.expected) || 0,
+        );
+        const pending = Math.max(0, expected - received);
+
+        return {
+            ...report,
+            evidenceCount: received,
+            evidence: {
+                ...(report?.evidence && typeof report.evidence === 'object' ? report.evidence : {}),
+                evidenceCount: received,
+                count: received,
+                expected,
+                pending,
+                // A just-arrived event IS activity, so 'uploading' is the honest
+                // label while anything is still outstanding.
+                uploadStatus: pending > 0 ? 'uploading' : 'complete',
+            },
+        };
+    }, [report, evidenceProgress]);
 
     useEffect(() => {
         actionsRef.current = actions;
@@ -523,7 +571,7 @@ const ResponderIncidentInspector = ({
                 data-testid="incident-panel-scroll-body"
             >
                 <IncidentDetailsContent
-                    report={report}
+                    report={displayedReport}
                     user={user}
                     viewerRole={user?.role}
                     loading={detailLoading}

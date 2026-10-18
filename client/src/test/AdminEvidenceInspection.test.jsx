@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import ResponderIncidentInspector from '../components/adminReports/ResponderIncidentInspector';
 import IncidentDetailsContent from '../components/incidentDetails/IncidentDetailsContent';
@@ -39,13 +39,20 @@ vi.mock('../components/map/MapView', () => ({
 // this suite renders the inspector directly without a provider. Mock the
 // context with the full shape other suites use, so every subscriber in the
 // tree gets a stable subscribe function.
+const socketMock = vi.hoisted(() => ({ subscribers: {} }));
+
 vi.mock('../context/SocketContext', () => ({
     useSocket: () => ({
         unreadCount: 0,
         notifications: [],
         connected: true,
         isConnected: true,
-        subscribe: vi.fn(() => () => {}),
+        subscribe: (event, callback) => {
+            socketMock.subscribers[event] = callback;
+            return () => {
+                if (socketMock.subscribers[event] === callback) delete socketMock.subscribers[event];
+            };
+        },
         emit: vi.fn(),
         markAsRead: vi.fn(),
         markAllAsRead: vi.fn(),
@@ -145,6 +152,7 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
     beforeEach(() => {
         clearBlobCache();
         vi.clearAllMocks();
+        socketMock.subscribers = {};
         filesAPI.getProtected.mockResolvedValue({
             data: new Blob(['mock-binary-evidence'], { type: 'image/jpeg' }),
         });
@@ -650,5 +658,65 @@ describe('Admin and Responder Incident-Inspection Evidence Flow', () => {
         // Navigate with ArrowLeft keyboard shortcut
         fireEvent.keyDown(window, { key: 'ArrowLeft' });
         expect(within(dialog).getByRole('heading', { level: 3 })).toHaveTextContent('Evidence photo 2 of 3');
+    });
+
+    test('12. paints evidence progress from the socket event before the refetch lands', async () => {
+        const uploadingReport = {
+            ...fullDetailReport,
+            _id: 'report-uploading',
+            images: [],
+            evidenceCount: 0,
+            evidence: {
+                count: 0,
+                evidenceCount: 0,
+                expected: 5,
+                pending: 5,
+                uploadStatus: 'uploading',
+                viewerAccess: 'original',
+                accessLevel: 'original',
+                items: [],
+            },
+        };
+        // Deliberately resolves nothing: the assertion below proves the paint
+        // comes from the socket payload, not from a refetched report.
+        const retrySpy = vi.fn();
+
+        render(
+            <ResponderIncidentInspector
+                report={uploadingReport}
+                user={adminUser}
+                actions={{}}
+                onClose={vi.fn()}
+                onOpenMap={vi.fn()}
+                onViewImage={vi.fn()}
+                onRetryDetails={retrySpy}
+            />
+        );
+
+        expect(await screen.findByText('Evidence photos (0 of 5)')).toBeInTheDocument();
+        expect(screen.getByText('Evidence still uploading')).toBeInTheDocument();
+
+        act(() => {
+            socketMock.subscribers.reportEvidenceUpdated({
+                reportId: 'report-uploading',
+                evidenceCount: 2,
+                evidenceExpected: 5,
+            });
+        });
+
+        expect(await screen.findByText('Evidence photos (2 of 5)')).toBeInTheDocument();
+        expect(screen.getByText(/2 of 5 photos received/)).toBeInTheDocument();
+        expect(retrySpy).toHaveBeenCalledTimes(1);
+
+        act(() => {
+            socketMock.subscribers.reportEvidenceUpdated({
+                reportId: 'report-uploading',
+                evidenceCount: 5,
+                evidenceExpected: 5,
+            });
+        });
+
+        expect(await screen.findByText('Evidence photos (5)')).toBeInTheDocument();
+        expect(screen.queryByText('Evidence still uploading')).not.toBeInTheDocument();
     });
 });
