@@ -13,7 +13,7 @@ import { describeHazardsAt } from '../services/hazardAreaService.js';
 import { parseLocationCapture } from '../utils/locationPolicy.js';
 import { sendNewReportAlertEmail } from '../services/emailService.js';
 import { sendPushToUsers, pushTemplates } from '../services/pushService.js';
-import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket, parseGridFsFileId } from '../services/gridFsService.js';
+import { deleteGridFsFilesByUrls, uploadFilesToGridFS, findGridFsFile, getGridFsBucket, parseGridFsFileId, buildGridFsUrl } from '../services/gridFsService.js';
 import { readUploadBuffer, cleanupTempUploadFiles } from '../middleware/upload.js';
 import { generateRedactedEvidenceDerivative } from '../services/evidenceDerivativeService.js';
 import { evidenceProcessingQueue } from '../services/evidenceProcessingQueue.js';
@@ -2055,9 +2055,27 @@ export const attachReportEvidence = async (req, res) => {
                 // F5: idempotent replay — the retried upload's temp files must
                 // not survive a request that stores nothing.
                 await cleanupTempUploadFiles(req.files);
+
+                // Reconciliation. A previous attempt can leave a file in GridFS
+                // without its URL in images[]: the save failed and the
+                // best-effort cleanup then failed too (it is logged and
+                // swallowed). Answering 200 without fixing that makes the
+                // client drop the photo from its queue, so the photo is
+                // stored, delivered, and invisible forever.
+                const attachedUrls = alreadyAttached.map((file) => buildGridFsUrl(file._id, file.filename));
+                const missingUrls = attachedUrls.filter((url) => !(report.images || []).includes(url));
+
+                if (missingUrls.length > 0) {
+                    report.images = [...(report.images || []), ...missingUrls];
+                    report.evidenceLastActivityAt = new Date();
+                    await report.save();
+                }
+
                 return res.status(200).json({
                     success: true,
-                    message: 'Evidence photo already attached.',
+                    message: missingUrls.length > 0
+                        ? 'Evidence photo recovered and attached.'
+                        : 'Evidence photo already attached.',
                     data: report,
                 });
             }

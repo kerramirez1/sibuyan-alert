@@ -25,6 +25,11 @@ vi.mock('../services/gridFsService.js', () => ({
     uploadFilesToGridFS: vi.fn(),
     findGridFsFile: vi.fn(),
     getGridFsBucket: vi.fn(),
+    parseGridFsFileId: vi.fn((url) => {
+        const match = typeof url === 'string' && url.match(/\/api\/files\/([a-f\d]{24})(?:\/|$)/i);
+        return match ? match[1] : null;
+    }),
+    buildGridFsUrl: vi.fn((id, originalName) => `/api/files/${id}/${encodeURIComponent(originalName || 'file')}`),
 }));
 
 vi.mock('../services/evidenceDerivativeService.js', () => ({
@@ -373,22 +378,25 @@ describe('attachReportEvidence controller (POST /api/reports/:id/evidence)', () 
     });
 
     test('returns 200 without duplicating when the photoId is already attached (idempotent replay)', async () => {
+        const gridfsFileId = '64b1000000000000000000a1';
+        const attachedUrl = `/api/files/${gridfsFileId}/photo.jpg`;
         const fakeReport = {
             _id: validReportId,
             reporter: reporterId,
             status: 'pending',
-            images: ['https://example.com/api/files/existing.jpg'],
+            images: [attachedUrl],
             evidenceMetadata: [],
             municipalityName: 'Cajidiocan',
             save: vi.fn().mockResolvedValue(true),
             populate: vi.fn().mockResolvedValue(true),
         };
         Report.findById.mockResolvedValue(fakeReport);
-        // A GridFS file carrying this photoId is already attached to the report.
+        // A GridFS file carrying this photoId is already attached to the report,
+        // and its URL is already in images[]: a genuine duplicate retry.
         getGridFsBucket.mockReturnValue({
             find: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue({
-                    toArray: vi.fn().mockResolvedValue([{ _id: 'gridfs-file-1' }]),
+                    toArray: vi.fn().mockResolvedValue([{ _id: gridfsFileId, filename: 'photo.jpg' }]),
                 }),
             }),
         });
@@ -411,6 +419,52 @@ describe('attachReportEvidence controller (POST /api/reports/:id/evidence)', () 
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true,
             message: 'Evidence photo already attached.',
+        }));
+    });
+
+    test('repairs images[] when a retried upload left its GridFS file unreferenced', async () => {
+        const gridfsFileId = '64b1000000000000000000b2';
+        const fakeReport = {
+            _id: validReportId,
+            reporter: reporterId,
+            status: 'pending',
+            images: [],
+            evidenceMetadata: [],
+            municipalityName: 'Cajidiocan',
+            save: vi.fn().mockResolvedValue(true),
+            populate: vi.fn().mockResolvedValue(true),
+        };
+        Report.findById.mockResolvedValue(fakeReport);
+        // The GridFS file exists for this photoId, but a failed save left its
+        // URL out of images[] — the orphan the reconciliation must repair.
+        getGridFsBucket.mockReturnValue({
+            find: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                    toArray: vi.fn().mockResolvedValue([{ _id: gridfsFileId, filename: 'photo.jpg' }]),
+                }),
+            }),
+        });
+
+        const req = {
+            params: { id: validReportId },
+            body: { photoId: 'photo-uuid-789' },
+            user: { _id: reporterId, role: 'reporter' },
+            files: [{ buffer: Buffer.from('new-photo-bytes'), originalname: 'photo.jpg' }],
+            app: { get: vi.fn().mockReturnValue(null) },
+        };
+        const res = createResponse();
+
+        await attachReportEvidence(req, res);
+
+        expect(uploadFilesToGridFS).not.toHaveBeenCalled();
+        expect(fakeReport.save).toHaveBeenCalled();
+        expect(fakeReport.images).toHaveLength(1);
+        expect(fakeReport.images[0]).toMatch(/^\/api\/files\/[a-f\d]{24}\//);
+        expect(fakeReport.images[0]).toBe(`/api/files/${gridfsFileId}/photo.jpg`);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            message: 'Evidence photo recovered and attached.',
         }));
     });
 
