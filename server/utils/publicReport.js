@@ -35,6 +35,30 @@ const getPhysicalMunicipalityName = (report) => (
     || ''
 );
 
+const EVIDENCE_PENDING_WINDOW_MS = 30 * 60 * 1000;
+
+/**
+ * Classifies the pending-evidence state for the UI.
+ *
+ * 'uploading' is a claim about the reporter's link, so it is only made while
+ * evidence is still moving. Once the window passes without activity the
+ * honest answer is 'incomplete' — the photos may never arrive, because the
+ * reporter can close the app after phase 1.
+ */
+const describeEvidenceUpload = (report, receivedCount) => {
+    const expected = Math.max(0, Math.min(5, Number(report?.evidenceExpected) || 0));
+    const pending = Math.max(0, expected - receivedCount);
+    if (pending === 0) return { expected, pending: 0, uploadStatus: 'complete' };
+
+    const lastActivity = report?.evidenceLastActivityAt
+        ? new Date(report.evidenceLastActivityAt).getTime()
+        : NaN;
+    const isRecent = Number.isFinite(lastActivity)
+        && (Date.now() - lastActivity) < EVIDENCE_PENDING_WINDOW_MS;
+
+    return { expected, pending, uploadStatus: isRecent ? 'uploading' : 'incomplete' };
+};
+
 /**
  * Builds normalized evidence descriptor based strictly on server authorization.
  */
@@ -50,6 +74,7 @@ export const buildReportEvidenceObject = (report, { isOwner = false, isOperation
             viewerAccess: 'none',
             accessLevel: 'none',
             items: [],
+            ...describeEvidenceUpload(report, count),
         };
     }
 
@@ -71,6 +96,7 @@ export const buildReportEvidenceObject = (report, { isOwner = false, isOperation
                 detectionStatus: 'no_faces_detected',
                 isOwner,
             })),
+            ...describeEvidenceUpload(report, count),
         };
     }
 
@@ -115,6 +141,7 @@ export const buildReportEvidenceObject = (report, { isOwner = false, isOperation
                 detectorVersion: metadataIsCurrent ? meta.detectorVersion : CURRENT_DETECTOR_VERSION,
             };
         }),
+        ...describeEvidenceUpload(report, count),
     };
 
 

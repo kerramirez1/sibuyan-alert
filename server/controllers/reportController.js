@@ -389,6 +389,13 @@ export const createReport = async (req, res) => {
             missing: toOptionalCount(casInput.missing ?? req.body['casualties[missing]']),
         };
 
+        // Phase 1 declares how many photos phase 2 will upload. Clamped here so a
+        // malformed or hostile value cannot exceed what uploadReportImages accepts.
+        const declaredExpected = Number.parseInt(req.body?.expectedEvidenceCount, 10);
+        const expectedEvidenceCount = Number.isInteger(declaredExpected)
+            ? Math.min(5, Math.max(0, declaredExpected))
+            : 0;
+
         // Validate required fields
         const finalIncidentTime = incidentTime || accidentTime;
         if (!finalIncidentTime) {
@@ -541,6 +548,8 @@ export const createReport = async (req, res) => {
             severity: severity || 'moderate',
             casualties,
             images: uploadedImageUrls,
+            evidenceExpected: expectedEvidenceCount,
+            evidenceLastActivityAt: expectedEvidenceCount > 0 ? new Date() : null,
             status: 'pending',
             // Store location processing metadata
             locationSource: locationResult.source,
@@ -2079,6 +2088,10 @@ export const attachReportEvidence = async (req, res) => {
 
         report.images = [...(report.images || []), ...uploadedImageUrls];
 
+        // Any arriving photo is evidence the upload is still moving. This is what
+        // keeps the admin's "uploading" state honest instead of permanent.
+        report.evidenceLastActivityAt = new Date();
+
         await report.save();
         isSaved = true;
 
@@ -2102,6 +2115,8 @@ export const attachReportEvidence = async (req, res) => {
                 const evidencePayload = {
                     reportId: report._id,
                     evidenceCount: report.images.length,
+                    evidenceExpected: report.evidenceExpected || 0,
+                    evidencePending: Math.max(0, (report.evidenceExpected || 0) - report.images.length),
                     municipality: report.municipalityName,
                 };
                 if (report.municipalityName) {

@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
         sync: vi.fn(),
         resolveBlockedReport: vi.fn(),
         discardReport: vi.fn(),
+        pendingPhotosByReport: {},
     },
 }));
 
@@ -540,5 +541,43 @@ describe('resolution photo viewer button in the resolved timeline row', () => {
         expect(screen.getByText('Incident resolved')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'View resolution photo' })).not.toBeInTheDocument();
         expect(screen.queryByText(/Resolution photos \(\d+\)/)).not.toBeInTheDocument();
+    });
+});
+
+describe('pending evidence badge', () => {
+    const withPendingEvidence = (pending) => ({
+        ...initialReport,
+        evidence: { expected: pending, pending, uploadStatus: 'uploading' },
+    });
+
+    beforeEach(() => {
+        mocks.callbacks = {};
+        mocks.getMyReports.mockReset();
+        mocks.offlineSync.pendingPhotosByReport = {};
+        mocks.getMyReports.mockResolvedValue({ data: { data: [withPendingEvidence(3)] } });
+    });
+
+    test('shows how many photos have not reached the server', async () => {
+        renderPage();
+
+        expect(await screen.findByText('3 photos not uploaded')).toBeInTheDocument();
+    });
+
+    test('uses the local queue count for the wording while photos are still queued', async () => {
+        mocks.offlineSync.pendingPhotosByReport = { 'report-1': 2 };
+        renderPage();
+
+        expect(await screen.findByText('Uploading 2 photos…')).toBeInTheDocument();
+    });
+
+    test('renders no badge when nothing is pending', async () => {
+        mocks.getMyReports.mockResolvedValue({
+            data: { data: [{ ...initialReport, evidence: { expected: 0, pending: 0, uploadStatus: 'complete' } }] },
+        });
+        renderPage();
+
+        await screen.findByText(initialReport.address);
+        expect(screen.queryByText(/not uploaded/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Uploading \d+ photo/)).not.toBeInTheDocument();
     });
 });

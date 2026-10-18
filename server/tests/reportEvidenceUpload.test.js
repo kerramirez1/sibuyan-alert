@@ -504,6 +504,48 @@ describe('attachReportEvidence controller (POST /api/reports/:id/evidence)', () 
             evidenceCount: 1,
         }));
     });
+
+    test('reports the pending evidence count and stamps last activity', async () => {
+        const fakeReport = {
+            _id: validReportId,
+            reporter: reporterId,
+            status: 'pending',
+            municipalityName: 'Cajidiocan',
+            images: [],
+            evidenceExpected: 3,
+            evidenceMetadata: [],
+            save: vi.fn().mockResolvedValue(true),
+            populate: vi.fn().mockResolvedValue(true),
+        };
+        Report.findById.mockResolvedValue(fakeReport);
+        uploadFilesToGridFS.mockResolvedValue([
+            { url: 'https://example.com/api/files/pending.jpg' },
+        ]);
+
+        const municipalityEmit = vi.fn();
+        const req = {
+            params: { id: validReportId },
+            user: { _id: reporterId, role: 'reporter' },
+            files: [{ buffer: Buffer.from('img'), originalname: 'photo.jpg' }],
+            app: {
+                get: vi.fn().mockReturnValue({
+                    to: vi.fn((room) => (
+                        room === 'municipality_Cajidiocan' ? { emit: municipalityEmit } : { emit: vi.fn() }
+                    )),
+                }),
+            },
+        };
+        const res = createResponse();
+
+        await attachReportEvidence(req, res);
+
+        expect(municipalityEmit).toHaveBeenCalledWith('reportEvidenceUpdated', expect.objectContaining({
+            evidenceCount: 1,
+            evidenceExpected: 3,
+            evidencePending: 2,
+        }));
+        expect(fakeReport.evidenceLastActivityAt).toBeInstanceOf(Date);
+    });
 });
 
 describe('requireEvidenceContributor middleware', () => {

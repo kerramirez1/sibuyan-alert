@@ -440,12 +440,15 @@ function MyReportsPage() {
         sync: syncOfflineReports,
         resolveBlockedReport,
         discardReport,
+        // Defaulted so a consumer (or a test double) that predates the field
+        // renders the list instead of crashing on Object.values(undefined).
+        pendingPhotosByReport = {},
     } = useOfflineReportSync();
     const requestedReportId = searchParams.get('report');
     const requestedStatus = searchParams.get('status');
     const itemRefs = useRef({});
 
-    const fetchReports = useCallback(async (silent = false) => {
+    const fetchReports = useCallback(async (silent = false, { force = false } = {}) => {
         const stale = getStaleData(cacheKey);
         if (Array.isArray(stale) && stale.length > 0) {
             setReports(stale.filter(Boolean));
@@ -455,7 +458,7 @@ function MyReportsPage() {
         }
 
         // Avoid micro-burst revalidation within 4 seconds unless forced or cold
-        if (stale && isRecentlyRevalidated(cacheKey, 4000)) {
+        if (!force && stale && isRecentlyRevalidated(cacheKey, 4000)) {
             return;
         }
 
@@ -480,6 +483,24 @@ function MyReportsPage() {
             setLoading(false);
         }
     }, [cacheKey]);
+
+    const totalPendingPhotos = useMemo(
+        () => Object.values(pendingPhotosByReport).reduce((sum, count) => sum + count, 0),
+        [pendingPhotosByReport],
+    );
+    const lastPendingPhotosRef = useRef(totalPendingPhotos);
+    useEffect(() => {
+        const previous = lastPendingPhotosRef.current;
+        lastPendingPhotosRef.current = totalPendingPhotos;
+        // A photo leaving the queue means one reached the server. Refetch so the
+        // server-derived pending count catches up and the badge can clear
+        // instead of flipping to "not uploaded".
+        //
+        // Forced: without it the 4s micro-burst guard can swallow the refetch
+        // when the last photos drain back-to-back, leaving the badge stuck
+        // until a manual reload.
+        if (totalPendingPhotos < previous) void fetchReports(true, { force: true });
+    }, [totalPendingPhotos, fetchReports]);
 
     // Best-effort fetch of the reporter's hidden reports (powers the 'Hidden'
     // filter entry and its count). A failure here never blocks the main list.
@@ -971,6 +992,8 @@ function MyReportsPage() {
                                     const severity = SEVERITY_CONFIG[report?.severity] || SEVERITY_CONFIG.minor;
                                     const severityLabel = report?.severity ? (SEVERITY_CONFIG[report.severity]?.label || 'Minor') : 'Unknown';
                                     const isClosed = ['resolved', 'rejected'].includes(report?.status);
+                                    const serverEvidencePending = Math.max(0, Number(report?.evidence?.pending) || 0);
+                                    const localEvidencePending = pendingPhotosByReport[String(reportId)] || 0;
 
                                     // Shopee-style proof-of-resolution: the reporter opens the
                                     // resolution photos from the activity timeline, not from a
@@ -1041,6 +1064,21 @@ function MyReportsPage() {
                                                     >
                                                         {formatIncidentType(report)} · Submitted {formatRelativeDate(report.createdAt)}
                                                     </p>
+                                                    {serverEvidencePending > 0 && (
+                                                        <p
+                                                            className="mt-1 flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400"
+                                                            title={localEvidencePending > 0
+                                                                ? 'Photos are queued on this device and upload automatically when the connection allows.'
+                                                                : 'These photos have not reached the server yet.'}
+                                                        >
+                                                            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-500" aria-hidden="true" />
+                                                            <span className="truncate">
+                                                                {localEvidencePending > 0
+                                                                    ? `Uploading ${localEvidencePending} photo${localEvidencePending === 1 ? '' : 's'}…`
+                                                                    : `${serverEvidencePending} photo${serverEvidencePending === 1 ? '' : 's'} not uploaded`}
+                                                            </span>
+                                                        </p>
+                                                    )}
                                                     <p
                                                         className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-xs leading-snug text-gray-500 sm:hidden dark:text-gray-400"
                                                         title={`Severity: ${severityLabel} · Status: ${status.label}`}

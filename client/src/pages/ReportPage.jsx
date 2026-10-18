@@ -856,6 +856,11 @@ const ReportPage = () => {
         if (formData.address) fields.address = formData.address;
         if (formData.barangay) fields.barangay = formData.barangay;
 
+        // Declares phase-2 evidence so the receiving office can see that photos are
+        // attached and still arriving. buildQueueFields() delegates to this
+        // function, so the queued-replay path gets the same value for free.
+        if (images.length > 0) fields.expectedEvidenceCount = images.length;
+
         return fields;
     };
 
@@ -898,7 +903,13 @@ const ReportPage = () => {
 
         // Photos are the bulk of the payload. Losing them is bad; losing the
         // whole report is worse, so the fields are stored on their own.
-        const fieldsOnly = await enqueueReport({ clientReportId, fields, images: [], leased, reporterId });
+        const fieldsOnly = await enqueueReport({
+            clientReportId,
+            fields: { ...fields, expectedEvidenceCount: '0' },
+            images: [],
+            leased,
+            reporterId,
+        });
         return fieldsOnly ? { entry: fieldsOnly, imagesDropped: true } : null;
     };
 

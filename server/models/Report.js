@@ -70,6 +70,25 @@ const reportSchema = new mongoose.Schema(
             derivativeHash: String,
         }],
 
+        // Evidence the reporter attached but which has not finished uploading.
+        // Phase 1 of the two-phase submit files the report without photos so a
+        // weak signal cannot lose the incident; the photos follow in phase 2.
+        // Without this an admin sees "0 photos" and cannot distinguish "none
+        // taken" from "still arriving".
+        evidenceExpected: {
+            type: Number,
+            default: 0,
+            min: [0, 'Expected evidence count cannot be negative'],
+            max: [5, 'At most 5 evidence photos are accepted per report'],
+        },
+        // Stamped on create (when photos are expected) and on every photo that
+        // arrives. Drives the 'uploading' vs 'incomplete' classification; it is
+        // not a running counter.
+        evidenceLastActivityAt: {
+            type: Date,
+            default: null,
+        },
+
         // Location Information
         address: {
             type: String,

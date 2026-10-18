@@ -106,3 +106,56 @@ describe('public report representation', () => {
         expect(result).not.toHaveProperty('images');
     });
 });
+
+describe('pending evidence classification', () => {
+    const base = {
+        _id: 'report-1',
+        status: 'verified',
+        images: ['/api/files/a.jpg'],
+        evidenceMetadata: [],
+    };
+
+    test('counts the photos still to arrive while activity is recent', () => {
+        const result = toPublicReport({
+            ...base,
+            evidenceExpected: 3,
+            evidenceLastActivityAt: new Date(),
+        });
+
+        expect(result.evidence.expected).toBe(3);
+        expect(result.evidence.pending).toBe(2);
+        expect(result.evidence.uploadStatus).toBe('uploading');
+    });
+
+    test('reports incomplete instead of uploading once the window passes', () => {
+        const result = toPublicReport({
+            ...base,
+            evidenceExpected: 3,
+            evidenceLastActivityAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        });
+
+        expect(result.evidence.pending).toBe(2);
+        expect(result.evidence.uploadStatus).toBe('incomplete');
+    });
+
+    test('legacy reports with no expectation are complete', () => {
+        const result = toPublicReport(base);
+
+        expect(result.evidence.pending).toBe(0);
+        expect(result.evidence.uploadStatus).toBe('complete');
+    });
+
+    test('reports the pending count when no photo has arrived yet', () => {
+        const result = toPublicReport({
+            ...base,
+            images: [],
+            evidenceExpected: 2,
+            evidenceLastActivityAt: new Date(),
+        });
+
+        // Exercises the count === 0 early return.
+        expect(result.evidence.count).toBe(0);
+        expect(result.evidence.pending).toBe(2);
+        expect(result.evidence.uploadStatus).toBe('uploading');
+    });
+});

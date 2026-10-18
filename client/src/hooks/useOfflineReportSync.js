@@ -272,6 +272,20 @@ export const useOfflineReportSync = () => {
         [queue.blocked],
     );
 
+    // Which reports still have phase-2 photos waiting on THIS device. The
+    // server already knows how many photos it expects; this is what lets the
+    // reporter's badge distinguish "still retrying here" from "not uploaded".
+    const pendingPhotosByReport = useMemo(() => {
+        const counts = {};
+        for (const entry of [...queue.photoDeliverable, ...queue.photoDeferred]) {
+            const reportId = entry?.reportId;
+            if (!reportId) continue;
+            const key = String(reportId);
+            counts[key] = (counts[key] || 0) + 1;
+        }
+        return counts;
+    }, [queue]);
+
     return {
         pendingCount,
         deliverableCount,
@@ -280,6 +294,7 @@ export const useOfflineReportSync = () => {
         sync,
         resolveBlockedReport,
         discardReport,
+        pendingPhotosByReport,
     };
 };
 

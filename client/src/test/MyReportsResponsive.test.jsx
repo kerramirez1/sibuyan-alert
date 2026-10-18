@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
         sync: vi.fn(),
         resolveBlockedReport: vi.fn(),
         discardReport: vi.fn(),
+        pendingPhotosByReport: {},
     },
 }));
 

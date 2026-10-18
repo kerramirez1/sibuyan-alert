@@ -90,4 +90,54 @@ describe('OperationalIncidentSections — resolution photos section gating', () 
 
         expect(screen.getByText('Resolution photos (2)')).toBeInTheDocument();
     });
+
+    test('shows the expected count and an uploading notice while photos are pending', () => {
+        render(
+            <OperationalIncidentSections
+                report={{
+                    ...baseReport,
+                    images: [],
+                    evidenceCount: 0,
+                    evidence: { expected: 3, pending: 3, uploadStatus: 'uploading' },
+                }}
+            />
+        );
+
+        expect(screen.getByText('Evidence photos (0 of 3)')).toBeInTheDocument();
+        expect(screen.getByText('Evidence still uploading')).toBeInTheDocument();
+        expect(screen.getByText(/0 of 3 photos received/)).toBeInTheDocument();
+    });
+
+    test('says not received instead of uploading once the window has passed', () => {
+        render(
+            <OperationalIncidentSections
+                report={{
+                    ...baseReport,
+                    images: [],
+                    evidenceCount: 0,
+                    evidence: { expected: 3, pending: 3, uploadStatus: 'incomplete' },
+                }}
+            />
+        );
+
+        expect(screen.getByText('Evidence not received')).toBeInTheDocument();
+        expect(screen.queryByText('Evidence still uploading')).not.toBeInTheDocument();
+    });
+
+    test('renders the evidence section exactly as before when nothing is pending', () => {
+        render(
+            <OperationalIncidentSections
+                report={{
+                    ...baseReport,
+                    images: [],
+                    evidenceCount: 0,
+                    evidence: { expected: 0, pending: 0, uploadStatus: 'complete' },
+                }}
+            />
+        );
+
+        expect(screen.getByText('Evidence photos (0)')).toBeInTheDocument();
+        expect(screen.queryByText('Evidence still uploading')).not.toBeInTheDocument();
+        expect(screen.queryByText('Evidence not received')).not.toBeInTheDocument();
+    });
 });

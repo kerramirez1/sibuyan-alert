@@ -62,6 +62,11 @@ const OperationalIncidentSections = ({ report = {}, onRetryEvidence }) => {
     const responders = Array.isArray(safeReport.responders) ? safeReport.responders : [];
     const transfers = Array.isArray(safeReport.transferHistory) ? [...safeReport.transferHistory].reverse() : [];
     const images = Array.isArray(safeReport.images) ? safeReport.images : [];
+    const evidenceUpload = safeReport.evidence && typeof safeReport.evidence === 'object'
+        ? safeReport.evidence
+        : {};
+    const evidencePending = Math.max(0, Number(evidenceUpload.pending) || 0);
+    const evidenceExpected = Math.max(0, Number(evidenceUpload.expected) || 0);
     const resolutionImages = Array.isArray(safeReport.resolutionImages) ? safeReport.resolutionImages : [];
     const declaredEvidenceCount = Number(safeReport.evidenceCount);
     const evidenceCount = Math.max(
@@ -127,10 +132,27 @@ const OperationalIncidentSections = ({ report = {}, onRetryEvidence }) => {
             <DisclosureSection
                 id="evidence-heading"
                 icon={HiOutlinePhotograph}
-                title={`Evidence photos (${evidenceCount})`}
+                title={evidencePending > 0
+                    ? `Evidence photos (${images.length} of ${evidenceExpected})`
+                    : `Evidence photos (${evidenceCount})`}
                 summary="Protected images submitted with this report"
-                defaultOpen={evidenceCount > 0}
+                defaultOpen={evidenceCount > 0 || evidencePending > 0}
             >
+                {evidencePending > 0 ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4" role="status">
+                        <p className="text-sm font-semibold text-amber-900">
+                            {evidenceUpload.uploadStatus === 'uploading'
+                                ? 'Evidence still uploading'
+                                : 'Evidence not received'}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-amber-800">
+                            {images.length} of {evidenceExpected} photo{evidenceExpected === 1 ? '' : 's'} received.
+                            {evidenceUpload.uploadStatus === 'uploading'
+                                ? ' The reporter is on a weak connection; the remaining photos arrive automatically.'
+                                : ' The reporter may have closed the app before the upload finished.'}
+                        </p>
+                    </div>
+                ) : null}
                 {evidenceCount > images.length ? (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4" role="alert">
                         <p className="text-sm font-semibold text-amber-900">Evidence references are temporarily unavailable.</p>
