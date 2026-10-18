@@ -198,6 +198,7 @@ describe('ReportPage workflow', () => {
                 return 7;
             }),
             clearWatch: vi.fn(),
+            getCurrentPosition: vi.fn(),
         };
         globalThis.URL.createObjectURL = vi.fn((file) => `blob:mock/${file?.name || 'file'}`);
         globalThis.URL.revokeObjectURL = vi.fn();
@@ -392,6 +393,49 @@ describe('ReportPage workflow', () => {
             expect.objectContaining({ signal: expect.any(AbortSignal) })
         );
         expect(screen.getByRole('button', { name: /confirm location/i })).toBeInTheDocument();
+    });
+
+    test('applies a coarse network fix, then lets the high-accuracy watch refine it', async () => {
+        renderPage();
+
+        // Two-phase acquisition: the coarse pass is requested alongside the watch.
+        expect(geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+        expect(geolocation.getCurrentPosition.mock.calls[0][2]).toEqual({
+            enableHighAccuracy: false,
+            timeout: 6000,
+            maximumAge: 60000,
+        });
+
+        const coarseSuccess = geolocation.getCurrentPosition.mock.calls[0][0];
+        act(() => {
+            coarseSuccess({
+                coords: { latitude: 12.39261, longitude: 122.67985, accuracy: 1500 },
+            });
+        });
+
+        // The coarse fix reaches the form on its own — the watch has not fired.
+        await screen.findByTestId('location-map');
+        await waitFor(() => {
+            expect(mapPropsSpy.mock.lastCall[0].selectedLocation).toEqual({
+                lat: 12.39261,
+                lng: 122.67985,
+            });
+        });
+        expect(toastMock.error).not.toHaveBeenCalled();
+
+        // The precise fix supersedes it.
+        act(() => {
+            watchPositionSuccess({
+                coords: { latitude: 12.3927, longitude: 122.6799, accuracy: 12 },
+            });
+        });
+
+        await waitFor(() => {
+            expect(mapPropsSpy.mock.lastCall[0].selectedLocation).toEqual({
+                lat: 12.3927,
+                lng: 122.6799,
+            });
+        });
     });
 
     test('ignores a GPS fix that falls outside Sibuyan Island', async () => {

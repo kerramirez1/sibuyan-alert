@@ -151,7 +151,7 @@ describe('ReportPage automatic offline save', () => {
         }
         Object.defineProperty(window.navigator, 'geolocation', {
             configurable: true,
-            value: { watchPosition: vi.fn(() => 1), clearWatch: vi.fn() },
+            value: { watchPosition: vi.fn(() => 1), clearWatch: vi.fn(), getCurrentPosition: vi.fn() },
         });
         Object.defineProperty(window.navigator, 'onLine', {
             configurable: true,

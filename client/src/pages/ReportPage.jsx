@@ -444,7 +444,7 @@ const ReportPage = () => {
         try {
             const response = await reportsAPI.geocodeLocation(
                 { lat: location.lat, lng: location.lng },
-                { signal: controller.signal }
+                { signal: controller.signal, timeout: 10000 }
             );
             if (reverseGeocodeRequestRef.current !== requestId) return;
 
@@ -565,54 +565,67 @@ const ReportPage = () => {
             }
         }, 12000);
 
-        watchIdRef.current = geolocation.watchPosition(
-            (position) => {
-                if (locationRequestRef.current !== requestId) return;
-                const coords = position?.coords;
-                if (!coords) return;
-                const { latitude, longitude } = coords;
-                if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-                const location = { lat: latitude, lng: longitude };
-                // P2-b: the same Sibuyan bounds check the map path enforces —
-                // an out-of-bounds fix must not become submittable client-side
-                // (the server 400 stays as the backstop).
-                if (!isWithinSibuyanInteractionBounds(location)) return;
-                const accuracy = Number.isFinite(coords?.accuracy) ? coords.accuracy : null;
-                if (bestLocation !== null && accuracy !== null && accuracy >= bestAccuracy) return;
-                {
-                    if (accuracy !== null) bestAccuracy = accuracy;
-                    setGpsAccuracy(accuracy);
-                    bestLocation = location;
-                    setUserLocation(location);
-                    setSelectedLocation(location);
-                    setFocusLocation({
-                        ...location,
-                        zoom: accuracy !== null && accuracy < 100 ? OPERATIONAL_MAX_ZOOM : 14,
-                    });
-                    setLocationCapture(buildLocationCapture('gps', accuracy));
-                    setErrors(prev => ({ ...prev, location: '' }));
-                    if (accuracy !== null && accuracy <= GPS_MAX_ACCURACY_METERS && assessGpsAccuracy(accuracy).precise) {
-                        toast.success(`Precise location found (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
-                        if (watchIdRef.current !== null) {
-                            geolocation?.clearWatch(watchIdRef.current);
-                            watchIdRef.current = null;
-                        }
-                        if (locationTimeoutRef.current !== null) {
-                            clearTimeout(locationTimeoutRef.current);
-                            locationTimeoutRef.current = null;
-                        }
-                        locationDetectionActiveRef.current = false;
-                        setGeoLoading(false);
-                        setLocationStatus('confirming');
-                        void resolveLocationLabels(location, 'GPS located in');
-                    } else {
-                        toast.loading(
-                            accuracy !== null ? `Refining... (${Math.round(accuracy)}m)` : 'Refining... (accuracy unavailable)',
-                            { id: LOCATION_TOAST_ID },
-                        );
+        const applyPosition = (position) => {
+            if (locationRequestRef.current !== requestId) return;
+            const coords = position?.coords;
+            if (!coords) return;
+            const { latitude, longitude } = coords;
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+            const location = { lat: latitude, lng: longitude };
+            // P2-b: the same Sibuyan bounds check the map path enforces —
+            // an out-of-bounds fix must not become submittable client-side
+            // (the server 400 stays as the backstop).
+            if (!isWithinSibuyanInteractionBounds(location)) return;
+            const accuracy = Number.isFinite(coords?.accuracy) ? coords.accuracy : null;
+            if (bestLocation !== null && accuracy !== null && accuracy >= bestAccuracy) return;
+            {
+                if (accuracy !== null) bestAccuracy = accuracy;
+                setGpsAccuracy(accuracy);
+                bestLocation = location;
+                setUserLocation(location);
+                setSelectedLocation(location);
+                setFocusLocation({
+                    ...location,
+                    zoom: accuracy !== null && accuracy < 100 ? OPERATIONAL_MAX_ZOOM : 14,
+                });
+                setLocationCapture(buildLocationCapture('gps', accuracy));
+                setErrors(prev => ({ ...prev, location: '' }));
+                if (accuracy !== null && accuracy <= GPS_MAX_ACCURACY_METERS && assessGpsAccuracy(accuracy).precise) {
+                    toast.success(`Precise location found (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
+                    if (watchIdRef.current !== null) {
+                        geolocation?.clearWatch(watchIdRef.current);
+                        watchIdRef.current = null;
                     }
+                    if (locationTimeoutRef.current !== null) {
+                        clearTimeout(locationTimeoutRef.current);
+                        locationTimeoutRef.current = null;
+                    }
+                    locationDetectionActiveRef.current = false;
+                    setGeoLoading(false);
+                    setLocationStatus('confirming');
+                    void resolveLocationLabels(location, 'GPS located in');
+                } else {
+                    toast.loading(
+                        accuracy !== null ? `Refining... (${Math.round(accuracy)}m)` : 'Refining... (accuracy unavailable)',
+                        { id: LOCATION_TOAST_ID },
+                    );
                 }
-            },
+            }
+        };
+
+        // Fast coarse pass: a network-derived position arrives in about a second,
+        // where a cold GPS fix takes 30-60s. The high-accuracy watch below refines
+        // it and the existing "Refining... (Xm)" UI already reflects that.
+        // Failure here is deliberately silent — the watch is the authority, and a
+        // coarse failure must not surface an error while the watch is still running.
+        geolocation.getCurrentPosition(
+            applyPosition,
+            () => {},
+            { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+        );
+
+        watchIdRef.current = geolocation.watchPosition(
+            applyPosition,
             (error) => {
                 if (locationRequestRef.current !== requestId) return;
                 console.error('Geolocation error:', error);
