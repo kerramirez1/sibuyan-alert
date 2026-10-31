@@ -3,6 +3,7 @@ import { adminAPI } from '../services/api';
 import { getRoleStatuses } from '../components/adminReports/incidentReportConfig';
 import {
     QUERY_CACHE_TTLS,
+    clearQueryCache,
     dedupedFetch,
     getCachedData,
     getStaleData,
@@ -216,6 +217,11 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
         if (!id) return;
         setReports((current) => (Array.isArray(current) ? current : []).filter((report) => report?._id !== id));
         setSelectedReport((current) => (current?._id === id ? null : current));
+        // Every filter combination caches its own copy of the queue, so removing
+        // the row from this list leaves the deleted report sitting in every other
+        // one — and a fresh cache entry answers with no network request at all.
+        // One delete invalidates all of them.
+        clearQueryCache('incident-queue:');
     }, []);
 
     useEffect(() => {

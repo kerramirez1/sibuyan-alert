@@ -263,7 +263,7 @@ const useIncidentActions = ({
             removeReport(report?._id);
             closeDetails(report?._id);
             toast.success('Report deleted');
-            await refreshReports({ silent: true });
+            await refreshReports({ silent: true, force: true });
         } catch (error) {
             toast.error(getApiError(error, 'Failed to delete report'));
         } finally {
@@ -285,7 +285,7 @@ const useIncidentActions = ({
             removeReport(report?._id);
             closeDetails(report?._id);
             toast.success(response.data?.message || 'Report removed from your queue');
-            await refreshReports({ silent: true });
+            await refreshReports({ silent: true, force: true });
         } catch (error) {
             toast.error(getApiError(error, 'Failed to remove report from queue'));
         } finally {

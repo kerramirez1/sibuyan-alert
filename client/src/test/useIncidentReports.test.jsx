@@ -183,3 +183,91 @@ describe('useIncidentReports category filter', () => {
         expect(result.current.page).toBe(1);
     });
 });
+
+describe('useIncidentReports cache invalidation on removal', () => {
+    beforeEach(() => {
+        clearQueryCache();
+        listeners.clear();
+        subscribeMock.mockClear();
+        getReportsMock.mockReset();
+    });
+
+    test('a removal invalidates the queue cache so the next filter switch fetches', async () => {
+        getReportsMock.mockImplementation((params) => (
+            params?.status === 'pending' ? fetchQueuePage(['pending-1']) : fetchQueuePage(['report-1'])
+        ));
+
+        const { result } = renderHook(() => useIncidentReports({
+            subscribe: subscribeMock,
+            role: 'municipal_admin',
+        }));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(getReportsMock).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            result.current.setStatus('pending');
+        });
+        await waitFor(() => expect(result.current.status).toBe('pending'));
+        await waitFor(() => expect(getReportsMock).toHaveBeenCalledTimes(2));
+
+        // Both filter combinations now hold a fresh cache entry.
+        await act(async () => {
+            result.current.removeReport('report-1');
+        });
+
+        const callsBeforeSwitch = getReportsMock.mock.calls.length;
+        await act(async () => {
+            result.current.setStatus('');
+        });
+
+        // Without invalidation this switch is served by the fresh cache and the
+        // mock is never called again.
+        await waitFor(() => expect(getReportsMock.mock.calls.length).toBeGreaterThan(callsBeforeSwitch));
+        expect(getReportsMock.mock.calls.at(-1)[0]).not.toHaveProperty('status');
+    });
+
+    test('a deleted report does not reappear after switching filters', async () => {
+        // The server stops returning report-1 once it is deleted.
+        const queues = {
+            '': ['report-1', 'report-2'],
+            pending: ['report-1', 'pending-1'],
+        };
+        getReportsMock.mockImplementation((params) => fetchQueuePage(queues[params?.status || ''] || []));
+
+        const { result } = renderHook(() => useIncidentReports({
+            subscribe: subscribeMock,
+            role: 'municipal_admin',
+        }));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(async () => {
+            result.current.setStatus('pending');
+        });
+        await waitFor(() => expect(result.current.status).toBe('pending'));
+        await waitFor(() => expect(result.current.reports.map((r) => r._id)).toEqual(['report-1', 'pending-1']));
+
+        // Back to "All statuses": a fresh cache hit, so no new request.
+        const callsBeforeReturn = getReportsMock.mock.calls.length;
+        await act(async () => {
+            result.current.setStatus('');
+        });
+        await waitFor(() => expect(result.current.status).toBe(''));
+        expect(getReportsMock.mock.calls.length).toBe(callsBeforeReturn);
+
+        // The administrator deletes report-1 from here.
+        queues[''] = ['report-2'];
+        queues.pending = ['pending-1'];
+        await act(async () => {
+            result.current.removeReport('report-1');
+        });
+
+        const callsBeforeSwitch = getReportsMock.mock.calls.length;
+        await act(async () => {
+            result.current.setStatus('pending');
+        });
+
+        await waitFor(() => expect(getReportsMock.mock.calls.length).toBeGreaterThan(callsBeforeSwitch));
+        await waitFor(() => expect(result.current.reports.map((r) => r._id)).toEqual(['pending-1']));
+        expect(result.current.reports.some((r) => r._id === 'report-1')).toBe(false);
+    });
+});
