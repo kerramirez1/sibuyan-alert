@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { highRiskZonesAPI, reportsAPI } from '../services/api';
 import MapView from '../components/map/MapView';
@@ -209,6 +209,39 @@ const AdminHighRiskZonesPage = () => {
     const mapSectionRef = useRef(null);
     const mapScrollCleanupRef = useRef(null);
     const [isMapExpanded, setIsMapExpanded] = useState(false);
+
+    const detailsDockRef = useRef(null);
+    const [detailsDockNode, setDetailsDockNode] = useState(null);
+    const [isZoneInspectorOpen, setIsZoneInspectorOpen] = useState(false);
+
+    // Desktop only: the right column is `hidden lg:flex` on phone viewports, so a
+    // dock target living there is display:none and the panel would vanish.
+    const [isDesktopViewport, setIsDesktopViewport] = useState(() => (
+        typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+            ? window.matchMedia('(min-width: 1024px)').matches
+            : true
+    ));
+
+    // Captured before paint, the same way DashboardMapWorkspace does it, so the
+    // panel never flashes in the map corner on its way to the column.
+    useLayoutEffect(() => {
+        setDetailsDockNode(detailsDockRef.current);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+        const mediaQuery = window.matchMedia('(min-width: 1024px)');
+        const handleChange = (event) => setIsDesktopViewport(event.matches);
+        setIsDesktopViewport(mediaQuery.matches);
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+    }, []);
+
+    // The editor owns this column, and an expanded map has no column beside it —
+    // in both cases the panel must stay the overlay it is today.
+    const canDockZoneDetails = isDesktopViewport && !showForm && !isMapExpanded;
+    const zoneDockTarget = canDockZoneDetails ? detailsDockNode : null;
+    const isZoneDocked = isZoneInspectorOpen && Boolean(zoneDockTarget);
 
     const enterExpandedMap = useCallback(() => {
         if (isPhoneViewportCheck()) return;
@@ -1065,6 +1098,11 @@ const AdminHighRiskZonesPage = () => {
                             // independently of the susceptibility classes above.
                             accidentHotspots={accidentHotspotLayer}
                             accidentHotspotClasses={visibleHotspotClasses}
+                            dockTarget={zoneDockTarget}
+                            // Fires true when the map puts a zone's details on screen and false when
+                            // they close by any route (Escape, the close button, a refetch that drops
+                            // the record), so the column is released again.
+                            onEntityInspectorChange={setIsZoneInspectorOpen}
                             className="h-full w-full"
                         />
                     </div>
@@ -1561,149 +1599,159 @@ const AdminHighRiskZonesPage = () => {
                                 </form>
                             </section>
                         ) : (
-                            <section
-                                key="list"
-                                className="surface-panel flex h-full min-h-0 flex-col overflow-hidden fade-slide-enter"
-                                aria-label="Marked high-risk zones"
-                            >
-                                {/* List Header */}
-                                <div className="border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
-                                    <h2 className="section-title">
-                                        Marked zones ({Array.isArray(zones) ? zones.length : 0})
-                                    </h2>
-                                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                        Active monitored hazard areas in Sibuyan
-                                    </p>
-                                </div>
-
-                                {/* Compact Search & Hazard Type Filter */}
-                                {(Array.isArray(zones) ? zones.length : 0) > 0 && (
-                                    <div className="border-b border-gray-200 px-4 py-3 dark:border-white/10 space-y-2 shrink-0">
-                                        <div className="relative">
-                                            <HiOutlineSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
-                                            <input
-                                                type="text"
-                                                value={zoneSearch}
-                                                onChange={(e) => setZoneSearch(e.target.value)}
-                                                placeholder="Search zones or municipality..."
-                                                className="field-control pl-8"
-                                                aria-label="Search zones or municipality"
-                                            />
+                            <div className="flex h-full min-h-0 flex-col gap-3">
+                                {/* The dock target stays mounted so its ref is stable; it only takes
+                                    space while a zone's details are docked here. */}
+                                <div
+                                    ref={detailsDockRef}
+                                    className={isZoneDocked ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+                                />
+                                {!isZoneDocked && (
+                                    <section
+                                        key="list"
+                                        className="surface-panel flex h-full min-h-0 flex-col overflow-hidden fade-slide-enter"
+                                        aria-label="Marked high-risk zones"
+                                    >
+                                        {/* List Header */}
+                                        <div className="border-b border-gray-200 px-4 py-3 shrink-0 dark:border-white/10">
+                                            <h2 className="section-title">
+                                                Marked zones ({Array.isArray(zones) ? zones.length : 0})
+                                            </h2>
+                                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                                Active monitored hazard areas in Sibuyan
+                                            </p>
                                         </div>
-                                        <ScrollFadeRow className="flex flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" role="toolbar" aria-label="Filter zones by hazard type" tabIndex={0}>
-                                            {[
-                                                { id: 'all', label: 'All' },
-                                                { id: 'landslide_prone', label: 'Landslide' },
-                                                { id: 'accident_prone', label: 'Accident' },
-                                                { id: 'other', label: 'Other' },
-                                            ].map((chip) => (
-                                                <button
-                                                    key={chip.id}
-                                                    type="button"
-                                                    onClick={() => setZoneTypeFilter(chip.id)}
-                                                    aria-pressed={zoneTypeFilter === chip.id}
-                                                    className="filter-tab shrink-0 whitespace-nowrap px-2 text-xs"
-                                                >
-                                                    {chip.label}
-                                                </button>
-                                            ))}
-                                        </ScrollFadeRow>
-                                    </div>
-                                )}
 
-                                {loading ? (
-                                    <div className="flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 py-1 overflow-y-auto custom-scrollbar" role="status" aria-label="Loading risk zones" aria-busy="true">
-                                        <span className="sr-only">Loading risk zones...</span>
-                                        {[0, 1, 2, 3].map((i) => (
-                                            <div key={i} className="p-3.5 sm:p-4 space-y-2 animate-pulse">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <div className="flex items-center gap-2 flex-1">
-                                                        <div className="h-2 w-2 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
-                                                        <div className="h-3.5 w-1/3 rounded bg-gray-200 dark:bg-white/15" />
-                                                    </div>
-                                                    <div className="h-5 w-14 rounded-full bg-gray-100 dark:bg-white/10" />
+                                        {/* Compact Search & Hazard Type Filter */}
+                                        {(Array.isArray(zones) ? zones.length : 0) > 0 && (
+                                            <div className="border-b border-gray-200 px-4 py-3 dark:border-white/10 space-y-2 shrink-0">
+                                                <div className="relative">
+                                                    <HiOutlineSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+                                                    <input
+                                                        type="text"
+                                                        value={zoneSearch}
+                                                        onChange={(e) => setZoneSearch(e.target.value)}
+                                                        placeholder="Search zones or municipality..."
+                                                        className="field-control pl-8"
+                                                        aria-label="Search zones or municipality"
+                                                    />
                                                 </div>
-                                                <div className="h-2.5 w-2/3 rounded bg-gray-100 dark:bg-white/10" />
+                                                <ScrollFadeRow className="flex flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar" role="toolbar" aria-label="Filter zones by hazard type" tabIndex={0}>
+                                                    {[
+                                                        { id: 'all', label: 'All' },
+                                                        { id: 'landslide_prone', label: 'Landslide' },
+                                                        { id: 'accident_prone', label: 'Accident' },
+                                                        { id: 'other', label: 'Other' },
+                                                    ].map((chip) => (
+                                                        <button
+                                                            key={chip.id}
+                                                            type="button"
+                                                            onClick={() => setZoneTypeFilter(chip.id)}
+                                                            aria-pressed={zoneTypeFilter === chip.id}
+                                                            className="filter-tab shrink-0 whitespace-nowrap px-2 text-xs"
+                                                        >
+                                                            {chip.label}
+                                                        </button>
+                                                    ))}
+                                                </ScrollFadeRow>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : !Array.isArray(zones) || zones.length === 0 ? (
-                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 text-center text-gray-500 dark:text-gray-400">
-                                        <HiOutlineLocationMarker className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
-                                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">No high-risk zones marked yet</p>
-                                        <p className="text-[11px] mt-1 text-gray-400">Click &quot;Add zone&quot; to create a new monitored hazard area.</p>
-                                    </div>
-                                ) : filteredZones.length === 0 ? (
-                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 text-center text-gray-500 dark:text-gray-400">
-                                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">No matching zones found</p>
-                                        <p className="text-[11px] mt-1 text-gray-400">Try adjusting your search query or hazard filter.</p>
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 overflow-y-auto custom-scrollbar">
-                                        {filteredZones.filter(Boolean).map((zone, index) => {
-                                            const typeInfo = ZONE_TYPES.find((t) => t.value === zone?.type);
-                                            const severityInfo = SEVERITY_LEVELS.find((s) => s.value === zone?.severity);
+                                        )}
 
-                                            return (
-                                                <div
-                                                    key={zone?._id ?? index}
-                                                    className="p-3.5 sm:p-4 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors cursor-pointer"
-                                                    onClick={() => handleZoneClick(zone)}
-                                                >
-                                                    <div className="flex items-start justify-between gap-2.5">
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <h3 className="font-semibold text-xs sm:text-[13px] text-gray-900 dark:text-white truncate">
-                                                                    {zone?.name}
-                                                                </h3>
+                                        {loading ? (
+                                            <div className="flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 py-1 overflow-y-auto custom-scrollbar" role="status" aria-label="Loading risk zones" aria-busy="true">
+                                                <span className="sr-only">Loading risk zones...</span>
+                                                {[0, 1, 2, 3].map((i) => (
+                                                    <div key={i} className="p-3.5 sm:p-4 space-y-2 animate-pulse">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div className="flex items-center gap-2 flex-1">
+                                                                <div className="h-2 w-2 rounded-full bg-gray-200 dark:bg-white/10 shrink-0" />
+                                                                <div className="h-3.5 w-1/3 rounded bg-gray-200 dark:bg-white/15" />
                                                             </div>
-                                                            <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">
-                                                                {typeInfo?.label || 'Hazard'} · {zone?.municipality} · {zone?.radius}m
-                                                            </p>
-                                                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
-                                                                <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-300 font-medium">
-                                                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severityInfo?.color || 'bg-gray-400'}`} aria-hidden="true" />
-                                                                    <span>{severityInfo?.label || zone?.severity}</span>
-                                                                </span>
-                                                                {Array.isArray(zone?.photos) && zone.photos.length > 0 && (
-                                                                    <span className="inline-flex items-center gap-1 text-gray-400 dark:text-gray-500">
-                                                                        <HiOutlinePhotograph className="h-3.5 w-3.5" aria-hidden="true" />
-                                                                        <span>{zone.photos.length}</span>
+                                                            <div className="h-5 w-14 rounded-full bg-gray-100 dark:bg-white/10" />
+                                                        </div>
+                                                        <div className="h-2.5 w-2/3 rounded bg-gray-100 dark:bg-white/10" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : !Array.isArray(zones) || zones.length === 0 ? (
+                                            <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 text-center text-gray-500 dark:text-gray-400">
+                                                <HiOutlineLocationMarker className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                                                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">No high-risk zones marked yet</p>
+                                                <p className="text-[11px] mt-1 text-gray-400">Click &quot;Add zone&quot; to create a new monitored hazard area.</p>
+                                            </div>
+                                        ) : filteredZones.length === 0 ? (
+                                            <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 text-center text-gray-500 dark:text-gray-400">
+                                                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">No matching zones found</p>
+                                                <p className="text-[11px] mt-1 text-gray-400">Try adjusting your search query or hazard filter.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 overflow-y-auto custom-scrollbar">
+                                                {filteredZones.filter(Boolean).map((zone, index) => {
+                                                    const typeInfo = ZONE_TYPES.find((t) => t.value === zone?.type);
+                                                    const severityInfo = SEVERITY_LEVELS.find((s) => s.value === zone?.severity);
+
+                                                    return (
+                                                        <div
+                                                            key={zone?._id ?? index}
+                                                            className="p-3.5 sm:p-4 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors cursor-pointer"
+                                                            onClick={() => handleZoneClick(zone)}
+                                                        >
+                                                            <div className="flex items-start justify-between gap-2.5">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <h3 className="font-semibold text-xs sm:text-[13px] text-gray-900 dark:text-white truncate">
+                                                                            {zone?.name}
+                                                                        </h3>
+                                                                    </div>
+                                                                    <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                                                                        {typeInfo?.label || 'Hazard'} · {zone?.municipality} · {zone?.radius}m
+                                                                    </p>
+                                                                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                                                                        <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-300 font-medium">
+                                                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${severityInfo?.color || 'bg-gray-400'}`} aria-hidden="true" />
+                                                                            <span>{severityInfo?.label || zone?.severity}</span>
+                                                                        </span>
+                                                                        {Array.isArray(zone?.photos) && zone.photos.length > 0 && (
+                                                                            <span className="inline-flex items-center gap-1 text-gray-400 dark:text-gray-500">
+                                                                                <HiOutlinePhotograph className="h-3.5 w-3.5" aria-hidden="true" />
+                                                                                <span>{zone.photos.length}</span>
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                {canManageZone(zone) ? (
+                                                                    <div className="flex items-center gap-3 shrink-0">
+                                                                        <button
+                                                                            type="button"
+                                                                            aria-label={`Edit ${zone?.name || 'zone'}`}
+                                                                            onClick={(e) => { e.stopPropagation(); handleEdit(zone); }}
+                                                                            className="min-h-[44px] text-xs font-medium text-gray-500 hover:text-emerald-700 dark:text-gray-400 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer"
+                                                                        >
+                                                                            Edit
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            aria-label={`Delete ${zone?.name || 'zone'}`}
+                                                                            onClick={(e) => { e.stopPropagation(); handleDelete(zone); }}
+                                                                            className="min-h-[44px] text-xs font-medium text-gray-500 hover:text-red-700 dark:text-gray-400 dark:hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 cursor-pointer"
+                                                                        >
+                                                                            Delete
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
+                                                                        View only
                                                                     </span>
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        {canManageZone(zone) ? (
-                                                            <div className="flex items-center gap-3 shrink-0">
-                                                                <button
-                                                                    type="button"
-                                                                    aria-label={`Edit ${zone?.name || 'zone'}`}
-                                                                    onClick={(e) => { e.stopPropagation(); handleEdit(zone); }}
-                                                                    className="min-h-[44px] text-xs font-medium text-gray-500 hover:text-emerald-700 dark:text-gray-400 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 cursor-pointer"
-                                                                >
-                                                                    Edit
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    aria-label={`Delete ${zone?.name || 'zone'}`}
-                                                                    onClick={(e) => { e.stopPropagation(); handleDelete(zone); }}
-                                                                    className="min-h-[44px] text-xs font-medium text-gray-500 hover:text-red-700 dark:text-gray-400 dark:hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 cursor-pointer"
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
-                                                                View only
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </section>
                                 )}
-                            </section>
+                            </div>
                         )}
                 </div>
             </div>

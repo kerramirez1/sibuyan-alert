@@ -1273,4 +1273,71 @@ describe('AdminHighRiskZonesPage', () => {
             expect(screen.getByText(/Hazard: could not be checked/i)).toBeInTheDocument();
         });
     });
+
+    // jsdom's matchMedia reports every query as non-matching, which would leave
+    // isDesktopViewport false and make the dock target null. Stub the desktop
+    // query for the duration of one test and hand back its restore.
+    const stubDesktopMatchMedia = () => {
+        const original = window.matchMedia;
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: query === '(min-width: 1024px)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+        return () => { window.matchMedia = original; };
+    };
+
+    test('hands MapView a dock target and an inspector callback', () => {
+        const restore = stubDesktopMatchMedia();
+        try {
+            render(<AdminHighRiskZonesPage />);
+
+            const props = mockMapViewProps.mock.lastCall[0];
+            expect(props.onEntityInspectorChange).toEqual(expect.any(Function));
+            expect(props.dockTarget === null || props.dockTarget instanceof HTMLElement).toBe(true);
+            // On a desktop viewport the column exists, so the target is a real node.
+            expect(props.dockTarget).toBeInstanceOf(HTMLElement);
+        } finally {
+            restore();
+        }
+    });
+
+    test("reserves the column while a zone's details are docked", () => {
+        const restore = stubDesktopMatchMedia();
+        try {
+            render(<AdminHighRiskZonesPage />);
+            expect(screen.getByText(/Marked zones \(/)).toBeInTheDocument();
+
+            act(() => {
+                mockMapViewProps.mock.lastCall[0].onEntityInspectorChange(true);
+            });
+            expect(screen.queryByText(/Marked zones \(/)).not.toBeInTheDocument();
+
+            act(() => {
+                mockMapViewProps.mock.lastCall[0].onEntityInspectorChange(false);
+            });
+            expect(screen.getByText(/Marked zones \(/)).toBeInTheDocument();
+        } finally {
+            restore();
+        }
+    });
+
+    test('does not dock while the zone editor is open', () => {
+        const restore = stubDesktopMatchMedia();
+        try {
+            render(<AdminHighRiskZonesPage />);
+            expect(mockMapViewProps.mock.lastCall[0].dockTarget).toBeInstanceOf(HTMLElement);
+
+            fireEvent.click(screen.getByRole('button', { name: /Add zone/i }));
+
+            expect(mockMapViewProps.mock.lastCall[0].dockTarget).toBeNull();
+        } finally {
+            restore();
+        }
+    });
 });
