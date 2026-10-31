@@ -149,7 +149,10 @@ const QueuedReportLocationFix = ({ isOpen, blockedReport, isOnline = true, onClo
                 setGpsCapture(null);
                 setGpsError(describeGpsError(error));
             },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+            // Accept a fix the OS already has. maximumAge: 0 forced a cold GPS fix and
+            // was the reason this path timed out on the same devices ReportPage's
+            // two-phase pass fixed.
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
         );
     };
 

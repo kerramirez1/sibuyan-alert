@@ -517,7 +517,7 @@ const ReportPage = () => {
         await resolveLocationLabels(location);
     }, [stopLocationDetection, resolveLocationLabels]);
 
-    const detectLocation = useCallback(() => {
+    const detectLocation = useCallback(async () => {
         const geolocation = typeof navigator !== 'undefined' ? navigator.geolocation : null;
         if (!geolocation) {
             toast.error('Geolocation is not supported by your browser');
@@ -532,8 +532,36 @@ const ReportPage = () => {
         setGeoLoading(true);
         setLocationStatus('detecting');
         toast.loading('Acquiring location...', { id: LOCATION_TOAST_ID });
+
+        // A denied permission is permanent, not transient: without this the app
+        // spends the full watchdog on an attempt that cannot succeed, then shows
+        // a toast the reporter has no way to act on.
+        try {
+            const permission = navigator.permissions?.query
+                ? await navigator.permissions.query({ name: 'geolocation' })
+                : null;
+            if (locationRequestRef.current !== requestId) return;
+            if (permission?.state === 'denied') {
+                locationDetectionActiveRef.current = false;
+                setGeoLoading(false);
+                setLocationStatus('idle');
+                toast.error(
+                    'Location is blocked for this site. Allow location access in your browser settings, then try again.',
+                    { id: LOCATION_TOAST_ID },
+                );
+                return;
+            }
+        } catch {
+            // Permissions API unavailable or the name is unsupported: fall
+            // through and let geolocation report the real error.
+        }
+
         let bestAccuracy = Infinity;
         let bestLocation = null;
+        // A fix outside the island is a real answer, not a timeout. Tracking it lets
+        // the watchdog say which of the two happened instead of reporting a generic
+        // "could not determine location" for both.
+        let sawOutOfBoundsFix = false;
 
         locationTimeoutRef.current = setTimeout(() => {
             if (locationRequestRef.current !== requestId) return;
@@ -545,7 +573,12 @@ const ReportPage = () => {
             locationDetectionActiveRef.current = false;
             setGeoLoading(false);
             if (!bestLocation) {
-                toast.error('Could not determine location. Please search or pin manually.', { id: LOCATION_TOAST_ID });
+                toast.error(
+                    sawOutOfBoundsFix
+                        ? 'Your location was found, but it is outside Sibuyan Island. Please pin the incident manually.'
+                        : 'Could not determine location. Please search or pin manually.',
+                    { id: LOCATION_TOAST_ID },
+                );
                 setLocationStatus('idle');
             } else {
                 const assessment = assessGpsAccuracy(bestAccuracy);
@@ -556,9 +589,17 @@ const ReportPage = () => {
                         void resolveLocationLabels(bestLocation, 'GPS located in');
                     }
                 } else {
+                    // Do not throw the position away. A 2km fix is still the right village,
+                    // and the reporter can drag the pin from there — clearing everything
+                    // sends them back to an empty map with no idea where to start.
+                    //
+                    // It stays OUT of selectedLocation: that field is what makes the step
+                    // submittable, and a fix this coarse must not become a report's
+                    // coordinates without a human placing it.
                     setSelectedLocation(null);
                     setGpsAccuracy(null);
                     setLocationCapture(null);
+                    setFocusLocation({ ...bestLocation, zoom: 13 });
                     toast.error(assessment.message, { id: LOCATION_TOAST_ID });
                     setLocationStatus('idle');
                 }
@@ -575,7 +616,10 @@ const ReportPage = () => {
             // P2-b: the same Sibuyan bounds check the map path enforces —
             // an out-of-bounds fix must not become submittable client-side
             // (the server 400 stays as the backstop).
-            if (!isWithinSibuyanInteractionBounds(location)) return;
+            if (!isWithinSibuyanInteractionBounds(location)) {
+                sawOutOfBoundsFix = true;
+                return;
+            }
             const accuracy = Number.isFinite(coords?.accuracy) ? coords.accuracy : null;
             if (bestLocation !== null && accuracy !== null && accuracy >= bestAccuracy) return;
             {

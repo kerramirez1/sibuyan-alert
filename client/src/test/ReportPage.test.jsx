@@ -459,6 +459,34 @@ describe('ReportPage workflow', () => {
         expect(screen.getByLabelText(/address or landmark/i)).toHaveValue('');
     });
 
+    test('a denied location permission never starts acquisition', async () => {
+        const originalPermissions = Object.getOwnPropertyDescriptor(window.navigator, 'permissions');
+        Object.defineProperty(window.navigator, 'permissions', {
+            configurable: true,
+            value: { query: vi.fn().mockResolvedValue({ state: 'denied' }) },
+        });
+
+        try {
+            renderPage();
+
+            await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(
+                expect.stringMatching(/location is blocked/i),
+                expect.anything(),
+            ));
+
+            // A permanent denial must not spend the 12s watchdog on an attempt
+            // that cannot succeed.
+            expect(geolocation.watchPosition).not.toHaveBeenCalled();
+            expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
+        } finally {
+            if (originalPermissions) {
+                Object.defineProperty(window.navigator, 'permissions', originalPermissions);
+            } else {
+                delete window.navigator.permissions;
+            }
+        }
+    });
+
     test('clears a prior barangay when the current pin has no verified boundary', async () => {
         geocodeLocationMock.mockResolvedValueOnce({
             data: { data: { address: 'Sibuyan Circumferential Road, Cajidiocan', barangay: null, barangayAssignment: 'unmatched' } },
