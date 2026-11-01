@@ -16,7 +16,7 @@ import {
     upsertDashboardReport,
 } from '../utils/dashboardReports';
 import { getPhysicalMunicipality } from '../utils/incidentDetails';
-import { getIncidentTypeLabel } from '../config/incidentTypes';
+import { getReportIncidentTypeLabel } from '../config/incidentTypes';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 import {
     DEFAULT_MAP_SCOPE,
@@ -1045,7 +1045,9 @@ const DashboardPage = () => {
     const incidentTypeBarData = useMemo(() => {
         const counts = {};
         periodReports.forEach((report) => {
-            const name = getIncidentTypeLabel(report?.incidentType, '')
+            // Grouped by type, so 'other' reports share one bar: the bare
+            // "Other incident", never one bar per free-text detail.
+            const name = getReportIncidentTypeLabel(report, '', { includeDetail: false })
                 || INCIDENT_CATEGORIES[report?.incidentCategory]?.label
                 || 'Unspecified';
             counts[name] = (counts[name] || 0) + 1;

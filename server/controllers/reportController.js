@@ -366,6 +366,7 @@ export const createReport = async (req, res) => {
         const {
             incidentCategory,
             incidentType,
+            incidentCategoryDetail,
             description,
             address,
             barangay,
@@ -410,6 +411,14 @@ export const createReport = async (req, res) => {
         // Determine category and type (with legacy support)
         const finalCategory = incidentCategory || 'accident';
         const finalType = incidentType || accidentType || 'vehicular';
+
+        // The free-text detail belongs to the 'other' category only.
+        // Validation already rejected a blank detail for 'other' and
+        // blanked the field for every other category; this repeats the
+        // rule at the storage step so no path can store a stray detail.
+        const finalCategoryDetail = finalCategory === 'other'
+            ? String(incidentCategoryDetail || '').trim() || undefined
+            : undefined;
 
         // Validate category
         if (!INCIDENT_CATEGORIES[finalCategory]) {
@@ -531,6 +540,7 @@ export const createReport = async (req, res) => {
             reporter: req.user._id,
             incidentCategory: finalCategory,
             incidentType: finalType,
+            incidentCategoryDetail: finalCategoryDetail,
             description,
             address: locationResult.address,
             // A polygon match always wins over a reverse-geocoder or typed suggestion.
@@ -579,6 +589,7 @@ export const createReport = async (req, res) => {
                 category: finalCategory,
                 categoryLabel: categoryConfig.label,
                 type: finalType,
+                incidentCategoryDetail: finalCategoryDetail,
                 address: report.address,
                 municipality: locationResult.municipalityName,
                 coordinates: report.coordinates,
@@ -627,6 +638,7 @@ export const createReport = async (req, res) => {
                     category: finalCategory,
                     incidentCategory: finalCategory,
                     incidentType: finalType,
+                    incidentCategoryDetail: finalCategoryDetail,
                     address: report.address,
                     barangay: report.barangay,
                     municipalityName: locationResult.municipalityName,

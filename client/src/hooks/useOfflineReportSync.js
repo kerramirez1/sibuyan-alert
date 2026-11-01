@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from '../utils/appToast';
 import { reportsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { getIncidentTypeLabel } from '../config/incidentTypes';
+import { getReportIncidentTypeLabel } from '../config/incidentTypes';
 import {
     QUEUE_BLOCKED_CODES,
     buildPhotoFormData,
@@ -85,7 +85,7 @@ const describeBlockedReport = (entry) => {
         queuedAt: details.queuedAt,
         label: details.address
             || details.barangay
-            || getIncidentTypeLabel(details.incidentType, 'Incident report'),
+            || getReportIncidentTypeLabel(details, 'Incident report'),
         // What the reporter can actually do about this block. Derived from the
         // payload the server refused, so the banner never offers a blind retry
         // for a GPS-accuracy rejection it cannot succeed.

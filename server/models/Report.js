@@ -26,7 +26,7 @@ const reportSchema = new mongoose.Schema(
         // Incident Category - Main classification
         incidentCategory: {
             type: String,
-            enum: ['accident', 'fire', 'hazard'],
+            enum: ['accident', 'fire', 'hazard', 'other'],
             required: [true, 'Incident category is required'],
             default: 'accident',
         },
@@ -36,6 +36,18 @@ const reportSchema = new mongoose.Schema(
             type: String,
             required: [true, 'Incident type is required'],
             // Sub-types derive from the incident category (see server/config/incidentCategories.js)
+        },
+
+        // Free-text detail for the 'other' category only: what the reporter
+        // says the incident is, in their own words. Required only when the
+        // category is 'other' — that rule is conditional, so it is enforced
+        // in validation (validateCreateReport), not at the schema level.
+        // The create path stores it only for 'other'; any other category
+        // stores nothing here.
+        incidentCategoryDetail: {
+            type: String,
+            trim: true,
+            maxlength: [60, 'Incident detail cannot exceed 60 characters'],
         },
 
         // Basic Information

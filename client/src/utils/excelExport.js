@@ -1,6 +1,6 @@
 import { normalizeSpreadsheetValue } from './csvExport';
 import { formatCasualtyMetric } from './incidentDetails';
-import { getIncidentTypeLabel } from '../config/incidentTypes';
+import { getReportIncidentTypeLabel } from '../config/incidentTypes';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 
 const TITLE_FONT = { bold: true, size: 14, color: { argb: 'FF111827' } };
@@ -223,7 +223,7 @@ export const buildAnalyticsWorkbook = (ExcelJS, {
             incidentTime: toDateCell(report?.incidentTime),
             title: report?.title || 'Unknown',
             category: INCIDENT_CATEGORIES[report?.incidentCategory]?.label || 'Unknown',
-            type: getIncidentTypeLabel(report?.incidentType, 'Unknown'),
+            type: getReportIncidentTypeLabel(report, 'Unknown'),
             severity: report?.severity
                 ? String(report.severity).charAt(0).toUpperCase() + String(report.severity).slice(1).toLowerCase()
                 : 'Moderate',

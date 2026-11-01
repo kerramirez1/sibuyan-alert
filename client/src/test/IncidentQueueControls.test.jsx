@@ -127,7 +127,7 @@ describe('IncidentQueueControls category filter', () => {
         expect(menu).toBeInTheDocument();
 
         const items = within(menu).getAllByRole('menuitemradio');
-        expect(items.map((item) => item.textContent)).toEqual(['All categories', 'Accident', 'Fire', 'Road Hazard']);
+        expect(items.map((item) => item.textContent)).toEqual(['All categories', 'Accident', 'Fire', 'Road Hazard', 'Other']);
 
         fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Fire' }));
         expect(setCategory).toHaveBeenCalledWith('fire');

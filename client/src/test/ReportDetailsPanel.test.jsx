@@ -27,12 +27,12 @@ const renderPanel = (formDataOverrides = {}) => {
 };
 
 describe('ReportDetailsPanel incident category', () => {
-    test('renders a category select with three options', () => {
+    test('renders a category select with four options', () => {
         renderPanel();
 
         const select = screen.getByRole('combobox', { name: 'Incident category' });
-        expect([...select.options].map((option) => option.value)).toEqual(['accident', 'fire', 'hazard']);
-        expect([...select.options].map((option) => option.textContent)).toEqual(['Road accident', 'Fire', 'Road Hazard']);
+        expect([...select.options].map((option) => option.value)).toEqual(['accident', 'fire', 'hazard', 'other']);
+        expect([...select.options].map((option) => option.textContent)).toEqual(['Road accident', 'Fire', 'Road Hazard', 'Other']);
     });
 
     test('changing the category resets the type to the new category first type', () => {
@@ -65,6 +65,27 @@ describe('ReportDetailsPanel incident category', () => {
         expect([...typeSelect.options].map((option) => option.value))
             .toEqual(['structural', 'vegetation', 'vehicular_fire', 'other_fire']);
         expect(typeSelect.value).toBe('structural');
+    });
+
+    test('the other category replaces the type select with a required specify field and the scope note', () => {
+        renderPanel({ incidentCategory: 'other', incidentType: 'other', incidentCategoryDetail: '' });
+
+        expect(screen.queryByRole('combobox', { name: 'Incident type' })).not.toBeInTheDocument();
+        const input = screen.getByRole('textbox', { name: /Please specify the incident/ });
+        expect(input).toBeInTheDocument();
+        expect(input).toHaveAttribute('maxlength', '60');
+        expect(input).toBeRequired();
+        expect(screen.getByText(/This system covers road accidents, fire, and road hazards\. For crime, please contact the PNP; for incidents at sea, the Coast Guard\./)).toBeInTheDocument();
+    });
+
+    test('switching away from other clears the specify text', () => {
+        const { setFormData } = renderPanel({ incidentCategory: 'other', incidentType: 'other', incidentCategoryDetail: 'Fallen wire' });
+
+        fireEvent.change(screen.getByRole('combobox', { name: 'Incident category' }), { target: { value: 'fire' } });
+
+        const updater = setFormData.mock.calls[0][0];
+        const next = updater({ incidentCategory: 'other', incidentType: 'other', incidentCategoryDetail: 'Fallen wire' });
+        expect(next).toMatchObject({ incidentCategory: 'fire', incidentType: 'structural', incidentCategoryDetail: '' });
     });
 });
 

@@ -38,4 +38,24 @@ export const getIncidentTypeLabel = (type, fallback = 'Incident') => {
     return INCIDENT_TYPE_LABELS[type] ?? fallback;
 };
 
-export default { INCIDENT_TYPE_LABELS, getIncidentTypeLabel };
+/**
+ * Resolves the display label for a whole report. Every category resolves
+ * through the flat type map above, except 'other': that category's type is
+ * the reporter's own words, so staff and the owner see "Other — <detail>".
+ * Public payloads never carry the detail, so their label is the bare
+ * "Other incident" — the detail is the reporter's free text and stays on
+ * the operational side.
+ */
+export const getReportIncidentTypeLabel = (report, { publicView = false } = {}) => {
+    const type = report?.incidentType || report?.accidentType;
+    if (report?.incidentCategory === 'other' && (type === 'other' || !type)) {
+        const detail = typeof report?.incidentCategoryDetail === 'string'
+            ? report.incidentCategoryDetail.trim()
+            : '';
+        if (!publicView && detail) return `Other — ${detail}`;
+        return 'Other incident';
+    }
+    return getIncidentTypeLabel(type, 'Incident');
+};
+
+export default { INCIDENT_TYPE_LABELS, getIncidentTypeLabel, getReportIncidentTypeLabel };

@@ -87,10 +87,13 @@ const GENERAL_CAMERA_BOUNDS = [[121.5, 11.5], [123.5, 13.5]];
 const EMPTY_HAZARD_LAYERS = Object.freeze([]);
 
 // Incident category colors
+// Incident category colors. 'other' stays neutral gray: it has no hue of
+// its own, and hue is reserved for the severity scale.
 const INCIDENT_COLORS = {
     accident: '#3B82F6',
     fire: '#EF4444',
     hazard: '#F59E0B',
+    other: '#6B7280',
 };
 
 const ZONE_COLORS = {

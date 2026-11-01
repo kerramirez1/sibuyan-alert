@@ -83,6 +83,7 @@ export const buildDraftPayload = ({ formData, selectedLocation, locationCapture 
     formData: {
         incidentCategory: sanitizeText(formData?.incidentCategory, 64) || 'accident',
         incidentType: sanitizeText(formData?.incidentType, 64) || 'vehicular',
+        incidentCategoryDetail: sanitizeText(formData?.incidentCategoryDetail, 60),
         description: sanitizeText(formData?.description, 2000),
         address: sanitizeText(formData?.address, 500),
         barangay: sanitizeText(formData?.barangay, 200),

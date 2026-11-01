@@ -142,6 +142,25 @@ export const validateCreateReport = [
             throw new Error('Invalid incident type');
         }
 
+        // The 'other' category has no type list to pick from: the reporter
+        // must say what the incident is, in a short free-text detail. Any
+        // other category must never carry a detail — a stale client value
+        // is dropped here so it can never be stored or shown.
+        if (category === 'other') {
+            const detail = typeof req.body.incidentCategoryDetail === 'string'
+                ? req.body.incidentCategoryDetail.trim()
+                : '';
+            if (!detail) {
+                throw new Error('Please specify the incident');
+            }
+            if (detail.length > 60) {
+                throw new Error('Incident detail cannot exceed 60 characters');
+            }
+            req.body.incidentCategoryDetail = detail;
+        } else if (req.body.incidentCategoryDetail !== undefined) {
+            req.body.incidentCategoryDetail = '';
+        }
+
         for (const [group, field] of REPORT_COUNT_FIELDS) {
             const value = readNestedOrMultipartValue(req.body, group, field);
             if (!isNonNegativeSafeInteger(value)) {

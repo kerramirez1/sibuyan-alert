@@ -1,4 +1,5 @@
 import { getEntityId } from './reportAccess.js';
+import { getReportIncidentTypeLabel } from './incidentTypeLabel.js';
 import { buildReportEvidenceObject } from './publicReport.js';
 import { toSerializableCount } from './casualtyCounts.js';
 import { getRespondingAgencies } from './reportAgencies.js';
@@ -98,6 +99,10 @@ const buildCore = (source) => ({
     _id: getEntityId(source),
     incidentCategory: source.incidentCategory,
     incidentType: source.incidentType || source.accidentType,
+    // Staff see the reporter's own words for an 'other' report, both as
+    // the raw detail and inside the resolved label.
+    incidentCategoryDetail: source.incidentCategoryDetail || '',
+    incidentTypeLabel: getReportIncidentTypeLabel(source),
     title: source.title,
     description: source.description || '',
     address: source.address,

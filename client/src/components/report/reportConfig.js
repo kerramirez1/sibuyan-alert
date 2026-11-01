@@ -15,6 +15,10 @@ export const INCIDENT_CATEGORIES = {
         label: 'Road Hazard',
         types: getIncidentTypeOptions('hazard'),
     },
+    other: {
+        label: 'Other',
+        types: getIncidentTypeOptions('other'),
+    },
 };
 
 export const SEVERITY_LEVELS = [
@@ -48,6 +52,12 @@ export const SEVERITY_DESCRIPTIONS = {
         moderate: 'Partial road blockage; pass with caution',
         severe: 'Road heavily blocked; urgent clearing needed',
         critical: 'Road completely impassable or immediate danger',
+    },
+    other: {
+        minor: 'Small incident; no one in danger',
+        moderate: 'Incident needs attention; limited risk',
+        severe: 'Serious incident; urgent response needed',
+        critical: 'Immediate danger to life or property',
     },
 };
 

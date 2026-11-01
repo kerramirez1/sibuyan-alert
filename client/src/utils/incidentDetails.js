@@ -1,6 +1,12 @@
-import { getIncidentTypeLabel } from '../config/incidentTypes';
+import { getIncidentTypeLabel, getReportIncidentTypeLabel } from '../config/incidentTypes';
 
-export const formatIncidentLabel = (value, fallback = 'Incident') => {
+export const formatIncidentLabel = (value, fallback = 'Incident', report = null) => {
+    // An 'other' report is labelled by its category and detail, not by the
+    // bare type value: the type alone would read as the accident category's
+    // "Other road incident", which is a different thing.
+    if (report?.incidentCategory === 'other') {
+        return getReportIncidentTypeLabel(report, fallback);
+    }
     if (!value || typeof value !== 'string') return fallback;
     return getIncidentTypeLabel(value, fallback);
 };
@@ -56,9 +62,7 @@ export const normalizeCasualties = (casualties) => {
 };
 
 export const getIncidentDetailViewModel = (report = {}) => {
-    const typeLabel = getIncidentTypeLabel(
-        report.incidentType || report.accidentType,
-    );
+    const typeLabel = getReportIncidentTypeLabel(report);
     const municipality = getPhysicalMunicipality(report) || report.municipality?.name || '';
     const locationParts = [report.address, report.barangay, municipality]
         .filter(Boolean)

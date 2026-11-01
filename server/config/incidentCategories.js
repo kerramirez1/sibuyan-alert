@@ -1,6 +1,9 @@
 // Incident scope: road accidents, fire incidents, and road hazards.
 // Maritime and natural-disaster incidents remain out of scope and must not
-// be accepted here.
+// be accepted here. The 'other' category does not widen that scope: it only
+// gives the reporter a free-text detail (incidentCategoryDetail) for
+// incidents that fit none of the three, and the form points maritime and
+// crime reports to the Coast Guard and the PNP instead.
 export const INCIDENT_CATEGORIES = Object.freeze({
     accident: Object.freeze({
         label: 'Road Accident',
@@ -35,6 +38,13 @@ export const INCIDENT_CATEGORIES = Object.freeze({
             'other_hazard',
         ]),
         emoji: '⚠️',
+    }),
+    other: Object.freeze({
+        label: 'Other',
+        types: Object.freeze([
+            'other',
+        ]),
+        emoji: '📋',
     }),
 });
 

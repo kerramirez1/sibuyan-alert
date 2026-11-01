@@ -113,6 +113,8 @@ const IncidentDetailsCoreSection = ({
     const incidentDate = report.incidentTime || report.accidentTime || report.createdAt;
     const incidentType = formatIncidentLabel(
         report.incidentType || report.accidentType || report.incidentCategory,
+        'Incident',
+        report,
     );
     const municipality = getPhysicalMunicipality(report) || report.municipality?.name || '';
     const barangay = report.barangay || 'Not specified';

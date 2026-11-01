@@ -43,11 +43,22 @@ export const CATEGORY_TYPES = Object.freeze({
     accident: Object.freeze(['vehicular', 'motorcycle', 'pedestrian', 'bicycle', 'self_accident', 'mechanical', 'other']),
     fire: Object.freeze(['structural', 'vegetation', 'vehicular_fire', 'other_fire']),
     hazard: Object.freeze(['fallen_tree', 'fallen_post', 'road_debris', 'landslide', 'other_hazard']),
+    other: Object.freeze(['other']),
 });
 
-/** Ordered `{ value, label }` options for one category's type select. */
+/**
+ * Ordered `{ value, label }` options for one category's type select.
+ *
+ * The type value 'other' means two different things: under 'accident' it is
+ * "Other road incident", under the 'other' category it is the bare
+ * "Other incident". The flat label map can only hold one of them, so the
+ * category decides here.
+ */
 export const getIncidentTypeOptions = (category) => Object.freeze(
-    (CATEGORY_TYPES[category] || []).map((value) => Object.freeze({ value, label: getIncidentTypeLabel(value) }))
+    (CATEGORY_TYPES[category] || []).map((value) => Object.freeze({
+        value,
+        label: category === 'other' && value === 'other' ? 'Other incident' : getIncidentTypeLabel(value),
+    }))
 );
 
 /** Ordered `{ value, label }` options for form selects (all categories). */
@@ -74,10 +85,27 @@ export const getIncidentTypeLabel = (type, fallback = 'Unspecified incident') =>
 /**
  * Convenience for components holding a whole report object. Reads the legacy
  * `accidentType` field so pre-migration records still resolve.
+ *
+ * An 'other' report is labelled by the same rule the server uses: staff and
+ * the owner see "Other — <detail>" from the report's own detail text, and
+ * everyone else sees "Other incident" (public payloads never carry the
+ * detail). `includeDetail: false` is for grouped views such as analytics
+ * bars, where one bar per free-text detail would be noise. For all other
+ * categories a server-provided `incidentTypeLabel` wins when present.
  */
-export const getReportIncidentTypeLabel = (report, fallback = 'Unspecified incident') => (
-    getIncidentTypeLabel(report?.incidentType || report?.accidentType, fallback)
-);
+export const getReportIncidentTypeLabel = (report, fallback = 'Unspecified incident', { includeDetail = true } = {}) => {
+    if (report?.incidentCategory === 'other') {
+        const detail = typeof report?.incidentCategoryDetail === 'string'
+            ? report.incidentCategoryDetail.trim()
+            : '';
+        if (includeDetail && detail) return `Other — ${detail}`;
+        return 'Other incident';
+    }
+    if (typeof report?.incidentTypeLabel === 'string' && report.incidentTypeLabel) {
+        return report.incidentTypeLabel;
+    }
+    return getIncidentTypeLabel(report?.incidentType || report?.accidentType, fallback);
+};
 
 export default {
     INCIDENT_TYPE_LABELS,

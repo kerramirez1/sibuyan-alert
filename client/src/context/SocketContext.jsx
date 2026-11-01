@@ -7,7 +7,7 @@ import { useAuth } from './AuthContext';
 import toast from '../utils/appToast';
 import { resolveSocketOrigin } from '../utils/runtimeUrl';
 import { refreshAuthSession } from '../services/api';
-import { getIncidentTypeLabel, getReportIncidentTypeLabel } from '../config/incidentTypes';
+import { getReportIncidentTypeLabel } from '../config/incidentTypes';
 import { INCIDENT_CATEGORIES } from '../components/report/reportConfig';
 
 const SocketContext = createContext(null);
@@ -238,7 +238,7 @@ export const SocketProvider = ({ children }) => {
         const handleReportVerifiedAlert = (alertData) => {
             if (user?.role !== 'responder') return;
 
-            const what = getIncidentTypeLabel(alertData.incidentType, '')
+            const what = getReportIncidentTypeLabel(alertData, '')
                 || INCIDENT_CATEGORIES[alertData.incidentCategory]?.label
                 || 'Incident';
             toast(`VERIFIED: ${what} at ${alertData.address || alertData.municipalityName}`, {

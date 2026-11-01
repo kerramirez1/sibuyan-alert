@@ -69,7 +69,10 @@ const ReportDetailsPanel = ({
 
     // Category change sets the category AND resets the type to the new
     // category's first type — the generic handleChange must not be used
-    // here, or a stale cross-category type would survive the switch.
+    // here, or a stale cross-category type would survive the switch. The
+    // 'other' detail is cleared on every switch too: it belongs to the
+    // 'other' category only, so text typed there must never follow the
+    // reporter into another category.
     const handleCategoryChange = (event) => {
         const nextCategory = event?.target?.value;
         const category = INCIDENT_CATEGORIES[nextCategory];
@@ -78,6 +81,7 @@ const ReportDetailsPanel = ({
             ...prev,
             incidentCategory: nextCategory,
             incidentType: category.types.length > 0 ? category.types[0].value : prev.incidentType,
+            incidentCategoryDetail: '',
         }));
     };
 
@@ -109,21 +113,47 @@ const ReportDetailsPanel = ({
                             ))}
                         </select>
                     </label>
-                    <label className="block min-w-0 lg:col-span-2">
-                        <span className="field-label">
-                            Incident type
-                        </span>
-                        <select
-                            name="incidentType"
-                            value={formData.incidentType}
-                            onChange={handleChange}
-                            className={inputClass}
-                        >
-                            {currentCategory?.types.map((type) => (
-                                <option key={type.value} value={type.value}>{type.label}</option>
-                            ))}
-                        </select>
-                    </label>
+                    {formData.incidentCategory === 'other' ? (
+                        <div className="block min-w-0 lg:col-span-2">
+                            <label className="block min-w-0">
+                                <span className="field-label">
+                                    Please specify the incident <span className="required-mark" aria-hidden="true">*</span><span className="sr-only">(required)</span>
+                                </span>
+                                <input
+                                    type="text"
+                                    name="incidentCategoryDetail"
+                                    value={formData.incidentCategoryDetail || ''}
+                                    onChange={handleChange}
+                                    maxLength={60}
+                                    required
+                                    aria-required="true"
+                                    aria-invalid={Boolean(errors.incidentCategoryDetail)}
+                                    aria-describedby={errors.incidentCategoryDetail ? 'incident-category-detail-error' : undefined}
+                                    className={`${inputClass} ${errors.incidentCategoryDetail ? 'border-red-300 focus:border-red-400 focus:ring-red-100 dark:border-red-800' : ''}`}
+                                />
+                            </label>
+                            {errors.incidentCategoryDetail && <FieldError id="incident-category-detail-error">{errors.incidentCategoryDetail}</FieldError>}
+                            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                This system covers road accidents, fire, and road hazards. For crime, please contact the PNP; for incidents at sea, the Coast Guard.
+                            </p>
+                        </div>
+                    ) : (
+                        <label className="block min-w-0 lg:col-span-2">
+                            <span className="field-label">
+                                Incident type
+                            </span>
+                            <select
+                                name="incidentType"
+                                value={formData.incidentType}
+                                onChange={handleChange}
+                                className={inputClass}
+                            >
+                                {currentCategory?.types.map((type) => (
+                                    <option key={type.value} value={type.value}>{type.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
 
                     <label className="block min-w-0">
                         <span className="field-label">

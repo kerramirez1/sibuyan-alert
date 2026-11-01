@@ -59,6 +59,7 @@ const toUtcIncidentTime = (value) => {
 const DEFAULT_REPORT_FORM = {
     incidentCategory: 'accident',
     incidentType: 'vehicular',
+    incidentCategoryDetail: '',
     description: '',
     address: '',
     barangay: '',
@@ -293,7 +294,8 @@ const ReportPage = () => {
         return stepErrors;
     };
 
-    // Step 2 gate: incident time is the only required field here.
+    // Step 2 gate: incident time is required; the 'other' category also
+    // needs its specify text, because it has no type to pick instead.
     const validateDetailsStep = () => {
         const stepErrors = {};
         const incidentTimeRaw = typeof formData.incidentTime === 'string'
@@ -307,6 +309,14 @@ const ReportPage = () => {
                 stepErrors.incidentTime = 'Accident time is invalid';
             } else if (parsedTime.getTime() > Date.now()) {
                 stepErrors.incidentTime = 'Accident time cannot be in the future';
+            }
+        }
+        if (formData.incidentCategory === 'other') {
+            const detail = typeof formData.incidentCategoryDetail === 'string'
+                ? formData.incidentCategoryDetail.trim()
+                : '';
+            if (!detail) {
+                stepErrors.incidentCategoryDetail = 'Please specify the incident';
             }
         }
         return stepErrors;
@@ -334,6 +344,7 @@ const ReportPage = () => {
         const focusSelectors = {
             location: 'input[name="address"]',
             incidentTime: 'input[name="incidentTime"]',
+            incidentCategoryDetail: 'input[name="incidentCategoryDetail"]',
         };
         window.requestAnimationFrame(() => {
             for (const key of Object.keys(stepErrors)) {
@@ -882,6 +893,14 @@ const ReportPage = () => {
             'casualties[fatalities]': formData.casualties.fatalities,
             'casualties[missing]': formData.casualties.missing,
         };
+
+        // The specify text travels only with the 'other' category. The
+        // server drops it for any other category, and so does this payload.
+        if (formData.incidentCategory === 'other') {
+            fields.incidentCategoryDetail = typeof formData.incidentCategoryDetail === 'string'
+                ? formData.incidentCategoryDetail.trim()
+                : '';
+        }
 
         const submitLat = Number(selectedLocation?.lat);
         const submitLng = Number(selectedLocation?.lng);

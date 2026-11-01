@@ -101,3 +101,46 @@ describe('incident type labels — one source of truth', () => {
             .toEqual(Object.keys(INCIDENT_TYPE_LABELS).sort());
     });
 });
+
+describe('the other category', () => {
+    test('its only type option is the bare Other incident', () => {
+        expect(getIncidentTypeOptions('other')).toEqual([{ value: 'other', label: 'Other incident' }]);
+        // The same type value under accident keeps its own label.
+        expect(getIncidentTypeOptions('accident').find((option) => option.value === 'other'))
+            .toEqual({ value: 'other', label: 'Other road incident' });
+    });
+
+    test('staff and owner labels carry the detail text', () => {
+        expect(getReportIncidentTypeLabel({
+            incidentCategory: 'other',
+            incidentType: 'other',
+            incidentCategoryDetail: 'Fallen wire on the bridge',
+        })).toBe('Other — Fallen wire on the bridge');
+    });
+
+    test('without a detail the label is the bare Other incident', () => {
+        expect(getReportIncidentTypeLabel({ incidentCategory: 'other', incidentType: 'other' }))
+            .toBe('Other incident');
+        expect(getReportIncidentTypeLabel({
+            incidentCategory: 'other',
+            incidentType: 'other',
+            incidentCategoryDetail: '   ',
+        })).toBe('Other incident');
+    });
+
+    test('grouped views can drop the detail so other reports share one label', () => {
+        expect(getReportIncidentTypeLabel({
+            incidentCategory: 'other',
+            incidentType: 'other',
+            incidentCategoryDetail: 'Fallen wire on the bridge',
+        }, 'Unspecified incident', { includeDetail: false })).toBe('Other incident');
+    });
+
+    test('a server-provided label wins for non-other categories', () => {
+        expect(getReportIncidentTypeLabel({
+            incidentCategory: 'fire',
+            incidentType: 'structural',
+            incidentTypeLabel: 'Server label',
+        })).toBe('Server label');
+    });
+});

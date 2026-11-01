@@ -20,6 +20,7 @@ export const broadcastVerifiedReportToResponders = (io, report, municipalityId) 
         id: report._id,
         incidentCategory: report.incidentCategory,
         incidentType: report.incidentType,
+        incidentCategoryDetail: report.incidentCategoryDetail,
         title: report.title,
         description: report.description,
         address: report.address,

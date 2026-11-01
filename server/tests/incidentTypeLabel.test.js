@@ -4,9 +4,12 @@ import { INCIDENT_TYPE_LABELS, getIncidentTypeLabel } from '../utils/incidentTyp
 
 describe('server incident type labels', () => {
     test('every configured type has a label, and no label is orphaned', () => {
-        const configuredTypes = INCIDENT_CATEGORY_NAMES.flatMap(
+        // Compared as sets: the type value 'other' is shared by two
+        // categories (accident and other), so it is configured twice but
+        // labelled once.
+        const configuredTypes = [...new Set(INCIDENT_CATEGORY_NAMES.flatMap(
             (category) => INCIDENT_CATEGORIES[category].types
-        );
+        ))];
 
         expect(Object.keys(INCIDENT_TYPE_LABELS).sort()).toEqual([...configuredTypes].sort());
     });

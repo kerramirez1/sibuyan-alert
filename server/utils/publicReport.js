@@ -1,4 +1,5 @@
 import { toSerializableCount } from './casualtyCounts.js';
+import { getReportIncidentTypeLabel } from './incidentTypeLabel.js';
 import { getRespondingAgencies } from './reportAgencies.js';
 
 const getDocumentValue = (document, key) => document?.[key];
@@ -164,6 +165,13 @@ export const toPublicReport = (report, { viewerId, isOperational = false } = {})
         _id: getEntityId(getDocumentValue(report, '_id')),
         incidentCategory: getDocumentValue(report, 'incidentCategory'),
         incidentType: getDocumentValue(report, 'incidentType'),
+        // The label is resolved here so every client shows the same words.
+        // An 'other' report reads "Other — <detail>" only for the owner and
+        // staff; everyone else gets "Other incident" and never the detail.
+        incidentTypeLabel: getReportIncidentTypeLabel(report, { publicView: !(isOwner || isOperational) }),
+        ...(isOwner || isOperational
+            ? { incidentCategoryDetail: getDocumentValue(report, 'incidentCategoryDetail') || '' }
+            : {}),
         title: getDocumentValue(report, 'title'),
         description: getDocumentValue(report, 'description') || '',
         address: getDocumentValue(report, 'address'),

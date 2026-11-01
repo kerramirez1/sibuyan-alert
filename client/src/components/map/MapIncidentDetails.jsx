@@ -319,6 +319,8 @@ const MapIncidentDetails = ({
 
     const incidentTypeLabel = formatIncidentLabel(
         displayedReport?.incidentType || displayedReport?.accidentType || displayedReport?.incidentCategory,
+        'Incident',
+        displayedReport,
     );
 
     const respondingAgencyText = respondingAgencies.length > 0 ? respondingAgencies.join(', ') : 'Awaiting assignment';
