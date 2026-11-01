@@ -7,6 +7,13 @@ import {
 } from 'react-icons/hi';
 import useOperationalIncidentDetails from '../../hooks/useOperationalIncidentDetails';
 import useRecordView from '../../hooks/useRecordView';
+import useNow from '../../hooks/useNow';
+import {
+    formatSelfDispatchCountdown,
+    getSelfDispatchWaitMs,
+    hasReportedCasualties,
+    respondedBeforeVerification,
+} from '../adminReports/incidentReportConfig';
 import { formatIncidentLabel, getIncidentDetailViewModel, getTransferLine, normalizeCasualties } from '../../utils/incidentDetails';
 import { getIncidentVisibilityRules } from '../../utils/incidentDetailsVisibility';
 import { getMapCoordinates } from '../../utils/mapReports';
@@ -225,10 +232,21 @@ const MapIncidentDetails = ({
     });
 
     const isOperational = explicitIsOperational || operational.isOperationalViewer || visibility.isOperational;
+    // Self-dispatch countdown: for a responder looking at a pending report
+    // with no reported casualties, the window is the only blocker, so the
+    // footer shows the wait instead of no action at all. The clock ticks
+    // only in that state.
+    const selfDispatchNow = useNow(viewerRole === 'responder' && displayedReport?.status === 'pending' && !canRespond);
+    const selfDispatchWaitMs = viewerRole === 'responder'
+        && !canRespond
+        && displayedReport?.status === 'pending'
+        && !hasReportedCasualties(displayedReport)
+        ? getSelfDispatchWaitMs(displayedReport, selfDispatchNow)
+        : 0;
     // Acknowledge counts as an action on its own: for the receiving municipality's
     // administrator it is the only button a transferred incident offers, so
     // leaving it out of this test would hide the footer that carries it.
-    const hasActions = Boolean(canRespond || canResolve || canVerify || canReject || canAcknowledgeTransfer);
+    const hasActions = Boolean(canRespond || canResolve || canVerify || canReject || canAcknowledgeTransfer || selfDispatchWaitMs > 0);
 
     const normalizedCasualties = normalizeCasualties(displayedReport?.casualties);
     const { injured, fatalities, missing, injuredNum, fatalitiesNum, missingNum, isAllZeroOrUnrecorded } = normalizedCasualties;
@@ -419,6 +437,11 @@ const MapIncidentDetails = ({
                         {details.status === 'pending' && (
                             <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                                 Awaiting verification
+                            </span>
+                        )}
+                        {respondedBeforeVerification(displayedReport) && (
+                            <span className="inline-flex items-center rounded-md border border-gray-300 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:border-gray-600 dark:text-gray-300">
+                                Responded before verification
                             </span>
                         )}
                     </div>
@@ -670,6 +693,15 @@ const MapIncidentDetails = ({
                                 className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
                             >
                                 Acknowledge transfer
+                            </Button>
+                        )}
+
+                        {selfDispatchWaitMs > 0 && (
+                            <Button
+                                disabled
+                                className="w-full sm:w-auto text-xs min-h-[44px] sm:min-h-8"
+                            >
+                                Available in {formatSelfDispatchCountdown(selfDispatchWaitMs)}
                             </Button>
                         )}
 

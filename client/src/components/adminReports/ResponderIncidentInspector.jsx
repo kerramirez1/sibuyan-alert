@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
     HiOutlineBadgeCheck,
     HiOutlineCheckCircle,
+    HiOutlineClock,
     HiOutlineLightningBolt,
     HiOutlineSwitchHorizontal,
     HiOutlineTrash,
@@ -12,8 +13,9 @@ import {
 import IncidentDetailsContent from '../incidentDetails/IncidentDetailsContent';
 import useRecordView from '../../hooks/useRecordView';
 import { useSocket } from '../../context/SocketContext';
-import { IncidentSeverityIndicator, OperationalStatusIndicator } from './IncidentQueue';
-import { getIncidentCapabilities } from './incidentReportConfig';
+import { IncidentSeverityIndicator, OperationalStatusIndicator, VerificationBadges, getSelfDispatchCountdownMs } from './IncidentQueue';
+import { formatSelfDispatchCountdown, getIncidentCapabilities } from './incidentReportConfig';
+import useNow from '../../hooks/useNow';
 
 const AdminInspectorActions = ({ report, user, actions }) => {
     const capabilities = getIncidentCapabilities(user, report);
@@ -327,18 +329,32 @@ const AdminInspectorActions = ({ report, user, actions }) => {
 };
 
 const ResponderInspectorActions = ({ report, user, actions }) => {
-    const capabilities = getIncidentCapabilities(user, report);
+    // Ticks only for a pending report; when the window opens the capability
+    // flips by itself and Respond enables without a reload.
+    const now = useNow(report?.status === 'pending');
+    const capabilities = getIncidentCapabilities(user, report, now);
+    const selfDispatchCountdownMs = capabilities.canRespond ? 0 : getSelfDispatchCountdownMs(report, user, now);
     const isResponding = report.status === 'responding';
 
-    if (!capabilities.canRespond && !capabilities.canResolve) return null;
+    if (!capabilities.canRespond && !capabilities.canResolve && selfDispatchCountdownMs <= 0) return null;
 
     return (
         <footer className="shrink-0 border-t border-gray-200/80 bg-white px-4 py-3 dark:border-white/10 dark:bg-gray-950 sm:px-5">
+            {selfDispatchCountdownMs > 0 && (
+                <button
+                    type="button"
+                    disabled
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[13px] font-medium text-white opacity-50"
+                >
+                    <HiOutlineClock className="h-4 w-4" aria-hidden="true" />
+                    Available in {formatSelfDispatchCountdown(selfDispatchCountdownMs)}
+                </button>
+            )}
             {capabilities.canRespond && (
                 <button
                     type="button"
-                    onClick={() => actions.openRespond(report)}
-                    disabled={actions.respondLoadingId === report._id}
+                    onClick={() => actions?.openRespond?.(report)}
+                    disabled={actions?.respondLoadingId === report._id}
                     className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[13px] font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50"
                 >
                     <HiOutlineLightningBolt className="h-4 w-4" aria-hidden="true" />
@@ -349,7 +365,7 @@ const ResponderInspectorActions = ({ report, user, actions }) => {
             {capabilities.canResolve && (
                 <button
                     type="button"
-                    onClick={() => actions.openResolve(report)}
+                    onClick={() => actions?.openResolve?.(report)}
                     className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
                 >
                     <HiOutlineBadgeCheck className="h-4 w-4 text-brand-600 dark:text-sky-400" aria-hidden="true" />
@@ -552,6 +568,7 @@ const ResponderIncidentInspector = ({
                         <IncidentSeverityIndicator severity={report.severity} />
                         <span className="text-gray-300 dark:text-gray-700" aria-hidden="true">&middot;</span>
                         <OperationalStatusIndicator status={report.status} />
+                        <VerificationBadges report={report} />
                     </div>
                 </div>
                 <button

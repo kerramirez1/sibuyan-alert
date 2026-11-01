@@ -11,13 +11,20 @@ import {
     HiOutlineXCircle,
 } from 'react-icons/hi';
 import {
+    formatSelfDispatchCountdown,
     getAgencyLabel,
     getIncidentCapabilities,
     getIncidentDate,
     getLatestTransfer,
+    getSelfDispatchWaitMs,
+    hasReportedCasualties,
     INCIDENT_STATUS,
+    isAssignedResponder,
+    isWithinResponderScope,
+    respondedBeforeVerification,
     SEVERITY_INDICATOR_STYLES,
 } from './incidentReportConfig';
+import useNow from '../../hooks/useNow';
 import { getReportUpdateMeta } from '../../utils/notificationNavigation';
 import { getTransferOrigin } from '../../utils/incidentDetails';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
@@ -96,7 +103,12 @@ const ActionButton = ({ label, icon: Icon, onClick, tone = 'neutral', compact = 
 };
 
 export const IncidentActionButtons = ({ report, user, actions, onInspect, compact = false, hideInspect = false }) => {
-    const capabilities = getIncidentCapabilities(user, report);
+    // The clock ticks only while a pending report is on screen; when the
+    // window opens, the capabilities below flip on their own and Respond
+    // enables without a reload.
+    const now = useNow(report?.status === 'pending');
+    const capabilities = getIncidentCapabilities(user, report, now);
+    const selfDispatchCountdownMs = capabilities.canRespond ? 0 : getSelfDispatchCountdownMs(report, user, now);
     const isResponding = report?.status === 'responding';
 
     return (
@@ -129,6 +141,16 @@ export const IncidentActionButtons = ({ report, user, actions, onInspect, compac
                     tone="primary"
                     compact={compact}
                     disabled={actions.respondLoadingId === report?._id}
+                />
+            )}
+            {selfDispatchCountdownMs > 0 && (
+                <ActionButton
+                    label={`Available in ${formatSelfDispatchCountdown(selfDispatchCountdownMs)}`}
+                    icon={HiOutlineClock}
+                    onClick={() => {}}
+                    tone="primary"
+                    compact={compact}
+                    disabled
                 />
             )}
             {capabilities.canResolve && (
@@ -192,6 +214,35 @@ export const IncidentSeverityIndicator = ({ severity }) => {
             {normalizedSeverity || 'Unspecified'}
         </span>
     );
+};
+
+// Verification state, kept achromatic on purpose: hue is reserved for the
+// severity scale, so these facts ride on text and a neutral outline only.
+// "Unverified" marks a report no admin has reviewed yet; "Responded before
+// verification" is the permanent trace of a self-dispatch.
+export const VerificationBadges = ({ report }) => {
+    const showUnverified = report?.status === 'pending';
+    const showPreVerification = respondedBeforeVerification(report);
+    if (!showUnverified && !showPreVerification) return null;
+
+    const chipClassName = 'inline-flex shrink-0 items-center rounded border border-gray-300 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 dark:border-gray-600 dark:text-gray-300';
+    return (
+        <>
+            {showUnverified && <span className={chipClassName}>Unverified</span>}
+            {showPreVerification && <span className={chipClassName}>Responded before verification</span>}
+        </>
+    );
+};
+
+// True only when the self-dispatch window is the single thing standing
+// between this responder and the Respond action: in scope, not already on
+// the response, pending, no reported casualties, window still closed.
+export const getSelfDispatchCountdownMs = (report, user, now) => {
+    if (user?.role !== 'responder') return 0;
+    if (report?.status !== 'pending') return 0;
+    if (!isWithinResponderScope(user, report) || isAssignedResponder(user, report)) return 0;
+    if (hasReportedCasualties(report)) return 0;
+    return getSelfDispatchWaitMs(report, now);
 };
 
 export const OperationalStatusIndicator = ({ status }) => {
@@ -403,7 +454,9 @@ const AdminIncidentActions = ({ report, user, actions, onInspect, isSelected = f
 const RESPONDER_PRIMARY_ACTION_CLASS = 'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[13px] font-medium text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-600 dark:text-white dark:hover:bg-brand-500 sm:w-auto';
 
 const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected = false }) => {
-    const capabilities = getIncidentCapabilities(user, report);
+    const now = useNow(report?.status === 'pending');
+    const capabilities = getIncidentCapabilities(user, report, now);
+    const selfDispatchCountdownMs = capabilities.canRespond ? 0 : getSelfDispatchCountdownMs(report, user, now);
     const isResponding = report?.status === 'responding';
 
     return (
@@ -419,6 +472,17 @@ const ResponderIncidentActions = ({ report, user, actions, onInspect, isSelected
                     className={RESPONDER_PRIMARY_ACTION_CLASS}
                 >
                     {isResponding ? 'Join response' : 'Respond to incident'}
+                </button>
+            )}
+
+            {selfDispatchCountdownMs > 0 && (
+                <button
+                    type="button"
+                    disabled
+                    className={RESPONDER_PRIMARY_ACTION_CLASS}
+                >
+                    <HiOutlineClock className="h-4 w-4" aria-hidden="true" />
+                    Available in {formatSelfDispatchCountdown(selfDispatchCountdownMs)}
                 </button>
             )}
 
@@ -488,6 +552,7 @@ const IncidentListRow = ({ report, user = null, isSelected = false, actionSlot }
                     ) : null}
                     <span className="record-state-group__divider" aria-hidden="true" />
                     <OperationalStatusIndicator status={safeReport.status} />
+                    <VerificationBadges report={safeReport} />
                 </div>
                 <time
                     dateTime={getIncidentDate(safeReport) || undefined}

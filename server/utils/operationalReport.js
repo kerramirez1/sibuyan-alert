@@ -1,4 +1,5 @@
 import { getEntityId } from './reportAccess.js';
+import { resolveDispatchPolicy } from '../config/dispatchPolicy.js';
 import { getReportIncidentTypeLabel } from './incidentTypeLabel.js';
 import { buildReportEvidenceObject } from './publicReport.js';
 import { toSerializableCount } from './casualtyCounts.js';
@@ -135,6 +136,16 @@ const buildCore = (source) => ({
     verifiedAt: source.verifiedAt,
     respondedAt: source.respondedAt,
     resolvedAt: source.resolvedAt,
+    // Self-dispatch (responding before verification). The marker is the raw
+    // fact; selfDispatchOpensAt is computed here, from the server policy, so
+    // the client never hardcodes the waiting window: for a pending report it
+    // is the moment a no-casualty report becomes respondable while still
+    // unverified. Reports that already have casualties never wait, which the
+    // client derives from the casualty counts themselves.
+    preVerificationResponseAt: source.preVerificationResponseAt || null,
+    selfDispatchOpensAt: source.status === 'pending' && source.createdAt
+        ? new Date(new Date(source.createdAt).getTime() + resolveDispatchPolicy().preVerificationWindowMs).toISOString()
+        : null,
     dispatch: pickDispatch(source),
 });
 

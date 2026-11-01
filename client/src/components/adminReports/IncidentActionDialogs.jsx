@@ -149,9 +149,28 @@ const ResolutionPhotoPicker = ({ actions }) => {
 
 const IncidentActionDialogs = ({ actions, municipality }) => {
     const { resolveDialog } = actions;
+    const unverifiedConfirmDialog = actions.unverifiedConfirmDialog || { open: false, report: null };
 
     return (
         <>
+            <Modal
+                isOpen={unverifiedConfirmDialog.open}
+                onClose={actions.closeUnverifiedConfirm}
+                title="Report not verified yet"
+                size="md"
+            >
+                <ReportPreview report={unverifiedConfirmDialog.report} />
+                <p className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+                    This report has not been verified by an admin yet. Respond anyway?
+                </p>
+                <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
+                    <DialogButton onClick={actions.closeUnverifiedConfirm}>Cancel</DialogButton>
+                    <DialogButton onClick={actions.confirmUnverifiedRespond} tone="success">
+                        Respond anyway
+                    </DialogButton>
+                </div>
+            </Modal>
+
             <Modal
                 isOpen={resolveDialog.open}
                 onClose={actions.closeResolve}

@@ -271,6 +271,14 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             patchReport(data?.id, { status: 'rejected' });
         });
 
+        // An admin rejected a report that had already been self-dispatched:
+        // drop it from the active lists at once (the assigned responders
+        // also get their own stand-down notification separately).
+        const unsubStandDown = subscribe('reportStandDown', (data) => {
+            patchReport(data?.id, { status: 'rejected' });
+            refreshRef.current({ silent: true });
+        });
+
         const unsubDelete = subscribe('reportDeleted', (data) => {
             removeReport(data?.id);
             refreshRef.current({ silent: true });
@@ -336,6 +344,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
             unsubResolutionDetails();
             unsubVerify();
             unsubReject();
+            unsubStandDown();
             unsubDelete();
             unsubTransferred();
             unsubTransferredAlert();

@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import {
+    canSelfDispatch,
+    formatSelfDispatchCountdown,
     getIncidentCapabilities,
+    getSelfDispatchWaitMs,
+    hasReportedCasualties,
+    isAdminReviewable,
+    isUnverifiedReport,
     isWithinMunicipalAdminScope,
     isWithinResponderScope,
 } from '../components/adminReports/incidentReportConfig';
@@ -190,5 +196,72 @@ describe('incidentReportConfig capabilities and jurisdiction', () => {
         };
         const verifiedCleanCaps = getIncidentCapabilities(cajidiocanAdmin, verifiedClean);
         expect(verifiedCleanCaps.canTransfer).toBe(true);
+    });
+});
+
+describe('self-dispatch (responding before verification)', () => {
+    const responder = { _id: 'responder-1', role: 'responder', assignedMunicipality: 'Cajidiocan' };
+    const admin = { _id: 'admin-1', role: 'municipal_admin', assignedMunicipality: 'Cajidiocan' };
+    const now = new Date('2026-10-31T10:00:00.000Z');
+    const opensIn = (ms) => new Date(now.getTime() + ms).toISOString();
+
+    const pending = (overrides = {}) => ({
+        _id: 'report-sd',
+        status: 'pending',
+        municipalityName: 'Cajidiocan',
+        casualties: { injured: 0, fatalities: 0, missing: 0 },
+        selfDispatchOpensAt: opensIn(120_000),
+        responders: [],
+        ...overrides,
+    });
+
+    test('any casualty count above zero opens the immediate path', () => {
+        expect(hasReportedCasualties(pending({ casualties: { injured: 1, fatalities: 0, missing: 0 } }))).toBe(true);
+        expect(canSelfDispatch(pending({ casualties: { injured: 0, fatalities: 0, missing: 2 } }), now)).toBe(true);
+        expect(getIncidentCapabilities(responder, pending({ casualties: { injured: 1, fatalities: 0, missing: 0 } }), now).canRespond).toBe(true);
+    });
+
+    test('null casualty counts mean unknown: timed path only', () => {
+        const report = pending({ casualties: { injured: null, fatalities: null, missing: null } });
+        expect(hasReportedCasualties(report)).toBe(false);
+        expect(canSelfDispatch(report, now)).toBe(false);
+        expect(canSelfDispatch(report, new Date(now.getTime() + 121_000))).toBe(true);
+    });
+
+    test('zero casualties wait for the server-stamped open time', () => {
+        const report = pending();
+        expect(getSelfDispatchWaitMs(report, now)).toBe(120_000);
+        expect(getIncidentCapabilities(responder, report, now).canRespond).toBe(false);
+        expect(getIncidentCapabilities(responder, report, new Date(now.getTime() + 120_000)).canRespond).toBe(true);
+        expect(formatSelfDispatchCountdown(120_000)).toBe('2:00');
+        expect(formatSelfDispatchCountdown(65_000)).toBe('1:05');
+    });
+
+    test('an unverified responding report stays admin-reviewable until verified', () => {
+        const selfDispatched = {
+            _id: 'report-sd-2',
+            status: 'responding',
+            municipalityName: 'Cajidiocan',
+            preVerificationResponseAt: '2026-10-31T09:58:00.000Z',
+            verifiedAt: null,
+            responders: [{ user: 'responder-1', unitName: 'MDRRMO Alpha' }],
+        };
+        expect(isUnverifiedReport(selfDispatched)).toBe(true);
+        expect(isAdminReviewable(selfDispatched)).toBe(true);
+        const caps = getIncidentCapabilities(admin, selfDispatched, now);
+        expect(caps.canVerify).toBe(true);
+        expect(caps.canReject).toBe(true);
+
+        const caughtUp = { ...selfDispatched, verifiedAt: '2026-10-31T10:05:00.000Z' };
+        expect(isAdminReviewable(caughtUp)).toBe(false);
+        expect(getIncidentCapabilities(admin, caughtUp, now).canVerify).toBe(false);
+    });
+
+    test('a pending report is unverified and reviewable; a verified one is neither', () => {
+        expect(isUnverifiedReport(pending())).toBe(true);
+        expect(isAdminReviewable(pending())).toBe(true);
+        const verified = { ...pending(), status: 'verified', verifiedAt: now.toISOString(), selfDispatchOpensAt: null };
+        expect(isUnverifiedReport(verified)).toBe(false);
+        expect(isAdminReviewable(verified)).toBe(false);
     });
 });

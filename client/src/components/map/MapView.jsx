@@ -6,6 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import toast from '../../utils/appToast';
 import { HiOutlineArrowsExpand, HiOutlineLocationMarker, HiOutlineMap } from 'react-icons/hi';
 import MapToolButton from './MapToolButton';
+import { canSelfDispatch } from '../adminReports/incidentReportConfig';
 import MapScopeControl from './MapScopeControl';
 import {
     getMapCoordinates,
@@ -866,7 +867,7 @@ const MapView = ({
                     return {
                         ...current,
                         data: live,
-                        canRespond: canRespond && ['verified', 'transferred'].includes(live.status),
+                        canRespond: canRespond && (['verified', 'transferred'].includes(live.status) || canSelfDispatch(live)),
                         canResolve: canResolve && live.status === 'responding'
                             && (!canResolveReport || canResolveReport(live)),
                         canVerify: canVerify && live.status === 'pending'
@@ -1782,7 +1783,7 @@ const MapView = ({
                 const report = [...groupedReports].sort(
                     (left, right) => (statusPriority[right.status] || 0) - (statusPriority[left.status] || 0)
                 )[0];
-                const canRespondToThisReport = canRespond && ['verified', 'transferred'].includes(report.status);
+                const canRespondToThisReport = canRespond && (['verified', 'transferred'].includes(report.status) || canSelfDispatch(report));
                 const canResolveThisReport = canResolve &&
                     report.status === 'responding' &&
                     (!canResolveReport || canResolveReport(report));
@@ -2459,7 +2460,7 @@ const MapView = ({
                                     onClick={() => setMapModal({
                                         type: 'report',
                                         data: report,
-                                        canRespond: canRespond && ['verified', 'transferred'].includes(report.status),
+                                        canRespond: canRespond && (['verified', 'transferred'].includes(report.status) || canSelfDispatch(report)),
                                         canResolve: canResolve && report.status === 'responding' && (!canResolveReport || canResolveReport(report)),
                                         canVerify: canVerify && report.status === 'pending' && (!canVerifyReport || canVerifyReport(report)),
                                         canReject: canVerify && report.status === 'pending' && (!canVerifyReport || canVerifyReport(report)),

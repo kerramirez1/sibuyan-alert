@@ -35,6 +35,7 @@ import {
     resolveDashboardView,
 } from '../utils/dashboardView';
 import { withoutFocusedEntity } from '../utils/dashboardFocus';
+import { isUnverifiedReport } from '../components/adminReports/incidentReportConfig';
 import { ANALYTICS_SCOPE, buildPeriodIncidentTrend } from '../utils/analyticsTrend';
 import {
     getManilaCalendarDateKey,
@@ -534,6 +535,13 @@ const DashboardPage = () => {
     const handleMapRespond = useCallback(async (report) => {
         if (!isResponder || !report?._id) {
             return { ok: false, message: 'Responder action only' };
+        }
+
+        // Self-dispatch is deliberate: responding to a report no admin has
+        // verified yet asks first, the same confirmation the queue flow
+        // shows, so no response to an unverified report starts silently.
+        if (isUnverifiedReport(report) && !window.confirm('This report has not been verified by an admin yet. Respond anyway?')) {
+            return { ok: false, message: 'Response cancelled — the report is still unverified.' };
         }
 
         try {

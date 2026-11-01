@@ -32,6 +32,7 @@ import {
     getUnitTypeLabel,
 } from '../config/responderUnits.js';
 import { armDispatchAcknowledgement } from '../services/dispatchEscalationService.js';
+import { resolveDispatchPolicy } from '../config/dispatchPolicy.js';
 import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
 import { buildUserVerificationPayload } from '../utils/userPayload.js';
 import {
@@ -501,6 +502,21 @@ export const getAllReports = async (req, res) => {
             } else {
                 query.status = { $in: responderVisibleStatuses };
             }
+        } else if (status === 'pending') {
+            // The admin Pending view means "still needs a review decision",
+            // not the raw status: a self-dispatched report already reads
+            // 'responding' but stays unreviewed until an admin verifies or
+            // rejects it, so it belongs to this view until then.
+            query.$and.push({
+                $or: [
+                    { status: 'pending' },
+                    {
+                        status: 'responding',
+                        preVerificationResponseAt: { $exists: true, $ne: null },
+                        verifiedBy: null,
+                    },
+                ],
+            });
         } else if (status) {
             query.status = status;
         }
@@ -648,7 +664,7 @@ export const getAllReports = async (req, res) => {
                 },
             ]
             : null;
-        const [reports, total, statusGroups, viewCountDocs] = await Promise.all([
+        const [reports, total, statusGroups, viewCountDocs, unverifiedRespondingCount] = await Promise.all([
             Report.find(query)
                 .populate('reporter', reporterProjection)
                 .populate('respondedBy', 'name email agency assignedMunicipality')
@@ -669,6 +685,20 @@ export const getAllReports = async (req, res) => {
             viewCountPipeline
                 ? Report.aggregate(viewCountPipeline).option({ maxTimeMS: policy.maxTimeMs })
                 : Promise.resolve([]),
+            // Feeds the admin Pending tab count below; responders' counts key
+            // off the raw status, matching their own list filters.
+            admin.role === 'responder'
+                ? Promise.resolve(0)
+                : Report.countDocuments({
+                    $and: [
+                        scopeClause,
+                        {
+                            status: 'responding',
+                            preVerificationResponseAt: { $exists: true, $ne: null },
+                            verifiedBy: null,
+                        },
+                    ],
+                }).maxTimeMS(policy.maxTimeMs),
         ]);
 
         const statusCounts = statusGroups.reduce((acc, entry) => {
@@ -681,6 +711,14 @@ export const getAllReports = async (req, res) => {
             return acc;
         }, {});
         stats.total = REPORT_STATUS_KEYS.reduce((sum, status) => sum + stats[status], 0);
+
+        // The admin Pending tab count must agree with the Pending list: raw
+        // 'pending' reports plus the self-dispatched ones still awaiting a
+        // review decision. (They remain counted under 'responding' too —
+        // each tab count describes its own list, not a partition.)
+        if (admin.role !== 'responder' && unverifiedRespondingCount) {
+            stats.pending += unverifiedRespondingCount;
+        }
 
         // Nested inside stats so no new top-level response key appears; the
         // brief verified no code iterates stats keys. Non-responders get no
@@ -825,11 +863,16 @@ export const verifyReport = async (req, res) => {
             });
         }
 
-        // Only pending reports may be verified or rejected. Re-verifying a
-        // report that is already in a downstream lifecycle state (responding,
-        // resolved, transferred) would emit duplicate notifications, corrupt
-        // the incident state machine, and re-alert all responders.
-        if (report.status !== 'pending') {
+        // Pending reports may be verified or rejected. So may a report that
+        // was responded to before verification (marker set, still no
+        // verifiedBy): the response never replaced the admin's review duty,
+        // it only ran in parallel with it. Any other state has already been
+        // reviewed or closed, and acting again would send duplicate
+        // notifications and re-alert all responders.
+        const isUnverifiedResponding = report.status === 'responding'
+            && Boolean(report.preVerificationResponseAt)
+            && !report.verifiedBy;
+        if (report.status !== 'pending' && !isUnverifiedResponding) {
             return res.status(409).json({
                 success: false,
                 message: `Cannot ${status === 'verified' ? 'verify' : 'reject'} a report with status "${report.status}"`,
@@ -872,36 +915,75 @@ export const verifyReport = async (req, res) => {
             casualtyUpdate = correction;
         }
 
-        // Atomic claim: exactly one concurrent verify/reject wins the
-        // pending -> verified/rejected transition. The filter carries the
-        // status guard, so a loser finds no document and gets the 409 below
-        // instead of emitting a duplicate broadcast/notification set.
+        // Atomic claim: exactly one concurrent verify/reject wins. The
+        // filter restates the exact state the pre-check accepted, so a loser
+        // finds no document and gets the 409 below instead of emitting a
+        // duplicate broadcast/notification set; a retry then takes the
+        // branch that fits the new state.
         const now = new Date();
-        const atomicUpdate = {
-            status,
-            verifiedBy: admin._id,
-            verifiedAt: now,
-        };
-        if (rejectionReason) atomicUpdate.rejectionReason = rejectionReason;
-        if (casualtyUpdate) {
-            atomicUpdate.casualties = casualtyUpdate;
-            // findOneAndUpdate bypasses the pre-save hook, so the priority
-            // recalculation the hook would have run is applied here with the
-            // identical derivation (shared helper).
-            atomicUpdate.priority = calculateReportPriority(report.severity, casualtyUpdate);
-        }
+        const atomicFilter = isUnverifiedResponding
+            ? {
+                _id: report._id,
+                status: 'responding',
+                preVerificationResponseAt: { $exists: true, $ne: null },
+                verifiedBy: null,
+            }
+            : { _id: report._id, status: 'pending' };
 
-        // Verification is the moment the incident is handed to responders, so
-        // it is also the moment the acknowledgement clock starts. Armed as
-        // part of the same atomic write — there is no window where a verified
-        // report has no deadline.
-        if (status === 'verified') {
-            atomicUpdate.dispatch = armDispatchAcknowledgement({}, undefined, now).dispatch;
+        let atomicUpdateDoc;
+        if (isUnverifiedResponding && status === 'verified') {
+            // Verification catches up with a response already under way. The
+            // review facts are recorded and the status STAYS 'responding'.
+            // No dispatch is armed: the acknowledgement loop exists to page
+            // responders who have not come, and these already have.
+            const verifySet = {
+                verifiedBy: admin._id,
+                verifiedAt: now,
+            };
+            if (casualtyUpdate) {
+                verifySet.casualties = casualtyUpdate;
+                verifySet.priority = calculateReportPriority(report.severity, casualtyUpdate);
+            }
+            atomicUpdateDoc = {
+                $set: verifySet,
+                $push: {
+                    reportUpdates: {
+                        author: admin._id,
+                        authorRole: 'municipal_admin',
+                        message: 'Report verified after response began.',
+                        tag: 'general',
+                        createdAt: now,
+                    },
+                },
+            };
+        } else {
+            const atomicUpdate = {
+                status,
+                verifiedBy: admin._id,
+                verifiedAt: now,
+            };
+            if (rejectionReason) atomicUpdate.rejectionReason = rejectionReason;
+            if (casualtyUpdate) {
+                atomicUpdate.casualties = casualtyUpdate;
+                // findOneAndUpdate bypasses the pre-save hook, so the priority
+                // recalculation the hook would have run is applied here with the
+                // identical derivation (shared helper).
+                atomicUpdate.priority = calculateReportPriority(report.severity, casualtyUpdate);
+            }
+
+            // Verification is the moment the incident is handed to responders, so
+            // it is also the moment the acknowledgement clock starts. Armed as
+            // part of the same atomic write — there is no window where a verified
+            // report has no deadline.
+            if (status === 'verified') {
+                atomicUpdate.dispatch = armDispatchAcknowledgement({}, undefined, now).dispatch;
+            }
+            atomicUpdateDoc = { $set: atomicUpdate };
         }
 
         const updatedReport = await Report.findOneAndUpdate(
-            { _id: report._id, status: 'pending' },
-            { $set: atomicUpdate },
+            atomicFilter,
+            atomicUpdateDoc,
             { new: true },
         ).populate('reporter', 'name email pushSubscription notificationPreferences');
 
@@ -953,6 +1035,63 @@ export const verifyReport = async (req, res) => {
                 // everywhere with an id-only payload (reason stays owner-only
                 // in the user-room emit above).
                 io.emit('reportRejected', { id: report._id });
+            }
+        }
+
+        // Rejecting a self-dispatched report leaves units on scene who must
+        // stand down: a durable notification and a push for every assigned
+        // responder, plus one event to the municipality responders room so
+        // their live lists drop the report at once. Best-effort, like every
+        // other post-save notification here.
+        if (status === 'rejected' && isUnverifiedResponding) {
+            const assignedResponderIds = [...new Set(
+                (report.responders || [])
+                    .map((entry) => entry?.user?._id ?? entry?.user)
+                    .filter(Boolean)
+                    .map((id) => String(id)),
+            )];
+            if (assignedResponderIds.length > 0) {
+                try {
+                    await Promise.all(assignedResponderIds.map((responderId) =>
+                        Notification.createAndSend(
+                            {
+                                recipient: responderId,
+                                type: 'report_rejected',
+                                title: 'Stand Down — Report Rejected',
+                                message: `The report at ${report.address} was rejected by an admin. Stand down.`,
+                                data: { reportId: report._id, status: 'rejected', standDown: true },
+                            },
+                            io
+                        )
+                    ));
+
+                    const assignedResponderUsers = await User.find({ _id: { $in: assignedResponderIds } })
+                        .select('pushSubscription notificationPreferences');
+                    await Promise.all(assignedResponderUsers
+                        .filter((responderUser) => responderUser.pushSubscription && responderUser.notificationPreferences?.browserPush)
+                        .map((responderUser) => sendPushToUser(responderUser, {
+                            title: 'Stand down — report rejected',
+                            body: `The report at ${report.address} was rejected by an admin. Stand down.`,
+                            icon: '/icons/icon-192.png',
+                            data: { url: '/admin/reports' },
+                        })));
+
+                    if (io && report.municipalityName) {
+                        const respondersRoom = `municipality_${report.municipalityName}_responders`;
+                        io.to(respondersRoom).emit('reportStandDown', {
+                            id: report._id,
+                            status: 'rejected',
+                            address: report.address,
+                            responderIds: assignedResponderIds,
+                        });
+                        io.to(respondersRoom).emit('reportRejectedUpdate', {
+                            id: report._id,
+                            status: 'rejected',
+                        });
+                    }
+                } catch (standDownError) {
+                    console.error('Post-reject stand-down notification failed (best-effort):', standDownError?.message || standDownError);
+                }
             }
         }
 
@@ -1901,13 +2040,33 @@ export const respondToReport = async (req, res) => {
             });
         }
 
-        // Verified and transferred reports can start a response; additional
-        // units can join a response already in progress.
+        // Verified or transferred reports can start a response; more units
+        // can join a response that is already running. A pending report may
+        // also be responded to (self-dispatch, before verification) under
+        // the casualty-and-time rule: immediately when any casualty count is
+        // above zero, otherwise once the pre-verification window has passed
+        // since filing. A null casualty count means "unknown", so it never
+        // opens the immediate path — only the timed one.
+        const dispatchPolicy = resolveDispatchPolicy();
+        const hasCasualties = ['injured', 'fatalities', 'missing']
+            .some((field) => (report.casualties?.[field] || 0) > 0);
+        const selfDispatchOpensAt = report.createdAt
+            ? new Date(new Date(report.createdAt).getTime() + dispatchPolicy.preVerificationWindowMs)
+            : null;
+        const isPreVerificationResponse = report.status === 'pending';
         if (!['verified', 'transferred', 'responding'].includes(report.status)) {
-            return res.status(400).json({
-                success: false,
-                message: `Cannot respond to a report with status "${report.status}".`,
-            });
+            if (!isPreVerificationResponse) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot respond to a report with status "${report.status}".`,
+                });
+            }
+            if (!hasCasualties && (!selfDispatchOpensAt || selfDispatchOpensAt > new Date())) {
+                return res.status(400).json({
+                    success: false,
+                    message: `This report has no reported casualties, so responders may respond ${dispatchPolicy.preVerificationWindowMinutes} minutes after it was filed while it is unverified.`,
+                });
+            }
         }
 
         // Validate municipality access (responders can only respond to their municipality)
@@ -1927,7 +2086,23 @@ export const respondToReport = async (req, res) => {
         const updatedReport = await Report.findOneAndUpdate(
             {
                 _id: report._id,
-                status: { $in: ['verified', 'transferred', 'responding'] },
+                // The casualty-and-time rule lives in this filter, not only in
+                // the pre-check above: casualties and createdAt are stored,
+                // create-time values that never change, and the window edge is
+                // computed from server time at the moment of the save, so a
+                // racing request cannot slip a response through early.
+                $or: [
+                    { status: { $in: ['verified', 'transferred', 'responding'] } },
+                    {
+                        status: 'pending',
+                        $or: [
+                            { 'casualties.injured': { $gt: 0 } },
+                            { 'casualties.fatalities': { $gt: 0 } },
+                            { 'casualties.missing': { $gt: 0 } },
+                            { createdAt: { $lte: new Date(respondedAt.getTime() - dispatchPolicy.preVerificationWindowMs) } },
+                        ],
+                    },
+                ],
                 responders: { $not: { $elemMatch: { user: responder._id, unitName } } },
             },
             {
@@ -1949,6 +2124,14 @@ export const respondToReport = async (req, res) => {
 
         if (!updatedReport) {
             const current = await Report.findById(report._id).select('status').lean();
+            if (current?.status === 'pending') {
+                // The save itself re-checked the casualty-and-time rule and
+                // the window had not opened at save time.
+                return res.status(400).json({
+                    success: false,
+                    message: `This report has no reported casualties, so responders may respond ${dispatchPolicy.preVerificationWindowMinutes} minutes after it was filed while it is unverified.`,
+                });
+            }
             if (!current || !['verified', 'transferred', 'responding'].includes(current.status)) {
                 return res.status(current ? 400 : 404).json({
                     success: false,
@@ -1966,6 +2149,39 @@ export const respondToReport = async (req, res) => {
         // From here on, `report` is the winning write; the broadcast and every
         // notification below fire exactly once, for the winner only.
         report = updatedReport;
+
+        // A pre-verification response leaves two permanent traces, written
+        // exactly once: the marker and a history entry naming the unit. The
+        // guard (still responding, still unverified, marker still unset) is
+        // what makes it once-only: a racing second unit, a unit joining an
+        // already-responding report, or a verification that landed first
+        // all fail the guard, so the marker is never moved or overwritten
+        // and a verified-first report never gains it.
+        let markedPreVerification = false;
+        if (isPreVerificationResponse) {
+            const markerResult = await Report.updateOne(
+                {
+                    _id: report._id,
+                    status: 'responding',
+                    verifiedBy: null,
+                    preVerificationResponseAt: null,
+                },
+                {
+                    $set: { preVerificationResponseAt: respondedAt },
+                    $push: {
+                        reportUpdates: {
+                            author: responder._id,
+                            authorRole: 'responder',
+                            message: `${unitName} began responding before verification.`,
+                            tag: 'general',
+                            createdAt: respondedAt,
+                        },
+                    },
+                },
+            );
+            markedPreVerification = markerResult?.modifiedCount > 0;
+            if (markedPreVerification) report.preVerificationResponseAt = respondedAt;
+        }
 
         // Exactly one writer can observe a single-entry responders array, so
         // the legacy first-responder fields and the escalation-clock stop are
@@ -2052,10 +2268,17 @@ export const respondToReport = async (req, res) => {
                     {
                         recipient: adminUser._id,
                         type: 'report_responding',
-                        title: isFirstResponder ? 'Responder Dispatched' : 'Additional Unit Joined',
-                        message: isFirstResponder
-                            ? `${unitName} is now responding at ${report.address}.`
-                            : `${unitName} joined response at ${report.address}. Total units: ${report.responders.length}.`,
+                        // A pre-verification dispatch must reach admins as its
+                        // own fact, not as a routine dispatch: verification is
+                        // still their pending duty, in parallel.
+                        title: markedPreVerification
+                            ? 'Responder Dispatched to Unverified Report'
+                            : isFirstResponder ? 'Responder Dispatched' : 'Additional Unit Joined',
+                        message: markedPreVerification
+                            ? `${unitName} began responding to the unverified report at ${report.address} before verification. The report still needs verification.`
+                            : isFirstResponder
+                                ? `${unitName} is now responding at ${report.address}.`
+                                : `${unitName} joined response at ${report.address}. Total units: ${report.responders.length}.`,
                         data: {
                             reportId: report._id,
                             responderId: responder._id,
@@ -2063,6 +2286,7 @@ export const respondToReport = async (req, res) => {
                             unitType,
                             totalResponders: report.responders.length,
                             municipalityName: report.municipalityName || null,
+                            preVerification: markedPreVerification,
                         },
                     },
                     io

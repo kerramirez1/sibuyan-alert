@@ -45,7 +45,8 @@ import {
     isIslandMapScope,
     normalizeMapScope,
 } from '../../utils/mapScope';
-import { getIncidentCapabilities } from '../adminReports/incidentReportConfig';
+import { canSelfDispatch, getIncidentCapabilities, isAdminReviewable } from '../adminReports/incidentReportConfig';
+import useNow from '../../hooks/useNow';
 import { getReportIncidentTypeLabel } from '../../config/incidentTypes';
 import { getMunicipalityMapFocus, getIslandMapFocus } from '../../utils/sibuyanLocations';
 import { buildActiveIncidentsSummary, buildReporterPendingSummary, countOwnedReports } from '../../utils/dashboardReports';
@@ -1340,11 +1341,16 @@ const DashboardMapWorkspace = ({
         const incidentMuni = normalizeMunicipalityKey(report.municipalityName);
         return incidentMuni === assigned;
     };
+    // Ticks only while the selected incident is an unverified one, so a
+    // pending report's Respond action enables in place when its
+    // self-dispatch window opens.
+    const selfDispatchNow = useNow(selectedActiveIncident?.status === 'pending');
     const selectedIncidentCanRespond = Boolean(
         selectedActiveIncident
         && mapExperience.canRespond
         && isReportInResponderMunicipality(selectedActiveIncident)
-        && ['verified', 'transferred'].includes(selectedActiveIncident.status),
+        && (['verified', 'transferred'].includes(selectedActiveIncident.status)
+            || canSelfDispatch(selectedActiveIncident, selfDispatchNow)),
     );
     const selectedIncidentCanResolve = Boolean(
         selectedActiveIncident
@@ -1359,7 +1365,7 @@ const DashboardMapWorkspace = ({
         selectedActiveIncident
         && mapExperience.canVerify
         && isReportInResponderMunicipality(selectedActiveIncident)
-        && selectedActiveIncident.status === 'pending',
+        && isAdminReviewable(selectedActiveIncident),
     );
     // Acknowledge is admin-only, municipality-scoped and one-shot — the decision
     // already lives in `getIncidentCapabilities`, where the incident queue makes
@@ -1378,7 +1384,7 @@ const DashboardMapWorkspace = ({
         selectedActiveIncident
         && mapExperience.canVerify
         && isReportInResponderMunicipality(selectedActiveIncident)
-        && selectedActiveIncident.status === 'pending',
+        && isAdminReviewable(selectedActiveIncident),
     );
 
     const getFilterCount = (filterValue) => {

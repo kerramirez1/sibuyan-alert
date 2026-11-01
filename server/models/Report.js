@@ -309,6 +309,18 @@ const reportSchema = new mongoose.Schema(
             default: null,
         },
 
+        // Self-dispatch marker: set exactly once, at the moment the first
+        // responder starts responding to a report that is still unverified
+        // (status 'pending'). It is never cleared and never overwritten, and
+        // a report that was verified before any response never gains it.
+        // Together with a missing verifiedBy it identifies the reports an
+        // admin still has to review even though the status already reads
+        // 'responding'.
+        preVerificationResponseAt: {
+            type: Date,
+            default: null,
+        },
+
         // Per-reporter visibility: when set, the owning reporter has removed
         // this report from their personal views ("My reports", reporter
         // dashboard). This is NOT a delete — the report stays fully visible
@@ -393,7 +405,7 @@ const reportSchema = new mongoose.Schema(
             },
             authorRole: {
                 type: String,
-                enum: ['reporter', 'municipal_admin'],
+                enum: ['reporter', 'municipal_admin', 'responder'],
                 default: 'reporter',
             },
             message: {

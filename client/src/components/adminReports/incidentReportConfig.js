@@ -37,6 +37,62 @@ export const ADMIN_ROLES = ['municipal_admin'];
 export const RESPONDER_ACTIONABLE_STATUSES = ['verified', 'transferred', 'responding'];
 export const RESPONDER_VISIBLE_STATUSES = ['pending', 'verified', 'transferred', 'responding', 'resolved'];
 export const ADMIN_REVIEWABLE_STATUSES = ['pending'];
+
+// --- Self-dispatch (responding before verification) -----------------------
+// A pending report may be responded to immediately when any casualty count
+// is above zero, or once the server-stamped selfDispatchOpensAt has passed.
+// A null casualty count means "unknown" and never opens the immediate path.
+// The window itself is never computed client-side; only the server's stamp
+// is read.
+
+export const hasReportedCasualties = (report) => ['injured', 'fatalities', 'missing']
+    .some((field) => (report?.casualties?.[field] || 0) > 0);
+
+export const getSelfDispatchOpensAt = (report) => {
+    if (report?.status !== 'pending' || !report?.selfDispatchOpensAt) return null;
+    const opensAt = new Date(report.selfDispatchOpensAt);
+    return Number.isNaN(opensAt.getTime()) ? null : opensAt;
+};
+
+// Milliseconds until a no-casualty pending report opens for self-dispatch;
+// 0 when it is already open (or not a pending report at all).
+export const getSelfDispatchWaitMs = (report, now = new Date()) => {
+    const opensAt = getSelfDispatchOpensAt(report);
+    if (!opensAt || hasReportedCasualties(report)) return 0;
+    return Math.max(0, opensAt.getTime() - new Date(now).getTime());
+};
+
+export const canSelfDispatch = (report, now = new Date()) => (
+    report?.status === 'pending'
+    && (hasReportedCasualties(report) || getSelfDispatchWaitMs(report, now) === 0)
+);
+
+// "M:SS" for the disabled Respond countdown.
+export const formatSelfDispatchCountdown = (ms) => {
+    const totalSeconds = Math.ceil(Math.max(0, ms) / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
+
+// Unverified is a fact about review, not the status word alone: a pending
+// report is unverified, and so is a self-dispatched one (marker set) until
+// an admin's verification lands. A report that reached 'verified' or
+// 'transferred' has been reviewed by definition, whatever its timestamps.
+export const isUnverifiedReport = (report) => Boolean(report) && (
+    report.status === 'pending'
+    || (report.status === 'responding' && respondedBeforeVerification(report) && !report?.verifiedAt)
+);
+
+export const respondedBeforeVerification = (report) => Boolean(report?.preVerificationResponseAt);
+
+// An admin's review duty covers pending reports and self-dispatched ones
+// that are still unverified; verification of the latter keeps the status
+// at 'responding' server-side.
+export const isAdminReviewable = (report) => (
+    report?.status === 'pending'
+    || (report?.status === 'responding' && respondedBeforeVerification(report) && isUnverifiedReport(report))
+);
 export const ADMIN_TRANSFERABLE_STATUSES = ['verified', 'transferred'];
 export const RESPONDER_QUEUE_VIEWS = Object.freeze({
     available: 'dispatch-queue',
@@ -143,7 +199,7 @@ const hasTransferTrail = (report) => (
     || (Array.isArray(report?.transferTrail) && report.transferTrail.length > 0)
 );
 
-export const getIncidentCapabilities = (user, report) => {
+export const getIncidentCapabilities = (user, report, now = new Date()) => {
     const isAdmin = ADMIN_ROLES.includes(user?.role);
     const isResponder = user?.role === 'responder';
     const status = report?.status;
@@ -166,8 +222,8 @@ export const getIncidentCapabilities = (user, report) => {
 
     return {
         canInspect: Boolean(report),
-        canVerify: isAdmin && withinAdminScope && ADMIN_REVIEWABLE_STATUSES.includes(status),
-        canReject: isAdmin && withinAdminScope && ADMIN_REVIEWABLE_STATUSES.includes(status),
+        canVerify: isAdmin && withinAdminScope && isAdminReviewable(report),
+        canReject: isAdmin && withinAdminScope && isAdminReviewable(report),
         canTransfer: isAdmin
             && withinAdminScope
             && ADMIN_TRANSFERABLE_STATUSES.includes(status)
@@ -184,7 +240,7 @@ export const getIncidentCapabilities = (user, report) => {
             && isTransferOriginMunicipality(user, report),
         canRespond: isResponder
             && withinResponderScope
-            && RESPONDER_ACTIONABLE_STATUSES.includes(status)
+            && (RESPONDER_ACTIONABLE_STATUSES.includes(status) || canSelfDispatch(report, now))
             && !assignedResponder,
         canResolve: isResponder && withinResponderScope && status === 'responding' && assignedResponder,
     };

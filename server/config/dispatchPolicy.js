@@ -17,6 +17,10 @@ export const DISPATCH_POLICY_DEFAULTS = Object.freeze({
     maxEscalations: 3,
     sweepIntervalMs: 30_000,
     sweepBatchSize: 25,
+    // How long an unverified report with no reported casualties must wait
+    // before a responder may self-dispatch to it. Reports with any casualty
+    // count above zero never wait (see respondToReport).
+    preVerificationWindowMinutes: 3,
 });
 
 const readPositiveNumber = (value, fallback) => {
@@ -48,6 +52,10 @@ export const resolveDispatchPolicy = (env = process.env) => {
         env.DISPATCH_SWEEP_BATCH_SIZE,
         DISPATCH_POLICY_DEFAULTS.sweepBatchSize
     ));
+    const preVerificationWindowMinutes = readPositiveNumber(
+        env.DISPATCH_PRE_VERIFICATION_WINDOW_MINUTES,
+        DISPATCH_POLICY_DEFAULTS.preVerificationWindowMinutes
+    );
 
     return {
         ackWindowMinutes,
@@ -55,8 +63,10 @@ export const resolveDispatchPolicy = (env = process.env) => {
         maxEscalations,
         sweepIntervalMs,
         sweepBatchSize,
+        preVerificationWindowMinutes,
         ackWindowMs: ackWindowMinutes * 60 * 1000,
         escalationIntervalMs: escalationIntervalMinutes * 60 * 1000,
+        preVerificationWindowMs: preVerificationWindowMinutes * 60 * 1000,
     };
 };
 

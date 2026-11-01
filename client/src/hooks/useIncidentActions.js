@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import toast from '../utils/appToast';
 import { adminAPI, reportsAPI } from '../services/api';
-import { getIncidentCapabilities } from '../components/adminReports/incidentReportConfig';
+import { getIncidentCapabilities, isUnverifiedReport } from '../components/adminReports/incidentReportConfig';
 
 const closedReview = { open: false, report: null, status: '', rejectionReason: '' };
 const closedResolve = { open: false, report: null, resolutionNotes: '', resolutionPhotos: [] };
@@ -22,6 +22,7 @@ const useIncidentActions = ({
     const [resolveDialog, setResolveDialog] = useState(closedResolve);
     const [transferDialog, setTransferDialog] = useState(closedTransfer);
     const [unitDialog, setUnitDialog] = useState({ open: false, report: null });
+    const [unverifiedConfirmDialog, setUnverifiedConfirmDialog] = useState({ open: false, report: null });
     const [municipalities, setMunicipalities] = useState([]);
     const [reviewLoading, setReviewLoading] = useState(false);
     const [respondLoadingId, setRespondLoadingId] = useState(null);
@@ -92,12 +93,7 @@ const useIncidentActions = ({
         }
     }, [onResponseStarted, patchReport, refreshReports, user]);
 
-    const openRespond = useCallback((report) => {
-        if (!getIncidentCapabilities(user, report).canRespond) {
-            toast.error('Responder action is not available for this incident.');
-            return;
-        }
-
+    const proceedRespond = useCallback((report) => {
         if (user?.agency) {
             performRespond(report, {
                 unitName: user?.responderUnit || `${user?.agency} - ${user?.assignedMunicipality || 'Sibuyan'}`,
@@ -108,6 +104,29 @@ const useIncidentActions = ({
 
         setUnitDialog({ open: true, report });
     }, [performRespond, user]);
+
+    const openRespond = useCallback((report) => {
+        if (!getIncidentCapabilities(user, report).canRespond) {
+            toast.error('Responder action is not available for this incident.');
+            return;
+        }
+
+        // Responding to a report no admin has verified yet is allowed, but
+        // never silently: the responder confirms first, so the response is a
+        // deliberate act and verification stays a separate, parallel duty.
+        if (isUnverifiedReport(report)) {
+            setUnverifiedConfirmDialog({ open: true, report });
+            return;
+        }
+
+        proceedRespond(report);
+    }, [proceedRespond, user]);
+
+    const confirmUnverifiedRespond = useCallback(() => {
+        const report = unverifiedConfirmDialog.report;
+        setUnverifiedConfirmDialog({ open: false, report: null });
+        if (report) proceedRespond(report);
+    }, [proceedRespond, unverifiedConfirmDialog.report]);
 
     const selectUnit = useCallback((unitData) => {
         performRespond(unitDialog.report, unitData);
@@ -302,6 +321,9 @@ const useIncidentActions = ({
         unitDialog,
         closeUnit: () => setUnitDialog({ open: false, report: null }),
         selectUnit,
+        unverifiedConfirmDialog,
+        closeUnverifiedConfirm: () => setUnverifiedConfirmDialog({ open: false, report: null }),
+        confirmUnverifiedRespond,
         respondLoadingId,
         resolveDialog,
         setResolveDialog,
