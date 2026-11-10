@@ -11,7 +11,8 @@
  *      silently — the exact failure this system must never have.
  *
  * Caching rules are deliberately conservative:
- *   - Same-origin GETs only.
+ *   - Same-origin GETs only, with exactly one cross-origin exception: the
+ *     basemap glyph/sprite files (public, content-stable label assets).
  *   - Only a safelist of read-only endpoints is cached. Auth, file, and
  *     evidence routes are never cached: they carry identity or private media.
  *   - Per-user data is namespaced by user id, so two accounts sharing a browser
@@ -28,7 +29,19 @@ const DEFAULT_ICON = '/icons/Alert.png';
 // referencing deleted chunks after each deploy -> lazy() 404s.
 const SHELL_CACHE = 'sibuyan-shell-v2';
 const DATA_CACHE = 'sibuyan-data-v1';
+// Map assets that make repeat opens fast: the self-hosted PMTiles archive
+// (one fixed file) plus the basemap glyph/sprite files MapLibre needs
+// before it can paint labels. Imagery tiles are deliberately NOT here —
+// they stay network-bound (provider terms, unbounded growth).
+const MAP_CACHE = 'sibuyan-map-v1';
 const LEGACY_SHELL_CACHES = ['sibuyan-shell-v1'];
+
+// The glyph/sprite host for the basemap label stack. This prefix is the
+// ONLY cross-origin traffic the fetch handler intercepts; every other
+// cross-origin request (imagery, geocoding, APIs) passes through as
+// before.
+const MAP_ASSET_PREFIX = 'https://protomaps.github.io/basemaps-assets/';
+const PMTILES_ARCHIVE_PATH = /^\/maps\/[^/]+\.pmtiles$/;
 const SHELL_ASSETS = [
     '/',
     '/index.html',
@@ -142,7 +155,7 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
     event.waitUntil((async () => {
-        const keep = new Set([SHELL_CACHE, DATA_CACHE]);
+        const keep = new Set([SHELL_CACHE, DATA_CACHE, MAP_CACHE]);
         const names = await caches.keys();
         await Promise.all(names.filter((name) => !keep.has(name)).map((name) => caches.delete(name)));
         // Defense in depth: an older SW may have created the legacy shell
@@ -184,10 +197,24 @@ self.addEventListener('fetch', (event) => {
     if (request.method !== 'GET') return;
 
     const url = new URL(request.url);
+
+    // Basemap glyphs and sprites: cache-first from the map cache. Without
+    // these, MapLibre cannot paint labels, so on a cold open they were a
+    // network round trip standing between the reporter and a usable map.
+    if (url.href.startsWith(MAP_ASSET_PREFIX)) {
+        event.respondWith(cacheFirst(request, MAP_CACHE));
+        return;
+    }
+
     if (url.origin !== self.location.origin) return;
 
     // Never cache identity, media, or evidence routes.
     if (url.pathname.startsWith('/api/files') || url.pathname.startsWith('/api/auth')) return;
+
+    if (PMTILES_ARCHIVE_PATH.test(url.pathname)) {
+        event.respondWith(servePmtilesArchive(request));
+        return;
+    }
 
     if (matchesAny(url.pathname, PUBLIC_API)) {
         event.respondWith(networkFirst(request, DATA_CACHE));
@@ -263,6 +290,93 @@ async function cacheFirst(request, cacheName) {
     const response = await fetch(request);
     if (response && response.ok) await cache.put(request, response.clone());
     return response;
+}
+
+/**
+ * Parse a single "bytes=start-end" range header against the archive size.
+ * Also accepts the open-ended ("bytes=start-") and suffix ("bytes=-n")
+ * forms. Returns null for anything else (multi-range, malformed, or a
+ * start beyond the end of the file) so the caller can answer with the
+ * full body instead of a broken slice.
+ */
+const parseRangeHeader = (header, total) => {
+    if (!header || typeof header !== 'string') return null;
+    const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+    if (!match) return null;
+
+    let start;
+    let end;
+    if (match[1] === '') {
+        const suffix = Number(match[2]);
+        if (!Number.isFinite(suffix) || suffix <= 0) return null;
+        start = Math.max(0, total - suffix);
+        end = total - 1;
+    } else {
+        start = Number(match[1]);
+        end = match[2] === '' ? total - 1 : Math.min(Number(match[2]), total - 1);
+    }
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start > end || start >= total) {
+        return null;
+    }
+    return { start, end };
+};
+
+/** Build a real 206 Partial Content response from cached archive bytes. */
+const buildRangeResponse = (bytes, { start, end }) => new Response(bytes.slice(start, end + 1), {
+    status: 206,
+    headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Range': `bytes ${start}-${end}/${bytes.byteLength}`,
+        'Content-Length': String(end - start + 1),
+        'Accept-Ranges': 'bytes',
+    },
+});
+
+/**
+ * Serve the self-hosted PMTiles archive from the map cache.
+ *
+ * The archive is one fixed file, so the worker caches the WHOLE file on
+ * first use and answers every range request by slicing the cached bytes.
+ * That satisfies the exact contract the mapProvider header inspection
+ * validates (status 206 + a "bytes <start>-<end>/<total>" Content-Range),
+ * and it is what makes streets mode render on a repeat open with no
+ * network at all.
+ *
+ * Failure discipline: if anything in the cache path fails — no cached
+ * copy and the full download errors or is not ok, a cache read/write
+ * throws — the ORIGINAL request goes to the network untouched. This
+ * path may make the map faster; it must never be able to break it.
+ */
+async function servePmtilesArchive(request) {
+    try {
+        const cache = await caches.open(MAP_CACHE);
+        let archive = await cache.match(request.url);
+
+        if (!archive) {
+            // One full download with no Range header; every later range
+            // request is served locally from the stored copy.
+            const full = await fetch(request.url);
+            if (!full || !full.ok) return fetch(request);
+            await cache.put(request.url, full.clone());
+            archive = full;
+        }
+
+        const bytes = new Uint8Array(await archive.arrayBuffer());
+        const range = parseRangeHeader(request.headers.get('range'), bytes.byteLength);
+        if (!range) {
+            return new Response(bytes, {
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/octet-stream',
+                    'Content-Length': String(bytes.byteLength),
+                    'Accept-Ranges': 'bytes',
+                },
+            });
+        }
+        return buildRangeResponse(bytes, range);
+    } catch {
+        return fetch(request);
+    }
 }
 
 self.addEventListener('push', (event) => {
