@@ -131,9 +131,9 @@ export const LEGAL_DOCUMENTS = Object.freeze({
             {
                 title: '2. MVP scope and limitations',
                 paragraphs: [
-                    'This release covers road accidents, fire incidents, and road hazards. The system accepts reports for the following categories: road accidents (vehicular, motorcycle, pedestrian, bicycle, self-accident, mechanical, and other road incidents), fire incidents (structural, vegetation/forest-grass, vehicle fire, and other fire incidents), and road hazards (fallen trees, fallen posts/poles, debris, landslides, and other road hazards).',
-                    'Maritime incidents, natural disasters, medical emergencies, and other incident types not listed above are explicitly out of scope. Do not rely on this system for those emergencies; contact the appropriate dedicated emergency service directly.',
-                    'Features, categories, coverage, and integrations may change as the system evolves. The operator makes no guarantee that out-of-scope incidents will be received, processed, or responded to through this platform.',
+                    'This release covers road accidents, fire incidents, and road hazards. The system accepts reports for the following categories: road accidents (vehicular, motorcycle, pedestrian, bicycle, self-accident, mechanical, and other road incidents), fire incidents (structural, vegetation/forest-grass, vehicle fire, and other fire incidents), road hazards (fallen trees, fallen posts/poles, debris, landslides, and other road hazards), and other incidents, which the reporter files under an \'Other\' category and must describe in writing.',
+                    'Maritime incidents, natural disasters, and medical emergencies are outside this system\'s dedicated coverage. Do not rely on this system for those emergencies; contact the appropriate dedicated emergency service directly. Reports filed under \'Other\' are reviewed by the municipal administrator, who may direct the reporter to the appropriate service instead.',
+                    'Features, categories, coverage, and integrations may change as the system evolves. The operator makes no guarantee that out-of-scope incidents will be responded to through this platform.',
                 ],
             },
             {

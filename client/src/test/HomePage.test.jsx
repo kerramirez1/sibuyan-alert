@@ -194,6 +194,38 @@ describe('HomePage operational landing page', () => {
         expect(benefits.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }, 15000);
 
+    test('landing copy reflects responder self-dispatch and the Other category', async () => {
+        renderPage();
+
+        // How It Works, Step 02: verification is completed on the same
+        // record even when responders act first on a casualty incident.
+        expect(screen.getByText(
+            'The responsible municipal administrator reviews every report and records the verification on the incident record. When an incident involves casualties, responders may act first; the review is still completed on the same record.',
+        )).toBeInTheDocument();
+        // Step 03 and the hero's Responder dispatch benefit say the same.
+        expect(screen.getByText(
+            'Authorized municipal response units act on incidents in their municipality — dispatched after verification, or responding ahead of it when an incident cannot wait.',
+        )).toBeInTheDocument();
+        expect(screen.getByText(
+            'Incidents move to field response in one record — after verification, or ahead of it when casualties are involved, with verification still completed on that record.',
+        )).toBeInTheDocument();
+
+        // Terms of Use scope: 'Other' is an accepted, described category;
+        // the guarantee no longer claims unlisted types are not received.
+        fireEvent.click(screen.getByRole('button', { name: 'Terms of Use' }));
+        const termsDialog = screen.getByRole('dialog', { name: 'Terms of Use' });
+        expect(within(termsDialog).getByText(
+            /and other incidents, which the reporter files under an 'Other' category and must describe in writing\./,
+        )).toBeInTheDocument();
+        expect(within(termsDialog).getByText(
+            /Reports filed under 'Other' are reviewed by the municipal administrator, who may direct the reporter to the appropriate service instead\./,
+        )).toBeInTheDocument();
+        expect(within(termsDialog).getByText(
+            /The operator makes no guarantee that out-of-scope incidents will be responded to through this platform\./,
+        )).toBeInTheDocument();
+        expect(within(termsDialog).queryByText(/will be received, processed, or responded to/)).not.toBeInTheDocument();
+    });
+
     test('uses safe metric fallbacks when public analytics are unavailable', async () => {
         mocks.getPublic.mockRejectedValueOnce(new Error('Unavailable'));
         mocks.getStats.mockRejectedValueOnce(new Error('Unavailable'));

@@ -27,7 +27,7 @@ const benefits = [
     },
     {
         title: 'Responder dispatch',
-        description: 'Eligible incidents move from verification to field response in one record.',
+        description: 'Incidents move to field response in one record — after verification, or ahead of it when casualties are involved, with verification still completed on that record.',
     },
 ];
 
