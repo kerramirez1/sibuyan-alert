@@ -4,7 +4,7 @@ import { adminAPI, reportsAPI } from '../services/api';
 import { getIncidentCapabilities, isUnverifiedReport } from '../components/adminReports/incidentReportConfig';
 
 const closedReview = { open: false, report: null, status: '', rejectionReason: '' };
-const closedResolve = { open: false, report: null, resolutionNotes: '', resolutionPhotos: [] };
+const closedResolve = { open: false, report: null, resolutionNotes: '', resolutionPhotos: [], isFalseInformation: false };
 const closedTransfer = { open: false, report: null, targetMunicipalityId: '', reason: '' };
 
 const getApiError = (error, fallback) => error?.response?.data?.message || fallback;
@@ -137,12 +137,20 @@ const useIncidentActions = ({
             toast.error('Only an assigned responder can resolve this incident.');
             return;
         }
-        setResolveDialog({ open: true, report, resolutionNotes: '', resolutionPhotos: [] });
+        setResolveDialog({ open: true, report, resolutionNotes: '', resolutionPhotos: [], isFalseInformation: false });
     }, [user]);
 
     const confirmResolve = useCallback(async () => {
-        const { report, resolutionNotes, resolutionPhotos } = resolveDialog;
+        const { report, resolutionNotes, resolutionPhotos, isFalseInformation } = resolveDialog;
         if (!report || !report?._id || !getIncidentCapabilities(user, report).canResolve) return;
+
+        // A false-information closure must say why — the notes are the
+        // only record of what the responder found. The server enforces
+        // this too; blocking here just saves the round trip.
+        if (isFalseInformation && !(typeof resolutionNotes === 'string' && resolutionNotes.trim())) {
+            toast.error('Resolution notes are required when a report is closed as false information.');
+            return;
+        }
 
         setResolveLoading(true);
         try {
@@ -157,10 +165,20 @@ const useIncidentActions = ({
             if (photos.length > 0) {
                 const formData = new FormData();
                 formData.append('resolutionNotes', resolutionNotes || '');
+                // Multipart fields are strings; the server reads only
+                // 'true' as checked, so send the flag explicitly either way.
+                formData.append('isFalseInformation', isFalseInformation ? 'true' : 'false');
                 for (const photo of photos) {
                     formData.append('resolutionPhotos', photo.file, photo.file?.name || 'resolution-photo.jpg');
                     formData.append('photoIds', photo.id);
                 }
+                payload = formData;
+            } else if (isFalseInformation) {
+                // No photos: still send a multipart body so the flag and
+                // the notes travel the same shape as the photo path.
+                const formData = new FormData();
+                formData.append('resolutionNotes', resolutionNotes || '');
+                formData.append('isFalseInformation', 'true');
                 payload = formData;
             } else {
                 payload = { resolutionNotes };
@@ -177,12 +195,13 @@ const useIncidentActions = ({
                 ...serverData,
                 status: 'resolved',
                 resolutionNotes,
+                isFalseInformation: Boolean(isFalseInformation),
                 ...imagesPatch,
             });
             toast.success(response.data?.message || 'Incident resolved');
             setResolveDialog(closedResolve);
             if (onIncidentResolved) {
-                onIncidentResolved({ ...report, ...serverData, status: 'resolved', resolutionNotes, ...imagesPatch });
+                onIncidentResolved({ ...report, ...serverData, status: 'resolved', resolutionNotes, isFalseInformation: Boolean(isFalseInformation), ...imagesPatch });
             } else {
                 await refreshReports({ silent: true });
             }

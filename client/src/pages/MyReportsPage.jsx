@@ -597,6 +597,7 @@ function MyReportsPage() {
                 resolvedBy: data?.resolvedBy,
                 resolvedAt: data?.resolvedAt,
                 resolutionNotes: data?.resolutionNotes,
+                isFalseInformation: data?.isFalseInformation === true,
             });
         });
         const unsubVerify = subscribe('reportVerified', (data) => {
@@ -1183,6 +1184,12 @@ function MyReportsPage() {
                                                             <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
                                                                 Response unit: {getAgencyLabel(report?.respondedBy?.agency || report?.responderAgency)}{' '}
                                                                 {report?.respondedBy?.name ? `(${report.respondedBy.name})` : ''}
+                                                            </p>
+                                                        )}
+
+                                                        {report?.status === 'resolved' && report?.isFalseInformation && (
+                                                            <p className="mt-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                Closed as false information
                                                             </p>
                                                         )}
 

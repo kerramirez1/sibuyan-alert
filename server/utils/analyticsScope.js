@@ -31,6 +31,25 @@ export const buildMunicipalReportScope = (municipality) => ({
     ],
 });
 
+/**
+ * The one analytics exclusion for reports closed as false information.
+ *
+ * A flagged report is still a resolved report operationally — it stays in
+ * the queue, on the map, and in workload analytics (the response work
+ * really happened). It is excluded only from incident-counting analytics:
+ * admin/public counts and breakdowns, public stats, hotspot derivation,
+ * and the analytics Excel export. The $ne form is required so legacy
+ * documents written before the field existed still count.
+ *
+ * Apply this at the analytics call sites, NEVER inside
+ * buildMunicipalReportScope: that builder is shared with the incident
+ * queue and other non-analytics readers, which must keep seeing flagged
+ * reports.
+ */
+export const FALSE_INFORMATION_EXCLUSION = Object.freeze({
+    isFalseInformation: { $ne: true },
+});
+
 export const MUNICIPAL_REPORT_STATUSES = Object.freeze([
     'pending',
     'verified',
@@ -41,6 +60,7 @@ export const MUNICIPAL_REPORT_STATUSES = Object.freeze([
 ]);
 
 export default {
+    FALSE_INFORMATION_EXCLUSION,
     MUNICIPAL_REPORT_STATUSES,
     MUNICIPAL_ORIGIN_CLAUSES,
     buildMunicipalReportScope,

@@ -3,6 +3,7 @@ import HighRiskZone from '../models/HighRiskZone.js';
 import mongoose from 'mongoose';
 import { promises as fs } from 'fs';
 import { toPublicReport, buildReportEvidenceObject } from '../utils/publicReport.js';
+import { FALSE_INFORMATION_EXCLUSION } from '../utils/analyticsScope.js';
 import { canViewOperationalReport, getEntityId } from '../utils/reportAccess.js';
 import User from '../models/User.js';
 import Municipality from '../models/Municipality.js';
@@ -1720,8 +1721,12 @@ export const getStats = async (req, res) => {
 
         // Build match query
         // Public aggregates include every published lifecycle state. Pending and
-        // rejected reports remain private to operational users.
-        const matchQuery = { status: { $in: ['verified', 'transferred', 'responding', 'resolved'] } };
+        // rejected reports remain private to operational users. Reports closed
+        // as false information are excluded: these are incident counts.
+        const matchQuery = {
+            status: { $in: ['verified', 'transferred', 'responding', 'resolved'] },
+            ...FALSE_INFORMATION_EXCLUSION,
+        };
         if (category) matchQuery.incidentCategory = category;
         if (municipality) {
             if (!mongoose.isValidObjectId(municipality)) {

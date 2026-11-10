@@ -394,6 +394,16 @@ const reportSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        // Set only by resolveReport, in the same save that sets resolvedBy
+        // and resolvedAt, when the resolving responder closes the report as
+        // false information. Analytics exclude flagged reports; the
+        // lifecycle is unchanged (the report is still 'resolved'), and
+        // there is no un-flag path — once resolved, the flag is a
+        // historical fact about how the report was closed.
+        isFalseInformation: {
+            type: Boolean,
+            default: false,
+        },
         resolutionImages: [{ type: String }], // GridFS delivery URLs for responder-uploaded resolution photos (separate from reporter evidence)
 
         // Reporter-side progress updates (e.g., victim already transported)

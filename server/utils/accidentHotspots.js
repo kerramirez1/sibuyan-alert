@@ -103,6 +103,11 @@ export const buildAccidentHotspotMatch = (firstArg, secondArg) => {
 
     const match = {
         status: { $in: [...ACCIDENT_HOTSPOT_STATUSES] },
+        // A report closed as false information never happened as an
+        // incident, so it must not seed a hotspot. $ne keeps legacy
+        // documents (no field) eligible. Shared definition:
+        // utils/analyticsScope.js (FALSE_INFORMATION_EXCLUSION).
+        isFalseInformation: { $ne: true },
         'coordinates.lat': {
             $type: 'number',
             $gte: ACCIDENT_HOTSPOT_BOUNDS.minLat,

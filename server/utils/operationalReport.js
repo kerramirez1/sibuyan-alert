@@ -146,6 +146,10 @@ const buildCore = (source) => ({
     selfDispatchOpensAt: source.status === 'pending' && source.createdAt
         ? new Date(new Date(source.createdAt).getTime() + resolveDispatchPolicy().preVerificationWindowMs).toISOString()
         : null,
+    // Closed as false information at resolve time. Operational payloads
+    // carry it (badge + analytics derivation on the client); the public
+    // serializer does not.
+    isFalseInformation: source.isFalseInformation === true,
     dispatch: pickDispatch(source),
 });
 

@@ -13,7 +13,7 @@ import {
 import IncidentDetailsContent from '../incidentDetails/IncidentDetailsContent';
 import useRecordView from '../../hooks/useRecordView';
 import { useSocket } from '../../context/SocketContext';
-import { IncidentSeverityIndicator, OperationalStatusIndicator, VerificationBadges, getSelfDispatchCountdownMs } from './IncidentQueue';
+import { FalseInformationBadge, IncidentSeverityIndicator, OperationalStatusIndicator, VerificationBadges, getSelfDispatchCountdownMs } from './IncidentQueue';
 import { formatSelfDispatchCountdown, getIncidentCapabilities } from './incidentReportConfig';
 import useNow from '../../hooks/useNow';
 
@@ -569,6 +569,7 @@ const ResponderIncidentInspector = ({
                         <span className="text-gray-300 dark:text-gray-700" aria-hidden="true">&middot;</span>
                         <OperationalStatusIndicator status={report.status} />
                         <VerificationBadges report={report} />
+                        <FalseInformationBadge report={report} />
                     </div>
                 </div>
                 <button

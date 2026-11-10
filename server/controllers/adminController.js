@@ -33,7 +33,7 @@ import {
 } from '../config/responderUnits.js';
 import { armDispatchAcknowledgement } from '../services/dispatchEscalationService.js';
 import { resolveDispatchPolicy } from '../config/dispatchPolicy.js';
-import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
+import { buildMunicipalReportScope, FALSE_INFORMATION_EXCLUSION } from '../utils/analyticsScope.js';
 import { buildUserVerificationPayload } from '../utils/userPayload.js';
 import {
     getPhilippineCalendarMonthRange,
@@ -1839,8 +1839,13 @@ export const getDashboardStats = async (req, res) => {
 
         // Same municipal visibility scope as the incident queue and the
         // analytics endpoint: every incident that touched this office, minus
-        // copies dismissed locally. (Shared: utils/analyticsScope.js)
-        const reportFilter = buildMunicipalReportScope(municipality);
+        // copies dismissed locally. (Shared: utils/analyticsScope.js) Like
+        // the analytics endpoint, these counts exclude reports closed as
+        // false information — at this call site only, never in the builder.
+        const reportFilter = {
+            ...buildMunicipalReportScope(municipality),
+            ...FALSE_INFORMATION_EXCLUSION,
+        };
         const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
         const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
         const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };
@@ -2341,6 +2346,12 @@ export const respondToReport = async (req, res) => {
 export const resolveReport = async (req, res) => {
     try {
         const { resolutionNotes } = req.body;
+        // Strict parsing: only boolean true or the string 'true' (what a
+        // multipart form sends for a checked box) means the responder
+        // closed this report as false information. Absent, 'false', '1',
+        // or anything else means a normal resolve.
+        const isFalseInformation = req.body.isFalseInformation === true
+            || req.body.isFalseInformation === 'true';
         const responder = req.user;
 
         if (!responder || responder.role !== 'responder') {
@@ -2390,6 +2401,18 @@ export const resolveReport = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 message: 'Access denied - Only assigned responders can resolve this report.',
+            });
+        }
+
+        // A false-information closure must say why: the notes are the only
+        // record of what the responder found. Checked here — after every
+        // guard above, before any photo reaches GridFS — so a rejected
+        // request stores nothing and leaves no temp file behind.
+        if (isFalseInformation && !(typeof resolutionNotes === 'string' && resolutionNotes.trim())) {
+            await cleanupTempUploadFiles(req.files);
+            return res.status(400).json({
+                success: false,
+                message: 'Resolution notes are required when a report is closed as false information.',
             });
         }
 
@@ -2447,6 +2470,9 @@ export const resolveReport = async (req, res) => {
         report.resolvedBy = responder._id;
         report.resolvedAt = new Date();
         report.resolutionNotes = resolutionNotes || '';
+        // The flag rides the same save as resolvedBy/resolvedAt, so who
+        // closed it and when are already the record of who flagged it.
+        if (isFalseInformation) report.isFalseInformation = true;
         try {
             await report.save();
         } catch (saveError) {
@@ -2474,8 +2500,23 @@ export const resolveReport = async (req, res) => {
             console.warn('Skipping resolution notification because reporter account is unavailable');
         } else {
             try {
-                await Notification.createAndSend(
-                    {
+                // A false-information closure keeps the report_resolved
+                // type but says so plainly, notes included (they are
+                // required for this path, so they are always present).
+                const resolutionNotification = isFalseInformation
+                    ? {
+                        recipient: report.reporter._id,
+                        type: 'report_resolved',
+                        title: 'Report Closed as False Information',
+                        message: `Your report at ${report.address} was closed as false information by ${agencyLabel} (${responder.name}). Notes: ${resolutionNotes}`,
+                        data: {
+                            reportId: report._id,
+                            responderId: responder._id,
+                            agency: responder.agency,
+                            falseInformation: true,
+                        },
+                    }
+                    : {
                         recipient: report.reporter._id,
                         type: 'report_resolved',
                         title: 'Incident Resolved',
@@ -2485,17 +2526,23 @@ export const resolveReport = async (req, res) => {
                             responderId: responder._id,
                             agency: responder.agency,
                         },
-                    },
-                    io
-                );
+                    };
+                await Notification.createAndSend(resolutionNotification, io);
 
                 if (report.reporter.pushSubscription && report.reporter.notificationPreferences?.browserPush) {
-                    await sendPushToUser(report.reporter, {
-                        title: 'Incident Resolved',
-                        body: `Your report at ${report.address} has been resolved by ${agencyLabel}.`,
-                        icon: '/icons/icon-192.png',
-                        data: { url: '/my-reports' },
-                    });
+                    await sendPushToUser(report.reporter, isFalseInformation
+                        ? {
+                            title: 'Report Closed as False Information',
+                            body: `Your report at ${report.address} was closed as false information by ${agencyLabel}.`,
+                            icon: '/icons/icon-192.png',
+                            data: { url: '/my-reports' },
+                        }
+                        : {
+                            title: 'Incident Resolved',
+                            body: `Your report at ${report.address} has been resolved by ${agencyLabel}.`,
+                            icon: '/icons/icon-192.png',
+                            data: { url: '/my-reports' },
+                        });
                 }
             } catch (notificationError) {
                 console.error('Failed to notify reporter about resolution:', notificationError);

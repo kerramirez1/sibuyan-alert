@@ -742,7 +742,21 @@ const DashboardPage = () => {
 
 
     // Filter reports by municipality on the client side
-    const filteredReports = dashboardReports;
+    //
+    // The analytics dataset: the operational list minus reports closed as
+    // false information. Flagged reports stay in the operational list —
+    // the map and the queue keep them, they are resolved normally — but
+    // every analytics derivation below (metrics, breakdowns, trend, the
+    // workspace panels, and the Excel export fed from them) reads this
+    // set, mirroring the server-side analytics exclusion
+    // (server/utils/analyticsScope.js). The list's endpoint is the
+    // shared operational feed, so the exclusion cannot live there
+    // without stripping resolved reports from the queue itself.
+    const analyticsReports = useMemo(
+        () => dashboardReports.filter((report) => !report?.isFalseInformation),
+        [dashboardReports],
+    );
+    const filteredReports = analyticsReports;
 
     // Further filter by the active reporting scope. Monthly keeps the original
     // month match; Yearly widens it to a calendar year; All time applies no
@@ -1186,7 +1200,7 @@ const DashboardPage = () => {
                 selectedYear={selectedYear}
                 setSelectedYear={setSelectedYear}
                 reports={periodReports}
-                allReports={dashboardReports}
+                allReports={analyticsReports}
                 highRiskZones={highRiskZones}
                 performanceMetrics={performanceMetrics}
                 chartData={chartData}

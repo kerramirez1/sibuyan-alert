@@ -290,6 +290,9 @@ export const broadcastReportResolved = (io, report, responder, agencyLabel) => {
             agencyLabel,
         },
         resolutionNotes: report.resolutionNotes || '',
+        // Room payloads only (reporter + municipality): the public emit
+        // above keeps its existing shape.
+        isFalseInformation: report.isFalseInformation === true,
     };
     const reporterId = report.reporter?._id || report.reporter;
 

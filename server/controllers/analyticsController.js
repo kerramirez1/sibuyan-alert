@@ -8,7 +8,7 @@ import {
     PHILIPPINES_TIMEZONE,
     PUBLIC_REPORT_STATUSES,
 } from '../utils/publicAnalytics.js';
-import { buildMunicipalReportScope } from '../utils/analyticsScope.js';
+import { buildMunicipalReportScope, FALSE_INFORMATION_EXCLUSION } from '../utils/analyticsScope.js';
 
 const RESPONDER_ACTIVE_STATUSES = ['verified', 'transferred', 'responding'];
 const RESPONDER_PRIORITY_ZONE_SEVERITIES = ['critical', 'high'];
@@ -57,8 +57,14 @@ export const getAdminAnalytics = async (req, res) => {
 
         // Same municipal visibility scope as the incident queue: every
         // incident that touched this office, minus copies dismissed locally.
-        // (Shared definition: utils/analyticsScope.js)
-        const reportFilter = buildMunicipalReportScope(municipality);
+        // (Shared definition: utils/analyticsScope.js) Analytics counts
+        // incidents, so reports closed as false information are excluded
+        // here — at this call site only; the scope builder itself stays
+        // shared with the queue, which keeps seeing flagged reports.
+        const reportFilter = {
+            ...buildMunicipalReportScope(municipality),
+            ...FALSE_INFORMATION_EXCLUSION,
+        };
         const scopedUserIds = await getMunicipalityScopedUserIds(municipality);
         const userScopeFilter = { _id: { $in: scopedUserIds }, role: { $in: ['ordinary', 'reporter', 'responder'] } };
         const reporterScopeFilter = { _id: { $in: scopedUserIds }, role: 'reporter' };
@@ -356,6 +362,7 @@ export const getPublicAnalytics = async (req, res) => {
         ] = await Promise.all([
             Report.countDocuments({
                 status: publishedStatusFilter(),
+                ...FALSE_INFORMATION_EXCLUSION,
                 $or: [
                     {
                         verifiedAt: {
@@ -374,7 +381,7 @@ export const getPublicAnalytics = async (req, res) => {
                 ],
             }),
             HighRiskZone.countDocuments({ isActive: true }),
-            Report.countDocuments({ status: publishedStatusFilter() }),
+            Report.countDocuments({ status: publishedStatusFilter(), ...FALSE_INFORMATION_EXCLUSION }),
         ]);
 
         res.json({

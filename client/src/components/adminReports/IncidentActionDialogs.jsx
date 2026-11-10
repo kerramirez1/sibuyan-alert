@@ -182,7 +182,9 @@ const IncidentActionDialogs = ({ actions, municipality }) => {
                     Confirm that the response is complete. The reporter will be notified and the incident will be closed.
                 </p>
                 <label className="block">
-                    <span className="text-sm font-semibold text-gray-800">Resolution notes <span className="font-normal text-gray-500">(optional)</span></span>
+                    <span className="text-sm font-semibold text-gray-800">Resolution notes {resolveDialog.isFalseInformation
+                        ? <span className="font-normal text-gray-500">(required)</span>
+                        : <span className="font-normal text-gray-500">(optional)</span>}</span>
                     <textarea
                         value={resolveDialog.resolutionNotes}
                         onChange={(event) => actions.setResolveDialog((current) => ({ ...current, resolutionNotes: event.target.value }))}
@@ -191,10 +193,27 @@ const IncidentActionDialogs = ({ actions, municipality }) => {
                         placeholder="Describe the response outcome"
                     />
                 </label>
+                <label className="mt-4 flex cursor-pointer items-start gap-2.5">
+                    <input
+                        type="checkbox"
+                        checked={Boolean(resolveDialog.isFalseInformation)}
+                        onChange={(event) => actions.setResolveDialog((current) => ({ ...current, isFalseInformation: event.target.checked }))}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-gray-700"
+                    />
+                    <span>
+                        <span className="block text-sm font-semibold text-gray-800">This report was false information</span>
+                        <span className="mt-0.5 block text-xs text-gray-500">The report will still be recorded as resolved, but it will not be counted in analytics.</span>
+                    </span>
+                </label>
                 <ResolutionPhotoPicker actions={actions} />
                 <div className="mt-5 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                     <DialogButton onClick={actions.closeResolve}>Cancel</DialogButton>
-                    <DialogButton onClick={actions.confirmResolve} tone="success" loading={actions.resolveLoading}>
+                    <DialogButton
+                        onClick={actions.confirmResolve}
+                        tone="success"
+                        loading={actions.resolveLoading}
+                        disabled={Boolean(resolveDialog.isFalseInformation) && !(resolveDialog.resolutionNotes || '').trim()}
+                    >
                         <HiOutlineBadgeCheck className="h-4 w-4" aria-hidden="true" />
                         Confirm resolved
                     </DialogButton>

@@ -259,6 +259,7 @@ const useIncidentReports = ({ subscribe, role, responderView = 'all', initialSta
                 resolvedBy: data?.resolvedBy,
                 resolvedAt: data?.resolvedAt,
                 resolutionNotes: data?.resolutionNotes,
+                isFalseInformation: data?.isFalseInformation === true,
             });
         });
 

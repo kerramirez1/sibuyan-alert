@@ -234,6 +234,17 @@ export const VerificationBadges = ({ report }) => {
     );
 };
 
+// Achromatic like the verification badges: hue stays reserved for
+// severity, so a closure fact is carried by text, not color.
+export const FalseInformationBadge = ({ report }) => {
+    if (!report?.isFalseInformation) return null;
+    return (
+        <span className="inline-flex shrink-0 items-center rounded border border-gray-300 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 dark:border-gray-600 dark:text-gray-300">
+            False information
+        </span>
+    );
+};
+
 // True only when the self-dispatch window is the single thing standing
 // between this responder and the Respond action: in scope, not already on
 // the response, pending, no reported casualties, window still closed.
