@@ -166,6 +166,7 @@ const installIndexedDbMock = () => {
 describe('ReportPage workflow', () => {
     let geolocation;
     let watchPositionSuccess;
+    let watchPositionError;
 
     beforeEach(() => {
         createReportMock.mockReset();
@@ -193,8 +194,9 @@ describe('ReportPage workflow', () => {
         Object.values(toastMock).forEach((mock) => mock.mockClear());
         mapPropsSpy.mockClear();
         geolocation = {
-            watchPosition: vi.fn((success) => {
+            watchPosition: vi.fn((success, error) => {
                 watchPositionSuccess = success;
+                watchPositionError = error;
                 return 7;
             }),
             clearWatch: vi.fn(),
@@ -1199,6 +1201,135 @@ describe('ReportPage workflow', () => {
             await waitFor(() => {
                 expect(myLocationBtn).toHaveTextContent('My location');
             });
+        });
+    });
+
+    describe('fast GPS acquisition', () => {
+        // The app is served over HTTPS in production, where isSecureContext
+        // is true; jsdom reports false, which would route every watch error
+        // down the pre-existing insecure-context branch instead of the
+        // code-based one these tests exercise.
+        const originalSecureContext = Object.getOwnPropertyDescriptor(window, 'isSecureContext');
+        beforeEach(() => {
+            Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true });
+        });
+        afterEach(() => {
+            if (originalSecureContext) {
+                Object.defineProperty(window, 'isSecureContext', originalSecureContext);
+            } else {
+                delete window.isSecureContext;
+            }
+        });
+
+        const deliverFix = (accuracy, latitude = 12.39261, longitude = 122.67985) => {
+            act(() => {
+                watchPositionSuccess({ coords: { latitude, longitude, accuracy } });
+            });
+        };
+
+        test('(a) a first usable fix at 60m finishes in confirming without waiting for the watchdog', async () => {
+            renderPage();
+
+            deliverFix(60);
+
+            // The confirm UI is the 'confirming' state the watchdog used to
+            // produce after the full wait — it now appears with the fix.
+            expect(await screen.findByRole('button', { name: /confirm location/i })).toBeInTheDocument();
+            expect(toastMock.success).toHaveBeenCalledWith('GPS position ready to confirm (60m).', expect.anything());
+            expect(geolocation.clearWatch).toHaveBeenCalledWith(7);
+        });
+
+        test('(b) a watch timeout error before any fix does not end detection, and a later 50m fix succeeds', async () => {
+            renderPage();
+
+            act(() => {
+                watchPositionError({ code: 3, message: 'Timeout' });
+            });
+
+            // No toast, no teardown: the watchdog still owns the verdict.
+            expect(toastMock.error).not.toHaveBeenCalled();
+            expect(geolocation.clearWatch).not.toHaveBeenCalled();
+            expect(screen.queryByRole('button', { name: /confirm location/i })).not.toBeInTheDocument();
+
+            deliverFix(50);
+
+            expect(await screen.findByRole('button', { name: /confirm location/i })).toBeInTheDocument();
+            expect(toastMock.success).toHaveBeenCalledWith('GPS position ready to confirm (50m).', expect.anything());
+        });
+
+        test('(b2) a position-unavailable error before any fix is likewise silent', () => {
+            renderPage();
+
+            act(() => {
+                watchPositionError({ code: 2, message: 'Unavailable' });
+            });
+
+            expect(toastMock.error).not.toHaveBeenCalled();
+            expect(geolocation.clearWatch).not.toHaveBeenCalled();
+        });
+
+        test('(c) a permission-denied error still ends detection immediately with the permission message', () => {
+            renderPage();
+
+            act(() => {
+                watchPositionError({ code: 1, message: 'Denied' });
+            });
+
+            expect(toastMock.error).toHaveBeenCalledWith(
+                'Location permission denied. Please enable GPS permissions.',
+                expect.anything(),
+            );
+            expect(geolocation.clearWatch).toHaveBeenCalledWith(7);
+            expect(screen.queryByRole('button', { name: /confirm location/i })).not.toBeInTheDocument();
+        });
+
+        test('(e) the watch asks for a cached fix (maximumAge 30000, timeout 25000) and accepts it instantly', async () => {
+            renderPage();
+
+            expect(geolocation.watchPosition).toHaveBeenCalledWith(
+                expect.any(Function),
+                expect.any(Function),
+                { enableHighAccuracy: true, timeout: 25000, maximumAge: 30000 },
+            );
+
+            // A cached fix is what the browser delivers first under that
+            // maximumAge — an immediate 80m position, accepted as usable.
+            deliverFix(80);
+
+            expect(await screen.findByRole('button', { name: /confirm location/i })).toBeInTheDocument();
+            expect(toastMock.success).toHaveBeenCalledWith('GPS position ready to confirm (80m).', expect.anything());
+        });
+
+        test('(d) watchdog expiry with a best fix of 150m keeps the drag-the-pin fallback and never makes the step submittable', async () => {
+            vi.useFakeTimers();
+            try {
+                renderPage();
+                // Flush the permission pre-check so the watchdog is armed.
+                await act(async () => {});
+
+                deliverFix(150);
+
+                // The old 12s budget must not deliver the verdict anymore.
+                act(() => { vi.advanceTimersByTime(12000); });
+                expect(toastMock.error).not.toHaveBeenCalledWith(
+                    expect.stringMatching(/too low/),
+                    expect.anything(),
+                );
+
+                // At the full 20s budget the watchdog delivers the fallback.
+                act(() => { vi.advanceTimersByTime(8000); });
+                expect(toastMock.error).toHaveBeenCalledWith(
+                    expect.stringMatching(/GPS accuracy is too low \(150m\)/),
+                    expect.anything(),
+                );
+                expect(screen.queryByRole('button', { name: /confirm location/i })).not.toBeInTheDocument();
+            } finally {
+                vi.useRealTimers();
+            }
+
+            // The fallback cleared the selection: step 1 is not submittable.
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            expect(screen.getByText('Please select a location on the map or enter an address')).toBeInTheDocument();
         });
     });
 });

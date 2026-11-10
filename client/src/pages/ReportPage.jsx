@@ -31,6 +31,13 @@ import { HiCheck } from 'react-icons/hi';
 
 const LOCATION_TOAST_ID = 'location-acquisition';
 
+// The single clock that governs GPS acquisition. The watch's own timeout
+// is set longer than this on purpose, so only the watchdog ever delivers
+// the end-of-budget verdict (usable fix → confirm, coarse fix → drag the
+// pin, no fix → error). Twenty seconds is long enough for a first usable
+// fix on a weak signal without making the reporter stare at a spinner.
+const GPS_ACQUISITION_BUDGET_MS = 20000;
+
 // What the reporter is told when the report is safe on the device but not yet
 // in the dispatch queue. Each variant names the real reason, because "offline"
 // and "the upload was cut halfway" need different reactions from the reporter.
@@ -615,7 +622,7 @@ const ReportPage = () => {
                     setLocationStatus('idle');
                 }
             }
-        }, 12000);
+        }, GPS_ACQUISITION_BUDGET_MS);
 
         const applyPosition = (position) => {
             if (locationRequestRef.current !== requestId) return;
@@ -645,8 +652,21 @@ const ReportPage = () => {
                 });
                 setLocationCapture(buildLocationCapture('gps', accuracy));
                 setErrors(prev => ({ ...prev, location: '' }));
-                if (accuracy !== null && accuracy <= GPS_MAX_ACCURACY_METERS && assessGpsAccuracy(accuracy).precise) {
-                    toast.success(`Precise location found (${Math.round(accuracy)}m)`, { id: LOCATION_TOAST_ID });
+                // Accept the first USABLE fix (<= 100m — the same threshold
+                // the server enforces) instead of waiting for a precise one:
+                // a 60m fix the reporter can confirm beats twelve more
+                // seconds of "Refining..." that can still end in a timeout.
+                // Fixes with unknown accuracy keep refining, and fixes
+                // coarser than 100m never finish here — the watchdog's
+                // drag-the-pin fallback owns those.
+                if (accuracy !== null && accuracy <= GPS_MAX_ACCURACY_METERS) {
+                    const assessment = assessGpsAccuracy(accuracy);
+                    toast.success(
+                        assessment.precise
+                            ? `Precise location found (${Math.round(accuracy)}m)`
+                            : assessment.message,
+                        { id: LOCATION_TOAST_ID },
+                    );
                     if (watchIdRef.current !== null) {
                         geolocation?.clearWatch(watchIdRef.current);
                         watchIdRef.current = null;
@@ -684,33 +704,38 @@ const ReportPage = () => {
             (error) => {
                 if (locationRequestRef.current !== requestId) return;
                 console.error('Geolocation error:', error);
-                if (!bestLocation && bestAccuracy === Infinity) {
-                    let errorMessage = 'Location error. Please pin manually.';
-                    const isSecureContext = typeof window !== 'undefined' ? window.isSecureContext : true;
-                    if (!isSecureContext) {
-                        errorMessage = 'Mobile GPS requires HTTPS. Cannot use GPS on HTTP.';
-                    } else if (error.code === 1) {
-                        errorMessage = 'Location permission denied. Please enable GPS permissions.';
-                    } else if (error.code === 2) {
-                        errorMessage = 'GPS Signal weak or unavailable.';
-                    } else if (error.code === 3) {
-                        errorMessage = 'Location request timed out.';
-                    }
-                    if (watchIdRef.current !== null) {
-                        geolocation?.clearWatch(watchIdRef.current);
-                        watchIdRef.current = null;
-                    }
-                    if (locationTimeoutRef.current !== null) {
-                        clearTimeout(locationTimeoutRef.current);
-                        locationTimeoutRef.current = null;
-                    }
-                    locationDetectionActiveRef.current = false;
-                    setGeoLoading(false);
-                    setLocationStatus('idle');
-                    toast.error(errorMessage, { id: LOCATION_TOAST_ID });
+                // A fix already landed: errors stay ignored, as before.
+                if (bestLocation || bestAccuracy !== Infinity) return;
+                const isSecureContext = typeof window !== 'undefined' ? window.isSecureContext : true;
+                // Only a permanent failure ends detection here. Codes 2
+                // (POSITION_UNAVAILABLE) and 3 (TIMEOUT) are transient —
+                // the watch's own clock used to kill the attempt at 10s,
+                // one second before a fix could land. They now say
+                // nothing, clear nothing, and let the watchdog deliver
+                // the final verdict when the budget runs out.
+                if (isSecureContext && error.code !== 1) return;
+                const errorMessage = !isSecureContext
+                    ? 'Mobile GPS requires HTTPS. Cannot use GPS on HTTP.'
+                    : 'Location permission denied. Please enable GPS permissions.';
+                if (watchIdRef.current !== null) {
+                    geolocation?.clearWatch(watchIdRef.current);
+                    watchIdRef.current = null;
                 }
+                if (locationTimeoutRef.current !== null) {
+                    clearTimeout(locationTimeoutRef.current);
+                    locationTimeoutRef.current = null;
+                }
+                locationDetectionActiveRef.current = false;
+                setGeoLoading(false);
+                setLocationStatus('idle');
+                toast.error(errorMessage, { id: LOCATION_TOAST_ID });
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            // maximumAge mirrors QueuedReportLocationFix's proven value: a
+            // recent cached fix is a real position and arrives instantly,
+            // where maximumAge: 0 forced a cold satellite fix. The timeout
+            // is deliberately longer than GPS_ACQUISITION_BUDGET_MS so the
+            // watch can never pre-empt the watchdog with its own timeout.
+            { enableHighAccuracy: true, timeout: 25000, maximumAge: 30000 }
         );
     }, [stopLocationDetection, resolveLocationLabels]);
 
