@@ -34,17 +34,46 @@ describe('reportDraft', () => {
         expect(isDraftWorthy({ formData: baseForm(), selectedLocation: null })).toBe(false);
     });
 
-    test('text, location, casualty, or severity changes make a draft worthy', () => {
-        expect(isDraftWorthy({
-            formData: { ...baseForm(), address: 'Poblacion Market' },
-            selectedLocation: null,
-        })).toBe(true);
+    test('Step 1 content alone never makes a draft worthy', () => {
+        // Location only — this is what GPS auto-detect produces on mount.
         expect(isDraftWorthy({
             formData: baseForm(),
             selectedLocation: { lat: 12.39, lng: 122.67 },
+        })).toBe(false);
+        expect(isDraftWorthy({
+            formData: { ...baseForm(), address: 'Poblacion Market' },
+            selectedLocation: null,
+        })).toBe(false);
+        expect(isDraftWorthy({
+            formData: { ...baseForm(), barangay: 'Poblacion' },
+            selectedLocation: { lat: 12.39, lng: 122.67 },
+        })).toBe(false);
+    });
+
+    test('Step 2+ information makes a draft worthy', () => {
+        // Location plus a Step 2 description.
+        expect(isDraftWorthy({
+            formData: { ...baseForm(), description: 'Two motorcycles collided near the market.' },
+            selectedLocation: { lat: 12.39, lng: 122.67 },
         })).toBe(true);
         expect(isDraftWorthy({
+            formData: { ...baseForm(), incidentTime: '2025-02-01T08:00' },
+            selectedLocation: null,
+        })).toBe(true);
+        // The 'Other' category detail (Step 2) qualifies on its own —
+        // isolated here with every other field at its default.
+        expect(isDraftWorthy({
+            formData: { ...baseForm(), incidentCategoryDetail: 'Flooding on the coastal road' },
+            selectedLocation: null,
+        })).toBe(true);
+        // Casualties only (Step 3).
+        expect(isDraftWorthy({
             formData: { ...baseForm(), casualties: { injured: '2', fatalities: '', missing: '' } },
+            selectedLocation: null,
+        })).toBe(true);
+        // Non-default severity.
+        expect(isDraftWorthy({
+            formData: { ...baseForm(), severity: 'critical' },
             selectedLocation: null,
         })).toBe(true);
     });
@@ -68,7 +97,7 @@ describe('reportDraft', () => {
 
     test('a pristine form clears any stored draft', () => {
         saveReportDraft({
-            formData: { ...baseForm(), address: 'Poblacion' },
+            formData: { ...baseForm(), description: 'Collision near the public market.' },
             selectedLocation: null,
             locationCapture: null,
         });
@@ -78,9 +107,39 @@ describe('reportDraft', () => {
         expect(loadReportDraft()).toBeNull();
     });
 
+    test('returning the form to a Step-1-only state removes the stored draft', () => {
+        saveReportDraft({
+            formData: { ...baseForm(), description: 'Collision near the public market.' },
+            selectedLocation: { lat: 12.39, lng: 122.67 },
+            locationCapture: null,
+        });
+        expect(loadReportDraft()).not.toBeNull();
+
+        // The reporter deletes the description, leaving only the Step 1
+        // pin and address: the next autosave deletes the stored draft.
+        saveReportDraft({
+            formData: { ...baseForm(), address: 'Poblacion Market' },
+            selectedLocation: { lat: 12.39, lng: 122.67 },
+            locationCapture: null,
+        });
+        expect(loadReportDraft()).toBeNull();
+        expect(localStorage.getItem(REPORT_DRAFT_STORAGE_KEY)).toBeNull();
+    });
+
+    test('a stored location-only draft (saved before the gate change) is ignored on load', () => {
+        const payload = buildDraftPayload({
+            formData: baseForm(),
+            selectedLocation: { lat: 12.39, lng: 122.67 },
+            locationCapture: { source: 'gps', accuracyMeters: 18, capturedAt: '2025-02-01T08:00:00Z' },
+        });
+        localStorage.setItem(REPORT_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+
+        expect(loadReportDraft()).toBeNull();
+    });
+
     test('expired or corrupt drafts are ignored', () => {
         saveReportDraft({
-            formData: { ...baseForm(), address: 'Poblacion' },
+            formData: { ...baseForm(), description: 'Collision near the public market.' },
             selectedLocation: null,
             locationCapture: null,
         });
@@ -94,7 +153,7 @@ describe('reportDraft', () => {
 
     test('invalid coordinates are dropped instead of restored', () => {
         const payload = buildDraftPayload({
-            formData: { ...baseForm(), address: 'Poblacion' },
+            formData: { ...baseForm(), description: 'Collision near the public market.' },
             selectedLocation: { lat: Number.NaN, lng: 122.67 },
             locationCapture: null,
         });
@@ -103,7 +162,7 @@ describe('reportDraft', () => {
 
     test('clearReportDraft removes the stored draft', () => {
         saveReportDraft({
-            formData: { ...baseForm(), address: 'Poblacion' },
+            formData: { ...baseForm(), description: 'Collision near the public market.' },
             selectedLocation: null,
             locationCapture: null,
         });

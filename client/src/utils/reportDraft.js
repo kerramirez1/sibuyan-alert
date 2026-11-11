@@ -58,17 +58,24 @@ const sanitizeLocationCapture = (capture) => {
 };
 
 /**
- * True when the form holds anything worth restoring. A pristine form (defaults
- * + no location + no text) is not a draft — storing it would resurrect an
- * empty form over a fresh one on every visit.
+ * True when the form holds anything worth restoring. The gate is the
+ * report wizard's Step 2 boundary: a draft exists only when the reporter
+ * has entered Step 2+ information — a description, an incident time, the
+ * 'Other' category detail, a non-default category, type, or severity, or
+ * a casualty count.
+ *
+ * Step 1 content — location, address, barangay — never qualifies a draft
+ * on its own. GPS auto-detect sets the location the moment the form
+ * opens, so a location-only gate would draft every visit and greet the
+ * reporter with a restore banner for a form they never started. Step 1
+ * content is still stored and restored as part of a draft that qualified
+ * through Step 2+ information (see buildDraftPayload).
  */
-export const isDraftWorthy = ({ formData, selectedLocation } = {}) => {
-    if (sanitizeLocation(selectedLocation)) return true;
+export const isDraftWorthy = ({ formData } = {}) => {
     if (!isRecord(formData)) return false;
     if (sanitizeText(formData.description, 2000).trim()) return true;
-    if (sanitizeText(formData.address, 500).trim()) return true;
-    if (sanitizeText(formData.barangay, 200).trim()) return true;
     if (sanitizeText(formData.incidentTime, 64).trim()) return true;
+    if (sanitizeText(formData.incidentCategoryDetail, 60).trim()) return true;
     const casualties = sanitizeCasualties(formData.casualties);
     if (casualties.injured !== '' || casualties.fatalities !== '' || casualties.missing !== '') return true;
     if (formData.severity && formData.severity !== 'moderate') return true;
