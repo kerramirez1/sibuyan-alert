@@ -44,8 +44,8 @@ const ME = 'responder-1';
 const MUNI = 'Cajidiocan';
 
 // Minimal Mongo $match evaluator supporting exactly the operators the
-// responder view filters use: $and, $or, $in, $exists, $ne, and direct
-// equality (including null matching a missing field, as Mongo does).
+// responder view filters use: $and, $or, $in, $exists, $ne, $gt, $lte, and
+// direct equality (including null matching a missing field, as Mongo does).
 // Like Mongo's dotted paths: a numeric segment indexes into an array
 // ('responders.0'), while a named segment fans out over array elements
 // ('responders.user' matches when any element's user matches).
@@ -90,6 +90,15 @@ const clauseMatches = (doc, clause) => Object.entries(clause).every(([key, cond]
             if (op === '$in') return Array.isArray(val) && val.some((v) => valueMatches(actual, v));
             if (op === '$exists') return val ? actual !== undefined : actual === undefined;
             if (op === '$ne') return !valueMatches(actual, val);
+            // A null/missing value never satisfies a range comparison in
+            // Mongo (a null casualty count is "unknown", not zero).
+            if (op === '$gt') return typeof actual === 'number' && actual > val;
+            if (op === '$lte') {
+                if (actual === null || actual === undefined) return false;
+                const actualValue = actual instanceof Date ? actual.getTime() : actual;
+                const expectedValue = val instanceof Date ? val.getTime() : val;
+                return actualValue <= expectedValue;
+            }
             throw new Error(`unsupported operator in test matcher: ${op}`);
         });
     }
@@ -121,7 +130,8 @@ const FIXTURES = [
     { _id: 'r10', status: 'resolved', responders: [{ user: ME }], ...inScope() },
     // resolved by someone else: in stats, but not in my history
     { _id: 'r11', status: 'resolved', respondedBy: 'other-9', ...inScope() },
-    // pending: visible in stats, in no responder view tab
+    // pending: in the available (dispatch queue) tab; not respondable
+    // (no casualties, no createdAt), so not in municipalActive
     { _id: 'r12', status: 'pending', ...inScope() },
     // out of municipal scope entirely: must not leak into any count
     {
@@ -203,8 +213,8 @@ describe('getAllReports responder viewCounts', () => {
         const stats = res.json.mock.calls[0][0].data.stats;
 
         expect(stats.viewCounts).toEqual({
-            available: 2, // r1, r2
-            municipalActive: 7, // r1-r7
+            available: 3, // r1, r2, r12 (every pending report queues here)
+            municipalActive: 7, // r1-r7 (r12 is not respondable yet)
             active: 2, // r5, r6
             history: 3, // r8, r9, r10
             // stats.total over the municipal scope (rejected included,

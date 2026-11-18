@@ -92,10 +92,18 @@ describe('ResponderDashboardWorkspace', () => {
         const emergenciesCard = screen.getByText('Active emergencies').closest('a');
         expect(emergenciesCard).toBeInTheDocument();
         expect(emergenciesCard).toHaveTextContent('3');
+        // The count now includes respondable unverified incidents, and
+        // the subtext says so.
+        expect(emergenciesCard).toHaveTextContent(
+            'Verified, transferred, responding & open unverified in Cajidiocan',
+        );
 
         const deploymentsCard = screen.getByText('My active responses').closest('a');
         expect(deploymentsCard).toBeInTheDocument();
         expect(deploymentsCard).toHaveTextContent('1');
+        // Self-dispatched responses count here too, so the subtext no
+        // longer says "assigned".
+        expect(deploymentsCard).toHaveTextContent('Incidents your unit is responding to');
 
         const resolvedCard = screen.getByText('Resolved today').closest('a');
         expect(resolvedCard).toBeInTheDocument();

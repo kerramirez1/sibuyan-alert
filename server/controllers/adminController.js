@@ -450,6 +450,27 @@ export const getAllReports = async (req, res) => {
         const scopeClause = buildMunicipalReportScope(scopedMunicipality);
         query.$and = [scopeClause];
 
+        // "Respondable pending" — the exact condition respondToReport's
+        // atomic filter enforces for self-dispatch: any casualty count
+        // above zero (a null count is unknown and never satisfies this),
+        // or the report has been pending at least the pre-verification
+        // window. Shared by the municipalActive list filter and its
+        // viewCounts facet below so the two can never disagree; the
+        // window comes from the same dispatchPolicy resolution the
+        // respond path uses, never a hard-coded duration.
+        const selfDispatchCutoff = new Date(
+            Date.now() - resolveDispatchPolicy().preVerificationWindowMs,
+        );
+        const respondablePendingClause = {
+            status: 'pending',
+            $or: [
+                { 'casualties.injured': { $gt: 0 } },
+                { 'casualties.fatalities': { $gt: 0 } },
+                { 'casualties.missing': { $gt: 0 } },
+                { createdAt: { $lte: selfDispatchCutoff } },
+            ],
+        };
+
         if (reportId) {
             if (!mongoose.isValidObjectId(reportId)) {
                 return res.status(400).json({
@@ -475,11 +496,21 @@ export const getAllReports = async (req, res) => {
                             respondedBy: null,
                             'responders.0': { $exists: false },
                         },
+                        // The dispatch queue is the monitoring surface:
+                        // every pending report shows here, actionable or
+                        // still inside its window (rows render the
+                        // countdown for the latter).
+                        { status: 'pending' },
                     ],
                 });
             } else if (!reportId && responderView === 'municipalActive') {
                 query.municipalityName = scopedMunicipality;
-                query.status = { $in: ['verified', 'transferred', 'responding'] };
+                query.$and.push({
+                    $or: [
+                        { status: { $in: ['verified', 'transferred', 'responding'] } },
+                        respondablePendingClause,
+                    ],
+                });
             } else if (!reportId && responderView === 'active') {
                 query.status = 'responding';
                 query.$and.push({
@@ -606,6 +637,7 @@ export const getAllReports = async (req, res) => {
                                                     respondedBy: null,
                                                     'responders.0': { $exists: false },
                                                 },
+                                                { status: 'pending' },
                                             ],
                                         },
                                     ],
@@ -619,7 +651,12 @@ export const getAllReports = async (req, res) => {
                                     $and: [
                                         scopeClause,
                                         { municipalityName: scopedMunicipality },
-                                        { status: { $in: ['verified', 'transferred', 'responding'] } },
+                                        {
+                                            $or: [
+                                                { status: { $in: ['verified', 'transferred', 'responding'] } },
+                                                respondablePendingClause,
+                                            ],
+                                        },
                                     ],
                                 },
                             },

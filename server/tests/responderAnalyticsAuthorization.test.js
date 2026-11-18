@@ -96,12 +96,27 @@ describe('responder analytics municipality authorization', () => {
         };
         // Active incidents pin to the currently-handled municipality so the
         // badge matches the dispatch queue (no transferred-out inflation).
+        // Respondable pending reports join the active set under the same
+        // casualty-or-window condition respondToReport enforces; with the
+        // clock pinned at 00:30 and the default 3-minute window, the
+        // cutoff is 00:27.
         expect(Report.countDocuments.mock.calls[0][0]).toEqual(expect.objectContaining({
             $and: [
                 sharedScope,
                 { municipalityName: 'Magdiwang' },
             ],
-            status: { $in: ['verified', 'transferred', 'responding'] },
+            $or: [
+                { status: { $in: ['verified', 'transferred', 'responding'] } },
+                {
+                    status: 'pending',
+                    $or: [
+                        { 'casualties.injured': { $gt: 0 } },
+                        { 'casualties.fatalities': { $gt: 0 } },
+                        { 'casualties.missing': { $gt: 0 } },
+                        { createdAt: { $lte: new Date('2026-08-04T00:27:00.000Z') } },
+                    ],
+                },
+            ],
         }));
         expect(Report.countDocuments.mock.calls[1][0]).toEqual(expect.objectContaining({
             $and: [
@@ -115,6 +130,9 @@ describe('responder analytics municipality authorization', () => {
                             respondedBy: null,
                             'responders.0': { $exists: false },
                         },
+                        // Queue parity: every pending report is listed in
+                        // the dispatch queue, so the badge counts it too.
+                        { status: 'pending' },
                     ],
                 },
             ],

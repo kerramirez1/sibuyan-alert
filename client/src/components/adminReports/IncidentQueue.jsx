@@ -777,8 +777,8 @@ const IncidentQueue = ({
 
     if (!Array.isArray(reports) || reports.filter(Boolean).length === 0) {
         const responderEmptyCopy = {
-            available: ['No incidents are waiting for dispatch', 'New verified or transferred incidents will appear here.'],
-            municipalActive: ['No active municipal incidents', 'Verified, transferred, and responding incidents will appear here.'],
+            available: ['No incidents are waiting for dispatch', 'New verified, transferred, or unverified incidents will appear here.'],
+            municipalActive: ['No active municipal incidents', 'Verified, transferred, responding, and open unverified incidents will appear here.'],
             active: ['You have no active responses', 'Start a response from the Available tab when an eligible incident needs your unit.'],
             history: ['No response history yet', 'Incidents resolved by your response unit will appear here.'],
         };

@@ -58,6 +58,19 @@ describe('IncidentQueueControls responder tab row', () => {
         expect(screen.getByRole('button', { name: 'Available, 0 incidents' })).toHaveAttribute('aria-current', 'page');
     });
 
+    test('view descriptions name unverified incidents after self-dispatch', () => {
+        const available = renderResponderControls({ responderView: 'available' });
+        expect(screen.getByText(
+            'Verified, transferred, and unverified incidents available for response.',
+        )).toBeInTheDocument();
+        available.unmount();
+
+        renderResponderControls({ responderView: 'municipalActive' });
+        expect(screen.getByText(
+            'All verified, transferred, and responding incidents in your municipality, plus unverified incidents that are open for response.',
+        )).toBeInTheDocument();
+    });
+
     test('renders view-count pills from stats.viewCounts, zero included', () => {
         renderResponderControls({
             responderView: 'available',

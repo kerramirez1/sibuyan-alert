@@ -153,6 +153,9 @@ describe('municipality-scoped incident notification deep links', () => {
                             respondedBy: null,
                             'responders.0': { $exists: false },
                         },
+                        // The dispatch queue is the monitoring surface:
+                        // every pending report is listed here.
+                        { status: 'pending' },
                     ],
                 },
             ]),
@@ -162,7 +165,7 @@ describe('municipality-scoped incident notification deep links', () => {
         expect(queryChain.skip).toHaveBeenCalledWith(100);
     });
 
-    test('filters the municipal active responder view to active lifecycle statuses', async () => {
+    test('filters the municipal active responder view to active statuses plus respondable pending reports', async () => {
         const queryChain = {
             populate: vi.fn(),
             sort: vi.fn(),
@@ -193,19 +196,40 @@ describe('municipality-scoped incident notification deep links', () => {
 
         expect(Report.find).toHaveBeenCalledWith(expect.objectContaining({
             municipalityName: 'Magdiwang',
-            status: { $in: ['verified', 'transferred', 'responding'] },
-            $and: [{
-                $and: [
-                    {
-                        $or: [
-                            { municipalityName: 'Magdiwang' },
-                            { originalMunicipalityName: 'Magdiwang' },
-                            { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
-                        ],
-                    },
-                    { hiddenFromMunicipalities: { $ne: 'Magdiwang' } },
-                ],
-            }],
+            $and: [
+                {
+                    $and: [
+                        {
+                            $or: [
+                                { municipalityName: 'Magdiwang' },
+                                { originalMunicipalityName: 'Magdiwang' },
+                                { 'transferHistory.fromMunicipalityName': 'Magdiwang' },
+                            ],
+                        },
+                        { hiddenFromMunicipalities: { $ne: 'Magdiwang' } },
+                    ],
+                },
+                {
+                    $or: [
+                        { status: { $in: ['verified', 'transferred', 'responding'] } },
+                        {
+                            // Respondable pending: the same casualty-or-
+                            // window condition respondToReport enforces.
+                            // The cutoff is computed from the dispatch
+                            // policy at request time, so only its shape is
+                            // pinned here; behavior is fixture-tested in
+                            // responderWaitingWork.test.js.
+                            status: 'pending',
+                            $or: [
+                                { 'casualties.injured': { $gt: 0 } },
+                                { 'casualties.fatalities': { $gt: 0 } },
+                                { 'casualties.missing': { $gt: 0 } },
+                                { createdAt: { $lte: expect.any(Date) } },
+                            ],
+                        },
+                    ],
+                },
+            ],
         }));
     });
 });

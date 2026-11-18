@@ -149,7 +149,7 @@ const ResponderDashboardWorkspace = ({
         {
             title: 'Active emergencies',
             value: activeEmergencies,
-            subtext: `Verified, transferred & responding in ${municipalityName}`,
+            subtext: `Verified, transferred, responding & open unverified in ${municipalityName}`,
             link: '/admin/reports?view=active-incidents',
             actionLabel: 'View municipal incidents',
             priority: 'primary',
@@ -157,7 +157,7 @@ const ResponderDashboardWorkspace = ({
         {
             title: 'My active responses',
             value: myDeployments,
-            subtext: 'Missions assigned to your unit',
+            subtext: 'Incidents your unit is responding to',
             link: '/admin/reports?view=active-responses',
             actionLabel: 'Open my responses',
             priority: 'secondary',

@@ -25,11 +25,11 @@ const CATEGORY_FILTER_OPTIONS = [
 const RESPONDER_VIEW_COPY = {
     available: {
         title: 'Available incidents',
-        description: 'Verified and transferred incidents available for response.',
+        description: 'Verified, transferred, and unverified incidents available for response.',
     },
     municipalActive: {
         title: 'Municipal active incidents',
-        description: 'All verified, transferred, and responding incidents in your municipality.',
+        description: 'All verified, transferred, and responding incidents in your municipality, plus unverified incidents that are open for response.',
     },
     active: {
         title: 'My active responses',

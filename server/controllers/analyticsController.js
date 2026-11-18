@@ -9,6 +9,7 @@ import {
     PUBLIC_REPORT_STATUSES,
 } from '../utils/publicAnalytics.js';
 import { buildMunicipalReportScope, FALSE_INFORMATION_EXCLUSION } from '../utils/analyticsScope.js';
+import { resolveDispatchPolicy } from '../config/dispatchPolicy.js';
 
 const RESPONDER_ACTIVE_STATUSES = ['verified', 'transferred', 'responding'];
 const RESPONDER_PRIORITY_ZONE_SEVERITIES = ['critical', 'high'];
@@ -194,6 +195,25 @@ export const getResponderAnalytics = async (req, res) => {
                 { municipalityName: responder.assignedMunicipality },
             ],
         };
+        // "Respondable pending" — the exact condition respondToReport's
+        // atomic filter enforces for self-dispatch, and the same clause
+        // the queue's municipalActive view uses: any casualty count above
+        // zero (null is unknown and never satisfies this), or pending at
+        // least the pre-verification window. The window comes from the
+        // same dispatchPolicy resolution the respond path uses.
+        const respondablePendingClause = {
+            status: 'pending',
+            $or: [
+                { 'casualties.injured': { $gt: 0 } },
+                { 'casualties.fatalities': { $gt: 0 } },
+                { 'casualties.missing': { $gt: 0 } },
+                {
+                    createdAt: {
+                        $lte: new Date(Date.now() - resolveDispatchPolicy().preVerificationWindowMs),
+                    },
+                },
+            ],
+        };
         const { startAt, endAt } = getPhilippineCalendarDayRange();
 
         const [
@@ -206,7 +226,13 @@ export const getResponderAnalytics = async (req, res) => {
             reportsByBarangay,
             criticalHighRiskZones,
         ] = await Promise.all([
-            Report.countDocuments({ ...currentMunicipalityScope, status: { $in: RESPONDER_ACTIVE_STATUSES } }),
+            Report.countDocuments({
+                ...currentMunicipalityScope,
+                $or: [
+                    { status: { $in: RESPONDER_ACTIVE_STATUSES } },
+                    respondablePendingClause,
+                ],
+            }),
             // Badge must match the dispatch-queue list definition exactly:
             // current municipality only. Without the pin, transferred-OUT
             // reports (visible via transferHistory.from) inflate the badge
@@ -223,6 +249,9 @@ export const getResponderAnalytics = async (req, res) => {
                                 respondedBy: null,
                                 'responders.0': { $exists: false },
                             },
+                            // Queue parity: the dispatch queue lists every
+                            // pending report, so the badge counts them too.
+                            { status: 'pending' },
                         ],
                     },
                 ],
