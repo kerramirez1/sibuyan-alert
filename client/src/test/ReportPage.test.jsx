@@ -1331,5 +1331,116 @@ describe('ReportPage workflow', () => {
             fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
             expect(screen.getByText('Please select a location on the map or enter an address')).toBeInTheDocument();
         });
+
+        // Coarse-pin offer: a >100m fix cannot finish detection, but the
+        // reporter may vouch for its pin as a map pin instead of waiting
+        // out the watchdog. (Letters map to the brief's verification list;
+        // (a)–(e) above are the earlier fast-acquisition tests.)
+        test('(f) brief (a): a first 250m fix shows the "Use this pin" offer while detection continues', async () => {
+            renderPage();
+
+            deliverFix(250);
+
+            expect(await screen.findByRole('button', { name: /use this pin/i })).toBeInTheDocument();
+            expect(screen.getByText(/Location found \(±250m\)/)).toBeInTheDocument();
+            // Detection is still running: no teardown, no confirm row, and
+            // the >1000m warning does not apply at 250m.
+            expect(geolocation.clearWatch).not.toHaveBeenCalled();
+            expect(screen.queryByRole('button', { name: /confirm location/i })).not.toBeInTheDocument();
+            expect(screen.queryByText(/very rough/i)).not.toBeInTheDocument();
+        });
+
+        test('(g) brief (b): clicking "Use this pin" stops detection and selects the pin as a map_pin capture with null accuracy', async () => {
+            renderPage();
+
+            deliverFix(250);
+            fireEvent.click(await screen.findByRole('button', { name: /use this pin/i }));
+
+            // Detection stopped, so no later fix can override the pin.
+            expect(geolocation.clearWatch).toHaveBeenCalledWith(7);
+            // Label resolution fired for the pinned coordinates.
+            expect(geocodeLocationMock).toHaveBeenCalledWith(
+                { lat: 12.39261, lng: 122.67985 },
+                expect.anything(),
+            );
+            // Status is 'selected', the offer is gone, and no GPS confirm
+            // row appears.
+            expect(await screen.findByText('Location selected')).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /use this pin/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /confirm location/i })).not.toBeInTheDocument();
+
+            // The capture itself is a map_pin with null accuracy — proven
+            // through the autosaved draft once the form holds Step 2
+            // content (an incident time makes the draft worthy).
+            fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+            await screen.findByText('Step 2 of 4');
+            fireEvent.change(screen.getByLabelText(/incident date and time/i), { target: { value: '2025-02-01T08:00' } });
+            await waitFor(() => {
+                const raw = localStorage.getItem('sibuyan-report-draft-v1');
+                expect(raw).toBeTruthy();
+                expect(JSON.parse(raw).locationCapture).toMatchObject({
+                    source: 'map_pin',
+                    accuracyMeters: null,
+                });
+            }, { timeout: 3000 });
+        });
+
+        test('(h) brief (c): a 60m fix arriving while the offer is shown finishes into confirming with a GPS capture, offer gone', async () => {
+            renderPage();
+
+            deliverFix(250);
+            expect(await screen.findByRole('button', { name: /use this pin/i })).toBeInTheDocument();
+
+            deliverFix(60);
+
+            expect(await screen.findByRole('button', { name: /confirm location/i })).toBeInTheDocument();
+            expect(screen.getByText(/Estimated accuracy: 60 meters/)).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /use this pin/i })).not.toBeInTheDocument();
+            expect(toastMock.success).toHaveBeenCalledWith('GPS position ready to confirm (60m).', expect.anything());
+        });
+
+        test('(i) brief (d): ignoring the offer preserves the watchdog outcome for a coarse best fix', async () => {
+            vi.useFakeTimers();
+            try {
+                renderPage();
+                await act(async () => {});
+
+                // A different coarse value than test (d)'s 150m: the toast
+                // layer dedupes identical messages, and (d) already fired
+                // the 150m verdict in this file.
+                deliverFix(180);
+                // The offer stands during the wait...
+                expect(screen.getByRole('button', { name: /use this pin/i })).toBeInTheDocument();
+
+                // ...the offer does not shorten the budget...
+                act(() => { vi.advanceTimersByTime(12000); });
+                expect(toastMock.error).not.toHaveBeenCalledWith(
+                    expect.stringMatching(/too low/),
+                    expect.anything(),
+                );
+
+                // ...and at the full 20s the watchdog delivers the same
+                // drag-the-pin fallback as before, retiring the offer.
+                act(() => { vi.advanceTimersByTime(8000); });
+                expect(toastMock.error).toHaveBeenCalledWith(
+                    expect.stringMatching(/GPS accuracy is too low \(180m\)/),
+                    expect.anything(),
+                );
+                expect(screen.queryByRole('button', { name: /use this pin/i })).not.toBeInTheDocument();
+                expect(screen.queryByRole('button', { name: /confirm location/i })).not.toBeInTheDocument();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        test('(j) brief (e): the offer for a fix coarser than 1000m warns the pin may be far off', async () => {
+            renderPage();
+
+            deliverFix(2500);
+
+            expect(await screen.findByRole('button', { name: /use this pin/i })).toBeInTheDocument();
+            expect(screen.getByText(/Location found \(±2500m\)/)).toBeInTheDocument();
+            expect(screen.getByText(/pin may be far from the actual location/i)).toBeInTheDocument();
+        });
     });
 });

@@ -253,6 +253,9 @@ const ReportPage = () => {
     const [geoLoading, setGeoLoading] = useState(false);
     const [locationStatus, setLocationStatus] = useState(() => (initialDraft?.selectedLocation ? 'selected' : 'idle'));
     const [gpsAccuracy, setGpsAccuracy] = useState(null);
+    // The best coarse (>100m) fix of the active detection, offered to the
+    // reporter as a pin they can vouch for. Null whenever no offer stands.
+    const [currentPinOffer, setCurrentPinOffer] = useState(null);
     const [locationCapture, setLocationCapture] = useState(() => initialDraft?.locationCapture ?? null);
     const [images, setImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
@@ -504,6 +507,10 @@ const ReportPage = () => {
     const stopLocationDetection = useCallback(({ dismissToast = false } = {}) => {
         locationRequestRef.current += 1;
         locationDetectionActiveRef.current = false;
+        // Every stop path retires the coarse-pin offer with the detection
+        // that produced it: a new detection, a map tap, a retry, or the
+        // reporter taking the offer itself.
+        setCurrentPinOffer(null);
 
         const geolocation = typeof navigator !== 'undefined' ? navigator.geolocation : null;
         if (watchIdRef.current !== null && geolocation) {
@@ -534,6 +541,16 @@ const ReportPage = () => {
         setLocationCapture(buildLocationCapture(source));
         await resolveLocationLabels(location);
     }, [stopLocationDetection, resolveLocationLabels]);
+
+    // "Use this pin": the reporter vouches for the current coarse GPS pin,
+    // so it goes through the exact map-tap path with a 'map_pin' capture —
+    // the server's 100m rule binds GPS captures only, and a human-confirmed
+    // pin carries no accuracy claim. handleLocationSelect stops detection
+    // (which also clears the offer), so no later fix can override the pin.
+    const useCurrentPin = useCallback(() => {
+        if (!currentPinOffer) return;
+        void handleLocationSelect(currentPinOffer.location, 'map_pin');
+    }, [currentPinOffer, handleLocationSelect]);
 
     const detectLocation = useCallback(async () => {
         const geolocation = typeof navigator !== 'undefined' ? navigator.geolocation : null;
@@ -652,6 +669,15 @@ const ReportPage = () => {
                 });
                 setLocationCapture(buildLocationCapture('gps', accuracy));
                 setErrors(prev => ({ ...prev, location: '' }));
+                // A coarse fix cannot finish detection, but the pin is
+                // already on the map: offer it. The reporter can vouch for
+                // it as a map pin now instead of waiting out the watchdog
+                // for a precise fix that may never arrive on a cold start.
+                // Refinement continues in the background either way, and a
+                // usable fix below still wins the race.
+                if (accuracy !== null && accuracy > GPS_MAX_ACCURACY_METERS) {
+                    setCurrentPinOffer({ location, accuracy });
+                }
                 // Accept the first USABLE fix (<= 100m — the same threshold
                 // the server enforces) instead of waiting for a precise one:
                 // a 60m fix the reporter can confirm beats twelve more
@@ -677,6 +703,7 @@ const ReportPage = () => {
                     }
                     locationDetectionActiveRef.current = false;
                     setGeoLoading(false);
+                    setCurrentPinOffer(null);
                     setLocationStatus('confirming');
                     void resolveLocationLabels(location, 'GPS located in');
                 } else {
@@ -1448,6 +1475,8 @@ const ReportPage = () => {
                                 retryLocation={retryLocation}
                                 confirmLocation={confirmLocation}
                                 handleLocationSelect={handleLocationSelect}
+                                pinOffer={locationStatus === 'detecting' ? currentPinOffer : null}
+                                onUseCurrentPin={useCurrentPin}
                                 formData={formData}
                                 handleChange={handleChange}
                                 locationError={errors.location}

@@ -48,6 +48,11 @@ const ReportLocationPanel = ({
     retryLocation,
     confirmLocation,
     handleLocationSelect,
+    // Coarse-fix offer: { location, accuracy } while detection refines a
+    // >100m fix, else null. Taking it converts the GPS pin into a
+    // reporter-vouched map pin; ignoring it changes nothing.
+    pinOffer = null,
+    onUseCurrentPin,
     formData,
     handleChange,
     locationError,
@@ -192,6 +197,29 @@ const ReportLocationPanel = ({
                         </>
                     )}
                 </button>
+            )}
+
+            {/* Coarse-fix offer: non-blocking — detection keeps refining
+                behind it, and a usable fix replaces this with the confirm
+                row. Achromatic by design: hue stays reserved for severity. */}
+            {pinOffer && (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-white/10 dark:bg-white/5">
+                    <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200">
+                        Location found (±{Math.round(pinOffer.accuracy)}m). Check the pin on the map — drag it if it is off — or keep waiting for a more precise GPS fix.
+                        {pinOffer.accuracy > 1000 && (
+                            <span className="mt-1 block font-medium text-gray-900 dark:text-white">
+                                This fix is very rough — the pin may be far from the actual location.
+                            </span>
+                        )}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={onUseCurrentPin}
+                        className="btn-outline mt-2 min-h-11 whitespace-nowrap sm:min-h-9"
+                    >
+                        Use this pin
+                    </button>
+                </div>
             )}
 
             {/* GPS confirmation row */}
